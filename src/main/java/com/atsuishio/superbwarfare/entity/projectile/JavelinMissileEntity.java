@@ -233,7 +233,6 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
                 .damage(explosionDamage)
                 .radius(explosionRadius)
                 .position(vec3)
-                .causeVanillaExplosion()
                 .withParticleType(ParticleTool.ParticleType.HUGE)
                 .explode();
 

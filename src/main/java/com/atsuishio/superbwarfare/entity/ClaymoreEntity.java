@@ -231,7 +231,6 @@ public class ClaymoreEntity extends Entity implements GeoEntity, OwnableEntity, 
                     .damage(ExplosionConfig.CLAYMORE_EXPLOSION_DAMAGE.get().floatValue() / 5)
                     .radius(ExplosionConfig.CLAYMORE_EXPLOSION_RADIUS.get())
                     .position(this.position())
-                    .causeVanillaExplosion()
                     .withParticleType(ParticleTool.ParticleType.MEDIUM)
                     .explode();
 
@@ -244,7 +243,6 @@ public class ClaymoreEntity extends Entity implements GeoEntity, OwnableEntity, 
                 .attacker(this.getOwner())
                 .damage(ExplosionConfig.CLAYMORE_EXPLOSION_DAMAGE.get())
                 .radius(ExplosionConfig.CLAYMORE_EXPLOSION_RADIUS.get())
-                .causeVanillaExplosion()
                 .withParticleType(ParticleTool.ParticleType.MEDIUM)
                 .explode();
     }
