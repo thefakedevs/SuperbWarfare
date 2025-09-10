@@ -26,6 +26,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -50,6 +51,7 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
     private float explosionDamage = 200f;
     private float explosionRadius = 10;
     private float gravity = 0.03f;
+    private boolean fire = true;
 
     public RpgRocketEntity(EntityType<? extends RpgRocketEntity> type, Level world) {
         super(type, world);
@@ -57,7 +59,7 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
         this.durability = 20;
     }
 
-    public RpgRocketEntity(EntityType<? extends ThrowableItemProjectile> pEntityType, double pX, double pY, double pZ, Level pLevel, float damage, float explosionDamage, float explosionRadius, float gravity) {
+    public RpgRocketEntity(EntityType<? extends ThrowableItemProjectile> pEntityType, double pX, double pY, double pZ, Level pLevel, float damage, float explosionDamage, float explosionRadius, float gravity, boolean fire) {
         super(pEntityType, pX, pY, pZ, pLevel);
         this.noCulling = true;
         this.durability = 20;
@@ -65,6 +67,7 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
         this.explosionDamage = explosionDamage;
         this.explosionRadius = explosionRadius;
         this.gravity = gravity;
+        this.fire = fire;
     }
 
     public RpgRocketEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
@@ -92,6 +95,7 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
         pCompound.putFloat("Damage", this.damage);
         pCompound.putFloat("ExplosionDamage", this.explosionDamage);
         pCompound.putFloat("Radius", this.explosionRadius);
+        pCompound.putBoolean("Fire", this.fire);
     }
 
     @Override
@@ -105,6 +109,9 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
         }
         if (pCompound.contains("Radius")) {
             this.explosionRadius = pCompound.getFloat("Radius");
+        }
+        if (pCompound.contains("Fire")) {
+            this.fire = pCompound.getBoolean("Fire");
         }
     }
 
@@ -177,7 +184,7 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
 
     @Override
     public void causeExplode(Vec3 vec3) {
-        new CustomExplosion.Builder(this)
+        CustomExplosion explosion = new CustomExplosion.Builder(this)
                 .attacker(this.getOwner())
                 .damage(explosionDamage)
                 .radius(explosionRadius)
@@ -185,6 +192,25 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
                 .causeVanillaExplosion()
                 .withParticleType(explosionRadius >= 10 ? ParticleTool.ParticleType.HUGE : ParticleTool.ParticleType.MEDIUM)
                 .explode();
+
+        // Set fire to blocks within the explosion radius with 5% chance per block if fire flag is true
+        if (this.fire && this.level() instanceof ServerLevel serverLevel) {
+            int fireRadius = (int) Math.floor(this.explosionRadius);
+            BlockPos center = new BlockPos((int) vec3.x, (int) vec3.y, (int) vec3.z);
+            for (int x = -fireRadius; x <= fireRadius; x++) {
+                for (int y = -fireRadius; y <= fireRadius; y++) {
+                    for (int z = -fireRadius; z <= fireRadius; z++) {
+                        BlockPos pos = center.offset(x, y, z);
+                        double distance = Math.sqrt(x * x + y * y + z * z);
+                        if (distance <= fireRadius && serverLevel.getBlockState(pos).isAir() && serverLevel.getBlockState(pos.below()).isSolidRender(serverLevel, pos.below())) {
+                            if (serverLevel.random.nextFloat() < 0.8f) { // 8% chance
+                                serverLevel.setBlock(pos, Blocks.FIRE.defaultBlockState(), 11);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Override

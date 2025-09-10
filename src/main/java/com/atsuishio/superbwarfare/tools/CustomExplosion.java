@@ -284,8 +284,8 @@ public class CustomExplosion extends Explosion {
             return this;
         }
 
-        public void explode() {
-            if (level.isClientSide) return;
+        public CustomExplosion explode() {
+            if (level.isClientSide) return null;
 
             var source = this.damageSource != null ? this.damageSource : ModDamageTypes.causeCustomExplosionDamage(level.registryAccess(), sourceEntity, attackerEntity);
 
@@ -299,6 +299,7 @@ public class CustomExplosion extends Explosion {
             customExplosion.finalizeExplosion(false);
 
             ParticleTool.spawnExplosionParticles(particleType, directSource.level(), particlePosition != null ? particlePosition : position);
+            return customExplosion;
         }
     }
 }

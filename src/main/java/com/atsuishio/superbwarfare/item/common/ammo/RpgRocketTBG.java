@@ -111,8 +111,7 @@ public class RpgRocketTBG extends Item implements GeoItem, DispenserLaunchable {
             @Override
             @ParametersAreNonnullByDefault
             protected @NotNull Projectile getProjectile(Level pLevel, Position pPosition, ItemStack pStack) {
-                return new RpgRocketEntity(ModEntities.RPG_ROCKET.get(), pPosition.x(), pPosition.y(), pPosition.z(), pLevel, 270, 130, 10, 0.03f);
-            }
+                return new RpgRocketEntity(ModEntities.RPG_ROCKET.get(), pPosition.x(), pPosition.y(), pPosition.z(), pLevel, 270f, 130f, 10f, 0.03f, true);            }
 
             @Override
             protected void playSound(BlockSource pSource) {
