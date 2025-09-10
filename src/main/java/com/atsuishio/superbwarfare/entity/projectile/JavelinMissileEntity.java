@@ -29,6 +29,7 @@ import net.minecraft.world.entity.animal.Pig;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -62,6 +63,7 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
     private float damage = 500.0f;
     private float explosionDamage = 140f;
     private float explosionRadius = 6f;
+    private boolean fire = true;
     private boolean distracted = false;
     private int guideType = 0;
 
@@ -73,11 +75,11 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
     public JavelinMissileEntity(LivingEntity entity, Level level, float damage, float explosionDamage, float explosionRadius, int guideType, Vec3 targetPos) {
         super(ModEntities.JAVELIN_MISSILE.get(), entity, level);
         this.noCulling = true;
-
         this.damage = damage;
         this.explosionDamage = explosionDamage;
         this.explosionRadius = explosionRadius;
         this.guideType = guideType;
+        this.fire = fire;
         this.entityData.set(TARGET_X, (float) targetPos.x);
         this.entityData.set(TARGET_Y, (float) targetPos.y);
         this.entityData.set(TARGET_Z, (float) targetPos.z);
@@ -112,7 +114,6 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
     public boolean hurt(@NotNull DamageSource source, float amount) {
         amount = DAMAGE_MODIFIER.compute(source, amount);
         this.entityData.set(HEALTH, this.entityData.get(HEALTH) - amount);
-
         return super.hurt(source, amount);
     }
 
@@ -147,6 +148,9 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
         if (compound.contains("Radius")) {
             this.explosionRadius = compound.getFloat("Radius");
         }
+        if (compound.contains("Fire")) {
+            this.fire = compound.getBoolean("Fire");
+        }
     }
 
     @Override
@@ -156,6 +160,7 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
         compound.putFloat("Damage", this.damage);
         compound.putFloat("ExplosionDamage", this.explosionDamage);
         compound.putFloat("Radius", this.explosionRadius);
+        compound.putBoolean("Fire", this.fire);
     }
 
     @Override
@@ -179,7 +184,6 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
             if (this.getOwner() instanceof LivingEntity living) {
                 if (!living.level().isClientSide() && living instanceof ServerPlayer player) {
                     living.level().playSound(null, living.blockPosition(), ModSounds.INDICATION.get(), SoundSource.VOICE, 1, 1);
-
                     Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
                 }
             }
@@ -222,7 +226,7 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
 
     @Override
     public void causeExplode(Vec3 vec3) {
-        new CustomExplosion.Builder(this)
+        CustomExplosion explosion = new CustomExplosion.Builder(this)
                 .attacker(this.getOwner())
                 .damage(explosionDamage)
                 .radius(explosionRadius)
@@ -230,6 +234,25 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
                 .causeVanillaExplosion()
                 .withParticleType(ParticleTool.ParticleType.HUGE)
                 .explode();
+
+        // Set fire to blocks within the explosion radius with 8% chance per block if fire flag is true
+        if (this.fire && this.level() instanceof ServerLevel serverLevel) {
+            int fireRadius = (int) Math.floor(this.explosionRadius);
+            BlockPos center = new BlockPos((int) vec3.x, (int) vec3.y, (int) vec3.z);
+            for (int x = -fireRadius; x <= fireRadius; x++) {
+                for (int y = -fireRadius; y <= fireRadius; y++) {
+                    for (int z = -fireRadius; z <= fireRadius; z++) {
+                        BlockPos pos = center.offset(x, y, z);
+                        double distance = Math.sqrt(x * x + y * y + z * z);
+                        if (distance <= fireRadius && serverLevel.getBlockState(pos).isAir() && serverLevel.getBlockState(pos.below()).isSolidRender(serverLevel, pos.below())) {
+                            if (serverLevel.random.nextFloat() < 0.08f) { // 8% chance
+                                serverLevel.setBlock(pos, Blocks.FIRE.defaultBlockState(), 11);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Override
@@ -325,7 +348,6 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
                     }
                 }
             }
-
         }
 
         if (this.tickCount == 4) {

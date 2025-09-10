@@ -204,6 +204,7 @@ public class JavelinItem extends GunItem {
                     data.get(GunProp.EXPLOSION_DAMAGE).floatValue(),
                     data.get(GunProp.EXPLOSION_RADIUS).floatValue(),
                     tag.getInt("GuideType"),
+
                     new Vec3(tag.getDouble("TargetPosX"), tag.getDouble("TargetPosY"), tag.getDouble("TargetPosZ")));
 
             for (Perk.Type type : Perk.Type.values()) {

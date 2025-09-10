@@ -193,7 +193,7 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
                 .withParticleType(explosionRadius >= 10 ? ParticleTool.ParticleType.HUGE : ParticleTool.ParticleType.MEDIUM)
                 .explode();
 
-        // Set fire to blocks within the explosion radius with 5% chance per block if fire flag is true
+        // Set fire to blocks within the explosion radius with 4% chance per block if fire flag is true
         if (this.fire && this.level() instanceof ServerLevel serverLevel) {
             int fireRadius = (int) Math.floor(this.explosionRadius);
             BlockPos center = new BlockPos((int) vec3.x, (int) vec3.y, (int) vec3.z);
@@ -203,7 +203,7 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
                         BlockPos pos = center.offset(x, y, z);
                         double distance = Math.sqrt(x * x + y * y + z * z);
                         if (distance <= fireRadius && serverLevel.getBlockState(pos).isAir() && serverLevel.getBlockState(pos.below()).isSolidRender(serverLevel, pos.below())) {
-                            if (serverLevel.random.nextFloat() < 0.8f) { // 8% chance
+                            if (serverLevel.random.nextFloat() < 0.04f) { // 4% chance
                                 serverLevel.setBlock(pos, Blocks.FIRE.defaultBlockState(), 11);
                             }
                         }
