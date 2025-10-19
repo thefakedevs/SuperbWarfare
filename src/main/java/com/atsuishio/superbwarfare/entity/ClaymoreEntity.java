@@ -170,10 +170,6 @@ public class ClaymoreEntity extends Entity implements GeoEntity, OwnableEntity, 
         var y = this.getY();
         var z = this.getZ();
 
-        if (this.tickCount >= 12000) {
-            if (!this.level().isClientSide()) this.discard();
-        }
-
         if (this.tickCount >= 40) {
             final Vec3 center = new Vec3(x + 1.5 * this.getLookAngle().x, y + 1.5 * this.getLookAngle().y, z + 1.5 * this.getLookAngle().z);
             for (var target : level.getEntitiesOfClass(Entity.class, new AABB(center, center).inflate(2.5 / 2d), e -> true)) {
