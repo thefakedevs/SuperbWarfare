@@ -221,14 +221,12 @@ public class MortarEntity extends VehicleEntity implements GeoEntity, RemoteCont
             return InteractionResult.SUCCESS;
         }
 
-        if (mainHandItem.getItem() instanceof MortarShell && this.entityData.get(FIRE_TIME) == 0 && this.items.get(0).isEmpty()) {
+        if (mainHandItem.getItem() instanceof MortarShell && !player.isShiftKeyDown() && this.entityData.get(FIRE_TIME) == 0 && this.items.get(0).isEmpty()) {
             this.items.set(0, mainHandItem.copyWithCount(1));
             if (!player.isCreative()) {
                 mainHandItem.shrink(1);
             }
-            if (!player.isShiftKeyDown()) {
-                fire(player);
-            }
+            fire(player);
         }
 
         if (player.getMainHandItem().getItem() == ModItems.FIRING_PARAMETERS.get()) {
