@@ -1,32 +1,33 @@
-# SuperbWarfare / 卓越前线
+# SuperbWarfare
 
-**[中文](./README.md)** | [English](./README-en.md)
+[中文](README-cn.md) | **[English](./README.md)**
 
-## 介绍
+## Introduction
 
-“卓越”的武装主题 Minecraft Mod。
+A "Superb" military-themed Minecraft Mod.
 
-## 安装教程
+## Installation Guide
 
-1.  确保使用的Minecraft版本为 1.20.1；
-2.  确保你为Minecraft安装了 47.2.0 及以上版本的 Forge；
-3.  确保安装了 5.4.2-1.20.1 版本及以上的 Curios Api 模组；
-4.  确保安装了 4.4.6-1.20.1 版本及以上的 Geckolib 模组；(0.8.0前要求4.4.4)
-5.  将模组jar文件放进mods文件夹。
+1. Ensure using Minecraft version 1.20.1
+2. Ensure Forge 47.2.0 or above is installed
+3. Ensure Curios Api mod 5.4.2-1.20.1 or above is installed
+4. Ensure Geckolib mod 4.4.6-1.20.1 or above is installed (version before 0.8.0 requires Geckolib 4.4.4)
+5. Place the mod jar file into mods folder
 
-## 联动
+## Integration
 
-安装 11.1.106-1.20.1 版本及以上的 Cloth Config 模组，即可在游戏内调整配置。
+Install Cloth Config mod 11.1.106-1.20.1 or above to enable in-game configuration adjustments.
 
-## 协议
+## License
 
-本模组的代码部分使用 GPL-3.0 协议进行开源。
+The code portion of this mod is open-sourced under GPL-3.0 license.
 
-模型、贴图等资源，除特殊标注外的，均归制作组所有，禁止在未获得制作组授权的情况下使用。
+All models, textures and other resources (except specially marked ones) are owned by the development team. Unauthorized
+use without permission is prohibited.
 
-## 相关链接
+## Links
 
-QQ群: 460300219
+[Discord](https://discord.gg/g7RVnHFDh9)
 
 [CurseForge](https://www.curseforge.com/minecraft/mc-mods/superb-warfare)
 
@@ -35,5 +36,3 @@ QQ群: 460300219
 [Github](https://github.com/Mercurows/SuperbWarfare)
 
 [Gitee](https://gitee.com/atsuishio/SuperbWarfare)
-
-[Discord](https://discord.gg/g7RVnHFDh9)

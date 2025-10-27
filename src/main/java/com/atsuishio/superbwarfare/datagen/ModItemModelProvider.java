@@ -161,6 +161,8 @@ public class ModItemModelProvider extends ItemModelProvider {
         // armor
         simpleItem(ModItems.RU_HELMET_6B47);
         simpleItem(ModItems.RU_CHEST_6B43);
+        simpleItem(ModItems.UN_HELMET_PRESS);
+        simpleItem(ModItems.UN_CHEST_PRESS);
         simpleItem(ModItems.US_HELMET_PASTG);
         simpleItem(ModItems.US_CHEST_IOTV);
         simpleItem(ModItems.GE_HELMET_M_35);
