@@ -17,7 +17,9 @@ public class SeekConfig {
             "superbwarfare:c4",
             "touhou_little_maid:power_point",
             "evilcraft:vengeance_spirit",
-            "mts:builder_rendering"
+            "mts:builder_rendering",
+            "superbwarfare:mortar",
+            "superbwarfare:drone"
     );
 
     public static void init(ForgeConfigSpec.Builder builder) {

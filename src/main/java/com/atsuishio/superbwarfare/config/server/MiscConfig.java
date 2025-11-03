@@ -31,16 +31,16 @@ public class MiscConfig {
         ALLOW_FORCE_DAMAGE = builder.define("allow_force_damage", false);
 
         builder.comment("The default maximum armor level for normal armors");
-        DEFAULT_ARMOR_LEVEL = builder.defineInRange("default_armor_level", 1, 0, 10000000);
+        DEFAULT_ARMOR_LEVEL = builder.defineInRange("default_armor_level", 1, 0, Integer.MAX_VALUE);
 
         builder.comment("The maximum armor level for armors with superbwarfare:military_armor tag");
-        MILITARY_ARMOR_LEVEL = builder.defineInRange("military_armor_level", 2, 0, 10000000);
+        MILITARY_ARMOR_LEVEL = builder.defineInRange("military_armor_level", 2, 0, Integer.MAX_VALUE);
 
         builder.comment("The maximum armor level for armors with superbwarfare:military_armor_heavy tag(will override superbwarfare:military_armor tag!)");
-        HEAVY_MILITARY_ARMOR_LEVEL = builder.defineInRange("heavy_military_armor_level", 3, 0, 10000000);
+        HEAVY_MILITARY_ARMOR_LEVEL = builder.defineInRange("heavy_military_armor_level", 3, 0, Integer.MAX_VALUE);
 
         builder.comment("The points per level for armor plate");
-        ARMOR_PONT_PER_LEVEL = builder.defineInRange("armor_point_per_level", 15, 0, 10000000);
+        ARMOR_PONT_PER_LEVEL = builder.defineInRange("armor_point_per_level", 15, 0, Integer.MAX_VALUE);
 
         builder.comment("Max energy storage of charging station");
         CHARGING_STATION_MAX_ENERGY = builder.defineInRange("charging_station_max_energy", 4000000, 1, Integer.MAX_VALUE);
