@@ -346,9 +346,10 @@ public class MortarEntity extends VehicleEntity implements GeoEntity, RemoteCont
         if (fireTime == 5 && this.items.get(0).getItem() instanceof MortarShell) {
             Level level = this.level();
             if (level instanceof ServerLevel server) {
+                Vec3 shootingAngle = this.getLookAngle();
                 MortarShellEntity entityToSpawn = MortarShell.createShell(shooter, level, this.items.get(0));
                 entityToSpawn.setPos(this.getX(), this.getEyeY(), this.getZ());
-                entityToSpawn.shoot(this.getLookAngle().x, this.getLookAngle().y, this.getLookAngle().z, (float) shootVelocity(), (float) 0.1);
+                entityToSpawn.shoot(shootingAngle.x, shootingAngle.y, shootingAngle.z, (float) shootVelocity(), (float) 0.5);
                 level.addFreshEntity(entityToSpawn);
                 server.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, (this.getX() + 3 * this.getLookAngle().x), (this.getY() + 0.1 + 3 * this.getLookAngle().y), (this.getZ() + 3 * this.getLookAngle().z), 8, 0.4, 0.4, 0.4,
                         0.007);
