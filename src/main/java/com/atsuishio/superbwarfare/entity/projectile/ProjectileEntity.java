@@ -1,6 +1,7 @@
 package com.atsuishio.superbwarfare.entity.projectile;
 
 import com.atsuishio.superbwarfare.Mod;
+import com.atsuishio.superbwarfare.api.event.ProjectileHitEvent;
 import com.atsuishio.superbwarfare.client.particle.BulletDecalOption;
 import com.atsuishio.superbwarfare.client.particle.CustomCloudOption;
 import com.atsuishio.superbwarfare.config.server.ProjectileConfig;
@@ -45,14 +46,13 @@ import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BellBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.TargetBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.*;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.entity.PartEntity;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.PlayMessages;
@@ -400,20 +400,6 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
             this.level().playSound(null, result.getLocation().x, result.getLocation().y, result.getLocation().z, event, SoundSource.AMBIENT, 1.0F, 1.0F);
             Vec3 hitVec = result.getLocation();
 
-            if (state.getBlock() instanceof BellBlock bell) {
-                bell.attemptToRing(this.level(), resultPos, blockHitResult.getDirection());
-            }
-
-            if (ProjectileConfig.ALLOW_PROJECTILE_DESTROY_BLOCKS.get() && state.is(ModTags.Blocks.BULLET_CAN_DESTROY)) {
-                this.level().destroyBlock(resultPos, false, this.getShooter());
-            }
-
-            if (state.getBlock() instanceof TargetBlock && this.shooter != null) {
-                int rings = getRings(blockHitResult, hitVec);
-                double dis = this.shooter.position().distanceTo(hitVec);
-                recordHitScore(rings, dis);
-            }
-
             this.onHitBlock(hitVec, blockHitResult);
             if (heLevel > 0) {
                 explosionBullet(this, this.damage, heLevel, hitVec);
@@ -436,13 +422,12 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
                 }
             }
 
-            this.onHitEntity(entity, entityHitResult.isHeadshot(), entityHitResult.isLegShot());
+            this.onHitEntity(entity, entityHitResult);
             entity.invulnerableTime = 0;
         }
     }
 
-    private static int getRings(@NotNull BlockHitResult blockHitResult, @NotNull Vec3 hitVec) {
-        Direction direction = blockHitResult.getDirection();
+    private int getRings(@NotNull Direction direction, @NotNull Vec3 hitVec) {
         double x = Math.abs(Mth.frac(hitVec.x) - 0.5);
         double y = Math.abs(Mth.frac(hitVec.y) - 0.5);
         double z = Math.abs(Mth.frac(hitVec.z) - 0.5);
@@ -459,7 +444,11 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
         return Math.max(1, Mth.ceil(10.0 * Mth.clamp((0.5 - v) / 0.5, 0.0, 1.0)));
     }
 
-    private void recordHitScore(int score, double distance) {
+    public void recordHitScore(@NotNull Direction direction, @NotNull Vec3 hitVec) {
+        if (this.shooter == null) return;
+        int score = this.getRings(direction, hitVec);
+        double distance = this.shooter.position().distanceTo(hitVec);
+
         if (!(shooter instanceof Player player)) {
             return;
         }
@@ -555,6 +544,9 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
             Direction face = result.getDirection();
             BlockState state = level().getBlockState(pos);
 
+            if (MinecraftForge.EVENT_BUS.post(new ProjectileHitEvent.HitBlock(pos, state, face, this.shooter, this, result.getLocation())))
+                return;
+
             double vx = face.getStepX();
             double vy = face.getStepY();
             double vz = face.getStepZ();
@@ -602,8 +594,13 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
         return vec3.normalize().add(this.random.triangle(0.0D, 0.0172275D * spread), this.random.triangle(0.0D, 0.0172275D * spread), this.random.triangle(0.0D, 0.0172275D * spread));
     }
 
-    protected void onHitEntity(Entity entity, boolean headshot, boolean legShot) {
+    protected void onHitEntity(Entity entity, ExtendedEntityRayTraceResult result) {
         if (entity == null) return;
+
+        boolean headshot = result.isHeadshot();
+        boolean legShot = result.isLegShot();
+
+        if (MinecraftForge.EVENT_BUS.post(new ProjectileHitEvent.HitEntity(this.shooter, this, result))) return;
 
         if (entity instanceof PartEntity<?> part) {
             entity = part.getParent();
@@ -682,7 +679,6 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
                 .damage((float) ((0.9 * damage) * (1 + 0.1 * heLevel)))
                 .radius((float) ((1.5 + 0.02 * damage) * (1 + 0.05 * heLevel)))
                 .position(hitVec)
-//                .bulletExplode()
                 .explode();
     }
 

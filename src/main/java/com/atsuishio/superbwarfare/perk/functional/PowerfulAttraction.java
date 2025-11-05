@@ -11,6 +11,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
+import net.minecraftforge.event.entity.living.LootingLevelEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -28,13 +29,14 @@ public class PowerfulAttraction extends Perk {
         Entity sourceEntity = source.getEntity();
         if (!(sourceEntity instanceof Player player)) return;
         ItemStack stack = player.getMainHandItem();
+        if (!(stack.getItem() instanceof GunItem)) return;
 
-        if (stack.getItem() instanceof GunItem && GunData.from(stack).perk.getLevel(ModPerks.POWERFUL_ATTRACTION) > 0
-                && (DamageTypeTool.isGunDamage(source) || DamageTypeTool.isExplosionDamage(source))) {
+        int level = GunData.from(stack).perk.getLevel(ModPerks.POWERFUL_ATTRACTION);
+        if (level > 0 && (DamageTypeTool.isGunDamage(source) || DamageTypeTool.isExplosionDamage(source))) {
             var drops = event.getDrops();
             drops.forEach(itemEntity -> {
                 ItemStack item = itemEntity.getItem();
-                if (!player.addItem(item)) {
+                if (!player.addItem(item.copy())) {
                     player.drop(item, false);
                 }
             });
@@ -54,6 +56,21 @@ public class PowerfulAttraction extends Perk {
         if (level > 0) {
             player.giveExperiencePoints((int) (event.getDroppedExperience() * (0.8f + 0.2f * level)));
             event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onLootingLevel(LootingLevelEvent event) {
+        DamageSource source = event.getDamageSource();
+        if (source == null) return;
+        Entity sourceEntity = source.getEntity();
+        if (!(sourceEntity instanceof Player player)) return;
+        ItemStack stack = player.getMainHandItem();
+        if (!(stack.getItem() instanceof GunItem)) return;
+
+        int level = GunData.from(stack).perk.getLevel(ModPerks.POWERFUL_ATTRACTION);
+        if (level > 0 && (DamageTypeTool.isGunDamage(source) || DamageTypeTool.isExplosionDamage(source))) {
+            event.setLootingLevel(level / 4);
         }
     }
 }

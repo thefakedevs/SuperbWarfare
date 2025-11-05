@@ -18,6 +18,7 @@ import com.mojang.math.Axis;
 import it.unimi.dsi.fastutil.Pair;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -41,8 +42,8 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.joml.*;
 import org.joml.Math;
+import org.joml.*;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -70,6 +71,7 @@ public class Ah6Entity extends ContainerMobileVehicleEntity implements GeoEntity
 
     public float delta_x;
     public float delta_y;
+
     public OBB obb;
     public OBB obb2;
     public OBB obb3;
@@ -185,20 +187,6 @@ public class Ah6Entity extends ContainerMobileVehicleEntity implements GeoEntity
             handleAmmo();
         }
 
-        if (this.onGround()) {
-            this.setDeltaMovement(this.getDeltaMovement().multiply(0.8, 1, 0.8));
-        } else {
-            setZRot(getRoll() * (backInputDown ? 0.9f : 0.99f));
-            float f = (float) Mth.clamp(0.95f - 0.015 * getDeltaMovement().length() + 0.02f * Mth.abs(90 - (float) calculateAngle(this.getDeltaMovement(), this.getViewVector(1))) / 90, 0.01, 0.99);
-            this.setDeltaMovement(this.getDeltaMovement().add(this.getViewVector(1).scale((this.getXRot() < 0 ? -0.035 : (this.getXRot() > 0 ? 0.035 : 0)) * this.getDeltaMovement().length())));
-            this.setDeltaMovement(this.getDeltaMovement().multiply(f, 0.95, f));
-        }
-
-        if (this.isInWater() && this.tickCount % 4 == 0 && getSubmergedHeight(this) > 0.5 * getBbHeight()) {
-            this.setDeltaMovement(this.getDeltaMovement().multiply(0.6, 0.6, 0.6));
-            this.hurt(ModDamageTypes.causeVehicleStrikeDamage(this.level().registryAccess(), this, this.getFirstPassenger() == null ? this : this.getFirstPassenger()), 6 + (float) (20 * ((lastTickSpeed - 0.4) * (lastTickSpeed - 0.4))));
-        }
-
         releaseDecoy();
         lowHealthWarning();
         this.terrainCompact(2.7f, 2.7f);
@@ -229,6 +217,20 @@ public class Ah6Entity extends ContainerMobileVehicleEntity implements GeoEntity
 
     @Override
     public void travel() {
+        if (this.onGround()) {
+            this.setDeltaMovement(this.getDeltaMovement().multiply(0.8, 1, 0.8));
+        } else {
+            setZRot(getRoll() * (backInputDown ? 0.9f : 0.99f));
+            float f = (float) Mth.clamp(0.95f - 0.015 * getDeltaMovement().length() + 0.02f * Mth.abs(90 - (float) calculateAngle(this.getDeltaMovement(), this.getViewVector(1))) / 90, 0.01, 0.99);
+            this.setDeltaMovement(this.getDeltaMovement().add(this.getViewVector(1).scale((this.getXRot() < 0 ? -0.035 : (this.getXRot() > 0 ? 0.035 : 0)) * this.getDeltaMovement().length())));
+            this.setDeltaMovement(this.getDeltaMovement().multiply(f, 0.95, f));
+        }
+
+        if (this.isInWater() && this.tickCount % 4 == 0 && getSubmergedHeight(this) > 0.5 * getBbHeight()) {
+            this.setDeltaMovement(this.getDeltaMovement().multiply(0.6, 0.6, 0.6));
+            this.hurt(ModDamageTypes.causeVehicleStrikeDamage(this.level().registryAccess(), this, this.getFirstPassenger() == null ? this : this.getFirstPassenger()), 6 + (float) (20 * ((lastTickSpeed - 0.4) * (lastTickSpeed - 0.4))));
+        }
+
         Entity passenger = getFirstPassenger();
         Entity passenger2 = getNthEntity(1);
         Entity passenger3 = getNthEntity(2);
@@ -249,24 +251,31 @@ public class Ah6Entity extends ContainerMobileVehicleEntity implements GeoEntity
                 if (passenger2 == null && passenger3 == null && passenger4 == null) {
                     this.entityData.set(POWER, this.entityData.get(POWER) * 0.99f);
                 }
-            } else if (passenger instanceof Player) {
-
-                if (rightInputDown) {
-                    holdTick++;
-                    this.entityData.set(DELTA_ROT, this.entityData.get(DELTA_ROT) - 2f * Math.min(holdTick, 7) * this.entityData.get(POWER));
-                } else if (this.leftInputDown) {
-                    holdTick++;
-                    this.entityData.set(DELTA_ROT, this.entityData.get(DELTA_ROT) + 2f * Math.min(holdTick, 7) * this.entityData.get(POWER));
-                } else {
-                    holdTick = 0;
-                }
-
+            } else if (passenger instanceof Player player) {
                 delta_x = ((this.onGround()) ? 0 : 1.5f) * entityData.get(MOUSE_SPEED_Y) * this.entityData.get(PROPELLER_ROT);
                 delta_y = Mth.clamp((this.onGround() ? 0.1f : 2f) * entityData.get(MOUSE_SPEED_X) * this.entityData.get(PROPELLER_ROT) + (this.entityData.get(ENGINE2_DAMAGED) ? 25 : 0) * this.entityData.get(PROPELLER_ROT), -10f, 10f);
+                if (!entityData.get(LANDING_INPUT_DOWN) || findNearestLandingPos(30) == null) {
+                    if (rightInputDown) {
+                        holdTick++;
+                        this.entityData.set(DELTA_ROT, this.entityData.get(DELTA_ROT) - 2f * Math.min(holdTick, 7) * this.entityData.get(POWER));
+                    } else if (this.leftInputDown) {
+                        holdTick++;
+                        this.entityData.set(DELTA_ROT, this.entityData.get(DELTA_ROT) + 2f * Math.min(holdTick, 7) * this.entityData.get(POWER));
+                    } else {
+                        holdTick = 0;
+                    }
+                    this.setXRot(this.getXRot() + delta_x);
+                    this.setZRot(this.getRoll() - this.entityData.get(DELTA_ROT) + (this.onGround() ? 0 : 0.25f) * entityData.get(MOUSE_SPEED_X) * this.entityData.get(PROPELLER_ROT));
+                }
 
                 this.setYRot(this.getYRot() + delta_y);
-                this.setXRot(this.getXRot() + delta_x);
-                this.setZRot(this.getRoll() - this.entityData.get(DELTA_ROT) + (this.onGround() ? 0 : 0.25f) * entityData.get(MOUSE_SPEED_X) * this.entityData.get(PROPELLER_ROT));
+                if (findNearestLandingPos(30) != null && !onGround() && entityData.get(LANDING_INPUT_DOWN)) {
+                    this.updateAutoLanding(findNearestLandingPos(30));
+                }
+
+                if (level().isClientSide && findNearestLandingPos(30) != null && !onGround()) {
+                    player.displayClientMessage(Component.translatable("tips.superbwarfare.press_s_to_landing"), true);
+                }
             }
 
             if (this.level() instanceof ServerLevel) {
@@ -290,11 +299,9 @@ public class Ah6Entity extends ContainerMobileVehicleEntity implements GeoEntity
                             this.entityData.set(POWER, Math.max(this.entityData.get(POWER) - 0.001f * Math.min(holdPowerTick, 5), this.onGround() ? 0 : 0.025f));
                         } else if (backInputDown) {
                             holdPowerTick++;
-                            this.entityData.set(POWER, Math.max(this.entityData.get(POWER) - 0.001f * Math.min(holdPowerTick, 5), this.onGround() ? 0 : 0.052f));
-                            if (passenger != null) {
-                                passenger.setXRot(0.8f * passenger.getXRot());
-                            }
+                            this.entityData.set(POWER, Math.max(this.entityData.get(POWER) - 0.001f * Math.min(holdPowerTick, 5), this.onGround() ? 0 : 0.059f));
                         }
+
                     }
 
                     if (engineStart && !engineStartOver) {
@@ -758,6 +765,11 @@ public class Ah6Entity extends ContainerMobileVehicleEntity implements GeoEntity
             }
         }
         return super.getCameraPosition(partialTicks, player, false, false);
+    }
+
+    @Override
+    public int getHudColor() {
+        return super.getHudColor();
     }
 
     @Override

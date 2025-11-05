@@ -10,13 +10,13 @@ import com.google.common.collect.ImmutableList;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.behavior.VillagerMakeLove;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.schedule.Activity;
 
 public class CupidArrow extends AmmoPerk {
@@ -26,35 +26,39 @@ public class CupidArrow extends AmmoPerk {
     }
 
     @Override
-    public void onHit(float damage, GunData data, PerkInstance instance, Entity target, DamageSource source) {
-        super.onHit(damage, data, instance, target, source);
-        Player attacker = null;
-        if (source.getEntity() instanceof Player player) {
-            attacker = player;
-        }
-        if (source.getDirectEntity() instanceof Projectile p && p.getOwner() instanceof Player player) {
-            attacker = player;
-        }
+    public void onHit(LivingEntity attacker, GunData data, PerkInstance instance, Entity target) {
+        super.onHit(attacker, data, instance, target);
 
-        if (target instanceof Animal animal && animal.canFallInLove()) {
-            animal.setInLove(attacker);
-        }
-        if (target instanceof Villager villager && !villager.isBaby()) {
-            CupidLove cupidLove = CupidLove.getInstance(villager);
-            cupidLove.superbwarfare$setCupidLove(true);
+        int perkLevel = instance.level();
+        var list = target.level().getEntities((Entity) null, target.getBoundingBox().inflate(perkLevel * 0.25), e -> e instanceof AgeableMob);
 
-            if (villager.canBreed()) {
-                villager.getBrain().setActiveActivityIfPossible(Activity.IDLE);
-                villager.getBrain().addActivity(Activity.IDLE, ImmutableList.of(Pair.of(1, new VillagerMakeLove())));
+        for (var entity : list) {
+            if (entity instanceof Animal animal && animal.canFallInLove() && attacker instanceof Player player) {
+                animal.setInLove(player);
             }
-        }
+            if (entity instanceof Villager villager && !villager.isBaby()) {
+                CupidLove cupidLove = CupidLove.getInstance(villager);
+                cupidLove.superbwarfare$setCupidLove(true);
 
-        if (target.level() instanceof ServerLevel serverLevel) {
-            double d0 = serverLevel.random.nextGaussian() * 0.02D;
-            double d1 = serverLevel.random.nextGaussian() * 0.02D;
-            double d2 = serverLevel.random.nextGaussian() * 0.02D;
-            ParticleTool.sendParticle(serverLevel, ParticleTypes.HEART, target.getRandomX(1.0D), target.getRandomY() + 0.5D, target.getRandomZ(1.0D),
-                    5, d0, d1, d2, 0.1, false);
+                if (villager.canBreed()) {
+                    villager.getBrain().setActiveActivityIfPossible(Activity.IDLE);
+                    villager.getBrain().addActivity(Activity.IDLE, ImmutableList.of(Pair.of(1, new VillagerMakeLove())));
+                }
+            }
+
+            if (perkLevel >= 10) {
+                if (entity instanceof AgeableMob ageableMob && ageableMob.isBaby()) {
+                    ageableMob.ageUp(AgeableMob.getSpeedUpSecondsWhenFeeding(-ageableMob.getAge()) * (int) (Math.max(1, perkLevel - 10) / 5d), true);
+                }
+            }
+
+            if (entity.level() instanceof ServerLevel serverLevel) {
+                double d0 = serverLevel.random.nextGaussian() * 0.02D;
+                double d1 = serverLevel.random.nextGaussian() * 0.02D;
+                double d2 = serverLevel.random.nextGaussian() * 0.02D;
+                ParticleTool.sendParticle(serverLevel, ParticleTypes.HEART, entity.getRandomX(1.0D), entity.getRandomY() + 0.5D, entity.getRandomZ(1.0D),
+                        5, d0, d1, d2, 0.1, false);
+            }
         }
     }
 }

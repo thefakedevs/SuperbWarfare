@@ -6,10 +6,7 @@ import com.atsuishio.superbwarfare.entity.TargetEntity;
 import com.atsuishio.superbwarfare.entity.projectile.FlareDecoyEntity;
 import com.atsuishio.superbwarfare.entity.projectile.SmokeDecoyEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
-import com.atsuishio.superbwarfare.init.ModDamageTypes;
-import com.atsuishio.superbwarfare.init.ModMobEffects;
-import com.atsuishio.superbwarfare.init.ModSounds;
-import com.atsuishio.superbwarfare.init.ModTags;
+import com.atsuishio.superbwarfare.init.*;
 import com.atsuishio.superbwarfare.tools.DamageHandler;
 import com.atsuishio.superbwarfare.tools.EntityFindUtil;
 import com.atsuishio.superbwarfare.tools.OBB;
@@ -48,7 +45,10 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.StreamSupport;
 
@@ -74,6 +74,7 @@ public abstract class MobileVehicleEntity extends VehicleEntity implements Contr
     public static final EntityDataAccessor<Integer> DECOY_COUNT = SynchedEntityData.defineId(MobileVehicleEntity.class, EntityDataSerializers.INT);
     public static final EntityDataAccessor<Integer> GEAR_ROT = SynchedEntityData.defineId(MobileVehicleEntity.class, EntityDataSerializers.INT);
     public static final EntityDataAccessor<Boolean> GEAR_UP = SynchedEntityData.defineId(MobileVehicleEntity.class, EntityDataSerializers.BOOLEAN);
+    public static final EntityDataAccessor<Boolean> LANDING_INPUT_DOWN = SynchedEntityData.defineId(MobileVehicleEntity.class, EntityDataSerializers.BOOLEAN);
     public static final EntityDataAccessor<Float> PLANE_BREAK = SynchedEntityData.defineId(MobileVehicleEntity.class, EntityDataSerializers.FLOAT);
 
     private Vec3 previousVelocity = Vec3.ZERO;
@@ -153,6 +154,9 @@ public abstract class MobileVehicleEntity extends VehicleEntity implements Contr
                 = (keys & 0b000000100) > 0;
         backInputDown
                 = (keys & 0b000001000) > 0;
+
+        entityData.set(LANDING_INPUT_DOWN, (keys & 0b000001000) > 0);
+
         upInputDown
                 = (keys & 0b000010000) > 0;
         downInputDown
@@ -167,7 +171,11 @@ public abstract class MobileVehicleEntity extends VehicleEntity implements Contr
 
     @Override
     public void playerTouch(Player pPlayer) {
-        if (pPlayer.isCrouching() && !this.level().isClientSide) {
+        if (pPlayer.isCrouching()
+                && !this.level().isClientSide
+                && pPlayer.getY() < this.getY() + this.getBbHeight()
+                && pPlayer.getY() + pPlayer.getBbHeight() > this.getY()
+        ) {
             double entitySize = pPlayer.getBbWidth() * pPlayer.getBbHeight();
             double thisSize = this.getBbWidth() * this.getBbHeight();
             double f = Math.min(entitySize / thisSize, 2);
@@ -286,6 +294,7 @@ public abstract class MobileVehicleEntity extends VehicleEntity implements Contr
 
         this.move(MoverType.SELF, this.getDeltaMovement());
         collideSoftBlock();
+        moveOnDragonTeeth();
 
         this.refreshDimensions();
     }
@@ -430,7 +439,6 @@ public abstract class MobileVehicleEntity extends VehicleEntity implements Contr
     }
 
     //用于履带的地形适应
-
     public float[] terrainCompactTrackValue(float w, float l) {
         Matrix4f transform = this.getWheelsTransform(1);
 
@@ -501,6 +509,19 @@ public abstract class MobileVehicleEntity extends VehicleEntity implements Contr
 
         double diffY = targetY - pos.y;
         return pos.y + 0.5f * diffY;
+    }
+
+    public void moveOnDragonTeeth() {
+        AABB aabb = this.getBoundingBox();
+        AABB aabb1 = new AABB(aabb.minX, aabb.minY - 1.0E-6D, aabb.minZ, aabb.maxX, aabb.minY, aabb.maxZ);
+        Optional<BlockPos> optional = this.level().findSupportingBlock(this, aabb1);
+        if (optional.isPresent()) {
+            BlockState state = level().getBlockState(optional.get());
+            if (state.is(ModBlocks.DRAGON_TEETH.get())) {
+                entityData.set(POWER, entityData.get(POWER) * 0.8f);
+                setDeltaMovement(getDeltaMovement().multiply(-0.1, 0, -0.1));
+            }
+        }
     }
 
     public void collideSoftBlock() {
@@ -628,11 +649,12 @@ public abstract class MobileVehicleEntity extends VehicleEntity implements Contr
      * 防止载具堆叠
      */
     public void preventStacking() {
-        var Box = getBoundingBox();
 
-        var entities = level().getEntities(EntityTypeTest.forClass(Entity.class), Box, entity -> entity != this && entity != getFirstPassenger() && entity.getVehicle() == null)
-                .stream().filter(entity -> entity instanceof VehicleEntity)
-                .toList();
+        var entities = level().getEntities(
+                EntityTypeTest.forClass(VehicleEntity.class),
+                getBoundingBox(),
+                entity -> entity != this && entity != getFirstPassenger() && entity.getVehicle() == null
+        );
 
         for (var entity : entities) {
             Vec3 toVec = this.position().add(new Vec3(1, 1, 1).scale(random.nextFloat() * 0.01f + 1f)).vectorTo(entity.position());
@@ -944,6 +966,7 @@ public abstract class MobileVehicleEntity extends VehicleEntity implements Contr
         this.entityData.define(DECOY_COUNT, 0);
         this.entityData.define(GEAR_ROT, 0);
         this.entityData.define(GEAR_UP, false);
+        this.entityData.define(LANDING_INPUT_DOWN, false);
         this.entityData.define(PLANE_BREAK, 0f);
     }
 
@@ -1164,5 +1187,111 @@ public abstract class MobileVehicleEntity extends VehicleEntity implements Contr
         if (this.isInWater() || onGround()) {
             this.setDeltaMovement(this.getDeltaMovement().add(getViewVector(1).scale((!isInWater() && !onGround() ? 0.05f : (isInWater() && !onGround() ? 0.3f : 1)) * this.entityData.get(POWER))));
         }
+    }
+
+    /**
+     * 查找实体下方半球区域内最近的降落辅助方块位置
+     *
+     * @param radius 搜索半径
+     * @return 钻石块顶面位置，如果未找到则返回null
+     */
+    public Vec3 findNearestLandingPos(int radius) {
+        Level world = this.level();
+        BlockPos entityPos = this.blockPosition();
+        List<BlockPos> landingBlocks = new ArrayList<>();
+
+        // 遍历半球区域内的所有方块
+        for (int x = -radius; x <= radius; x++) {
+            for (int z = -radius; z <= radius; z++) {
+                for (int y = -radius; y <= 0; y++) { // 只检查实体下方的区域
+                    // 检查是否在半球内 (x² + y² + z² ≤ r²)
+                    if (x * x + y * y + z * z <= radius * radius) {
+                        BlockPos checkPos = entityPos.offset(x, y, z);
+
+                        // 检查是否为降落辅助方块
+                        if (world.getBlockState(checkPos).is(ModTags.Blocks.AUTO_LANDING)) {
+                            landingBlocks.add(checkPos);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 如果没有找到降落辅助方块，返回null
+        if (landingBlocks.isEmpty()) {
+            return null;
+        }
+
+        // 按距离排序，找到最近的降落辅助方块
+        landingBlocks.sort(Comparator.comparingDouble(pos ->
+                this.position().distanceToSqr(pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5)));
+
+        return landingBlocks.get(0).getCenter();
+    }
+
+    public void updateAutoLanding(Vec3 landingTarget) {
+        // 计算水平方向上的偏移向量 (忽略Y轴)
+        Vec3 currentPos = this.position();
+        Vec3 horizontalOffset = new Vec3(
+                landingTarget.x - currentPos.x,
+                0,
+                landingTarget.z - currentPos.z
+        );
+
+        setDeltaMovement(getDeltaMovement().multiply(0.98, 0.99, 0.98));
+
+        // 计算距离和方向
+        double horizontalDistance = horizontalOffset.length();
+        Vec3 horizontalDirection = horizontalDistance > 0 ?
+                horizontalOffset.normalize() : Vec3.ZERO;
+
+        // 如果已经非常接近目标点，保持水平姿态
+        // 位置容差
+        float positionTolerance = 0.1f;
+        // 倾斜平滑因子
+        float tiltSmoothingFactor = 0.1f;
+        if (horizontalDistance < positionTolerance) {
+            // 平滑过渡到水平姿态
+            this.setXRot(lerpAngle(this.getXRot(), 0, tiltSmoothingFactor));
+            this.setZRot(lerpAngle(this.getRoll(), 0, tiltSmoothingFactor));
+            return;
+        }
+
+        // 计算需要的倾斜角度 (与距离成正比，但有最大限制)
+        // 直升机辅助降落这一块
+        // 最大倾斜角度(度)
+        float maxTiltAngle = 15.0f;
+        float targetTilt = (float) Math.min(maxTiltAngle, horizontalDistance * 2);
+
+        // 将世界方向转换为本地倾斜方向
+        // 需要考虑直升机的当前偏航角(yRot)
+        float yawRad = Math.toRadians(-this.getYRot());
+        Vec3 localDirection = new Vec3(
+                horizontalDirection.x * Math.cos(yawRad) - horizontalDirection.z * Math.sin(yawRad),
+                0,
+                horizontalDirection.x * Math.sin(yawRad) + horizontalDirection.z * Math.cos(yawRad)
+        );
+
+        // 计算目标俯仰和滚转
+        float targetXRot = (float) (-localDirection.z * targetTilt);
+        float targetZRot = (float) (localDirection.x * targetTilt);
+
+        // 平滑过渡到目标姿态
+        this.setXRot(lerpAngle(this.getXRot(), -targetXRot, tiltSmoothingFactor));
+        this.setZRot(lerpAngle(this.getRoll(), -targetZRot, tiltSmoothingFactor));
+    }
+
+    // 角度线性插值方法
+    private float lerpAngle(float current, float target, float factor) {
+        // 处理角度环绕
+        float diff = target - current;
+        while (diff < -180) diff += 360;
+        while (diff > 180) diff -= 360;
+
+        return current + diff * factor;
+    }
+
+    public int getHudColor() {
+        return 0x66FF00;
     }
 }

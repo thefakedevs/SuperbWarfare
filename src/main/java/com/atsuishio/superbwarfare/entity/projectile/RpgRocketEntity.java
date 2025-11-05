@@ -26,7 +26,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -51,7 +50,6 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
     private float explosionDamage = 200f;
     private float explosionRadius = 10;
     private float gravity = 0.03f;
-    private boolean fire = true;
 
     public RpgRocketEntity(EntityType<? extends RpgRocketEntity> type, Level world) {
         super(type, world);
@@ -132,6 +130,7 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
 
     @Override
     public void onHitBlock(@NotNull BlockHitResult blockHitResult) {
+        super.onHitBlock(blockHitResult);
         if (this.level() instanceof ServerLevel) {
             BlockPos resultPos = blockHitResult.getBlockPos();
             float hardness = this.level().getBlockState(resultPos).getBlock().defaultDestroyTime();
@@ -157,6 +156,7 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
 
     @Override
     protected void onHitEntity(EntityHitResult result) {
+        super.onHitEntity(result);
         Entity entity = result.getEntity();
         if (this.getOwner() != null && this.getOwner().getVehicle() != null && entity == this.getOwner().getVehicle())
             return;
@@ -292,5 +292,10 @@ public class RpgRocketEntity extends FastThrowableProjectile implements GeoEntit
     @Override
     public void setGravity(float gravity) {
         this.gravity = gravity;
+    }
+
+    @Override
+    public boolean forceLoadChunk() {
+        return true;
     }
 }

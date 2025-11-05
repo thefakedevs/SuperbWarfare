@@ -46,9 +46,22 @@ public class ModTags {
         public static final TagKey<Item> LEGENDARY_BLUEPRINT = modItemTag("blueprint/legendary");
         public static final TagKey<Item> CANNON_BLUEPRINT = modItemTag("blueprint/cannon");
 
+        public static final TagKey<Item> HAMMER = modItemTag("hammer");
+
         public static final TagKey<Item> WRENCHES = commonItemTag("wrenches");
         public static final TagKey<Item> WRENCH = commonItemTag("tools/wrench");
         public static final TagKey<Item> CROWBAR = commonItemTag("tools/crowbar");
+        public static final TagKey<Item> TOOLS_HAMMER = commonItemTag("tools/hammer");
+
+        // 专门给其他模组添加动画用的枪械武器分类 tag
+        public static final TagKey<Item> ANIMATED_PISTOL = modItemTag("animated/pistol");
+        public static final TagKey<Item> ANIMATED_SNIPER = modItemTag("animated/sniper");
+        public static final TagKey<Item> ANIMATED_RIFLE = modItemTag("animated/rifle");
+        public static final TagKey<Item> ANIMATED_SHOTGUN = modItemTag("animated/shotgun");
+        public static final TagKey<Item> ANIMATED_SMG = modItemTag("animated/smg");
+        public static final TagKey<Item> ANIMATED_RPG = modItemTag("animated/rpg");
+        public static final TagKey<Item> ANIMATED_MG = modItemTag("animated/mg");
+        public static final TagKey<Item> ANIMATED_MINIGUN = modItemTag("animated/minigun");
     }
 
     public static TagKey<Item> modItemTag(String name) {
@@ -64,6 +77,11 @@ public class ModTags {
         public static final TagKey<Block> BULLET_IGNORE = tag("bullet_ignore");
         // 子弹会破坏的方块
         public static final TagKey<Block> BULLET_CAN_DESTROY = tag("bullet_can_destroy");
+        // 炮射霰弹会破坏的反馈过
+        public static final TagKey<Block> CANNON_SHOT_CAN_DESTROY = tag("cannon_shot_can_destroy");
+
+        // 辅助降落可识别的方块
+        public static final TagKey<Block> AUTO_LANDING = tag("auto_landing");
 
         private static TagKey<Block> tag(String name) {
             return BlockTags.create(Mod.loc(name));

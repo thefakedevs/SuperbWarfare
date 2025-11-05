@@ -98,10 +98,12 @@ public class BocekItemModel extends CustomGunModel<BocekItem> {
         rightHand.setPosZ(rightHandPosZ);
 
         CrossHairOverlay.gunRot = shen.getRotZ();
-        ClientEventHandler.gunRootMove(getAnimationProcessor());
+        ClientEventHandler.gunRootMove(getAnimationProcessor(), 0, 0, 0, true);
 
         CoreGeoBone camera = getAnimationProcessor().getBone("camera");
         ClientEventHandler.handleReloadShake(Mth.RAD_TO_DEG * camera.getRotX(), Mth.RAD_TO_DEG * camera.getRotY(), Mth.RAD_TO_DEG * camera.getRotZ());
+
+        ClientEventHandler.handleShootAnimation(shen, 0, 0, 0, 0, 0, 0, 0, 1f);
     }
 
     public static void wingControl(CoreGeoBone coreGeoBone, float m) {

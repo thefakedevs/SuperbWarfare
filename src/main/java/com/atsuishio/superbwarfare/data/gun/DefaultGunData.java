@@ -70,7 +70,7 @@ public class DefaultGunData implements IDBasedData {
     @SerializedName("ProjectileAmount")
     public int projectileAmount = 1;
     @SerializedName("Weight")
-    public double weight;
+    public double weight = 1;
 
     @SerializedName("DefaultFireMode")
     public FireMode defaultFireMode = FireMode.SEMI;
@@ -79,6 +79,9 @@ public class DefaultGunData implements IDBasedData {
 
     @SerializedName("ReloadTypes")
     public Set<ReloadType> reloadTypes = Set.of(ReloadType.MAGAZINE);
+
+    @SerializedName("AutoReload")
+    public boolean autoReload = false;
 
     @SerializedName("BurstAmount")
     public int burstAmount;

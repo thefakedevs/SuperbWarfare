@@ -1,6 +1,7 @@
 package com.atsuishio.superbwarfare.entity.vehicle;
 
 import com.atsuishio.superbwarfare.Mod;
+import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.config.server.VehicleConfig;
 import com.atsuishio.superbwarfare.entity.OBBEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.ContainerMobileVehicleEntity;
@@ -17,6 +18,7 @@ import com.atsuishio.superbwarfare.init.ModSounds;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.network.message.receive.ShakeClientMessage;
 import com.atsuishio.superbwarfare.tools.*;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -54,8 +56,8 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.joml.*;
 import org.joml.Math;
+import org.joml.*;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -65,7 +67,6 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.List;
 import java.util.stream.StreamSupport;
 
-import static com.atsuishio.superbwarfare.client.RenderHelper.preciseBlit;
 import static com.atsuishio.superbwarfare.tools.ParticleTool.sendParticle;
 import static com.atsuishio.superbwarfare.tools.SeekTool.baseFilter;
 
@@ -637,18 +638,18 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
 
     @OnlyIn(Dist.CLIENT)
     @Override
-    public void renderFirstPersonOverlay(GuiGraphics guiGraphics, Font font, Player player, int screenWidth, int screenHeight, float scale) {
+    public void renderFirstPersonOverlay(GuiGraphics guiGraphics, PoseStack poseStack, Font font, Player player, int screenWidth, int screenHeight, float scale, int color) {
         float minWH = (float) Math.min(screenWidth, screenHeight);
         float scaledMinWH = Mth.floor(minWH * scale);
         float centerW = ((screenWidth - scaledMinWH) / 2);
         float centerH = ((screenHeight - scaledMinWH) / 2);
 
         // 准心
-        preciseBlit(guiGraphics, Mod.loc("textures/screens/land/lav_missile_cross.png"), centerW, centerH, 0, 0.0F, scaledMinWH, scaledMinWH, scaledMinWH, scaledMinWH);
+        RenderHelper.blit(poseStack, Mod.loc("textures/screens/land/lav_missile_cross.png"), centerW, centerH, 0, 0.0F, scaledMinWH, scaledMinWH, scaledMinWH, scaledMinWH, color);
 
         // 武器名称+过热
-        double heat = 1 - this.getEntityData().get(HEAT) / 100.0F;
-        guiGraphics.drawString(font, Component.literal("LASER   " + (this.getEntityData().get(HEAT) + 25) + " ℃"), screenWidth / 2 - 33, screenHeight - 65, Mth.hsvToRgb((float) heat / 3.745318352059925F, 1.0F, 1.0F), false);
+        int heat = this.getEntityData().get(HEAT);
+        guiGraphics.drawString(font, Component.literal("LASER   " + (this.getEntityData().get(HEAT) + 25) + " ℃"), screenWidth / 2 - 33, screenHeight - 65, MathTool.getGradientColor(color, 0xFF0000, heat, 2), false);
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -719,6 +720,11 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
     @Override
     public float getEngineMaxHealth() {
         return 150;
+    }
+
+    @Override
+    public int getHudColor() {
+        return 0x00FFF6;
     }
 
     @Override

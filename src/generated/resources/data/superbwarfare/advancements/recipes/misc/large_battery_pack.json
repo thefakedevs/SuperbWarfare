@@ -1,12 +1,12 @@
 {
   "parent": "minecraft:recipes/root",
   "criteria": {
-    "has_copper_plate": {
+    "has_medium_battery_pack": {
       "conditions": {
         "items": [
           {
             "items": [
-              "superbwarfare:copper_plate"
+              "superbwarfare:medium_battery_pack"
             ]
           }
         ]
@@ -22,7 +22,7 @@
   },
   "requirements": [
     [
-      "has_copper_plate",
+      "has_medium_battery_pack",
       "has_the_recipe"
     ]
   ],

@@ -58,6 +58,12 @@ public class ModBlockTagProvider extends BlockTagsProvider {
                 .add(Blocks.IRON_BARS, ModBlocks.BARBED_WIRE.get());
         this.tag(ModTags.Blocks.BULLET_CAN_DESTROY)
                 .addTags(Tags.Blocks.GLASS_PANES, Tags.Blocks.GLASS);
+        this.tag(ModTags.Blocks.CANNON_SHOT_CAN_DESTROY)
+                .addTags(ModTags.Blocks.BULLET_CAN_DESTROY, BlockTags.LEAVES, BlockTags.BAMBOO_BLOCKS, BlockTags.WOOL,
+                        BlockTags.SIGNS, BlockTags.LOGS, BlockTags.PLANKS, BlockTags.SAPLINGS)
+                .add(Blocks.LANTERN, Blocks.SOUL_LANTERN, Blocks.CHAIN);
+        this.tag(ModTags.Blocks.AUTO_LANDING)
+                .add(ModBlocks.CHARGING_STATION.get(), ModBlocks.CREATIVE_CHARGING_STATION.get());
 
         this.tag(Tags.Blocks.ORES).addTags(forgeTag("ores/lead"), forgeTag("ores/tungsten"), forgeTag("ores/silver"));
         this.tag(forgeTag("ores/lead")).add(ModBlocks.GALENA_ORE.get(), ModBlocks.DEEPSLATE_GALENA_ORE.get());

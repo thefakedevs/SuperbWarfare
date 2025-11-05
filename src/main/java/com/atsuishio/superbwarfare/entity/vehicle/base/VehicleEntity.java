@@ -3,6 +3,7 @@ package com.atsuishio.superbwarfare.entity.vehicle.base;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.capability.energy.SyncedEntityEnergyStorage;
 import com.atsuishio.superbwarfare.capability.energy.VehicleEnergyStorage;
+import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.data.Prop;
 import com.atsuishio.superbwarfare.data.vehicle.VehicleData;
 import com.atsuishio.superbwarfare.data.vehicle.VehicleProp;
@@ -20,6 +21,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.ints.IntList;
@@ -92,7 +94,6 @@ import org.joml.Vector4f;
 import java.util.*;
 import java.util.function.Function;
 
-import static com.atsuishio.superbwarfare.client.RenderHelper.preciseBlit;
 import static com.atsuishio.superbwarfare.tools.ParticleTool.sendParticle;
 import static com.atsuishio.superbwarfare.tools.SeekTool.teamFilter;
 
@@ -760,7 +761,7 @@ public abstract class VehicleEntity extends Entity implements Container, Vehicle
             }
 
             Entity lastDriver = EntityFindUtil.findEntity(level(), entityData.get(LAST_DRIVER_UUID));
-            if (lastDriver != null && !teamFilter(player, lastDriver)) {
+            if (lastDriver != null && !teamFilter(player, lastDriver) && lastDriver.getTeam() != null) {
                 return InteractionResult.PASS;
             }
 
@@ -1786,7 +1787,7 @@ public abstract class VehicleEntity extends Entity implements Container, Vehicle
      * 务必标记 @OnlyIn(Dist.CLIENT)
      */
     @OnlyIn(Dist.CLIENT)
-    public void renderFirstPersonOverlay(GuiGraphics guiGraphics, Font font, Player player, int screenWidth, int screenHeight, float scale) {
+    public void renderFirstPersonOverlay(GuiGraphics guiGraphics, PoseStack poseStack, Font font, Player player, int screenWidth, int screenHeight, float scale, int color) {
         if (!(this instanceof WeaponVehicleEntity weaponVehicle)) return;
         if (!(player instanceof LocalPlayer)) return;
 
@@ -1811,7 +1812,7 @@ public abstract class VehicleEntity extends Entity implements Container, Vehicle
         RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
         RenderSystem.setShaderColor(1, 1, 1, 1);
 
-        preciseBlit(guiGraphics, texture, centerW, centerH, 0, 0, scaledMinWH, scaledMinWH, scaledMinWH, scaledMinWH);
+        RenderHelper.blit(poseStack, texture, centerW, centerH, 0, 0, scaledMinWH, scaledMinWH, scaledMinWH, scaledMinWH, color);
     }
 
     /**
