@@ -4,10 +4,12 @@ import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.entity.vehicle.base.ArmedVehicleEntity;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.tools.EntityFindUtil;
 import com.atsuishio.superbwarfare.tools.SeekTool;
+import com.atsuishio.superbwarfare.tools.VectorTool;
 import com.atsuishio.superbwarfare.tools.VectorUtil;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -102,15 +104,15 @@ public class JavelinHudOverlay implements IGuiOverlay {
             float fovAdjust = (float) Minecraft.getInstance().options.fov().get() / 80;
 
             Entity targetEntity = EntityFindUtil.findEntity(player.level(), stack.getOrCreateTag().getString("TargetEntity"));
-            List<Entity> entities = SeekTool.getVehicleWithinRange(player, player.level(), 512);
-            Entity nearestEntity = SeekTool.seekCustomSizeEntity(player, player.level(), 512, 6, 1.0, true);
+            List<Entity> entities = SeekTool.getVehiclesWithinRange(player.blockPosition(), player.level(), 512);
+            Entity nearestEntity = SeekTool.seekVehicleEntity(player, player.level(), 512, 6);
 
             if (ClientEventHandler.guideType == 0) {
                 for (var e : entities) {
                     Vec3 pos = VectorTool.lerpGetEntityBoundingBoxCenter(e, partialTick);
                     Vec3 point = VectorUtil.worldToScreen(pos);
                     boolean lockOn = ClientEventHandler.lockOn && e == targetEntity;
-                    boolean nearest = e == naerestEntity;
+                    boolean nearest = e == nearestEntity;
 
                     poseStack.pushPose();
                     float x = (float) point.x;

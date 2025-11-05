@@ -392,7 +392,7 @@ public class ClientEventHandler {
             double range = data.get(GunProp.SEEK_RANGE);
 
             if (zoomTime > 0.7) {
-                naerestEntity = SeekTool.seekLivingEntity(player, range, seekAngle);
+                naerestEntity = SeekTool.seekVehicleEntity(player, player.level(), range, seekAngle);
                 if (data.get(GunProp.SEEK_TYPE) == SeekType.HOLD_FIRE) {
                     if (naerestEntity == null || player.isShiftKeyDown()) {
                         // 锁定方块

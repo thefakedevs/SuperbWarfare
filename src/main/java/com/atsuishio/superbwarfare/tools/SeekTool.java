@@ -181,6 +181,18 @@ public class SeekTool {
                 .buildWithClosest();
     }
 
+    public static Entity seekVehicleEntity(Entity entity, Level level, double seekRange, double seekAngle) {
+        return new Builder(entity)
+                .withinRange(seekRange)
+                .withinAngle(seekAngle)
+                .baseFilter()
+                .smokeFilter()
+                .isVehicle()
+                .notFriendly()
+                .noClip()
+                .buildWithClosest();
+    }
+
     public static List<Entity> getEntitiesWithinRange(BlockPos pos, Level level, double range) {
         return StreamSupport.stream(EntityFindUtil.getEntities(level).getAll().spliterator(), false)
                 .filter(e -> e.distanceToSqr(pos.getX(), pos.getY(), pos.getZ()) <= range * range
@@ -189,6 +201,18 @@ public class SeekTool {
                         && !e.getType().is(ModTags.EntityTypes.DECOY))
                 .toList();
     }
+
+    public static List<Entity> getVehiclesWithinRange(BlockPos pos, Level level, double range) {
+        return StreamSupport.stream(EntityFindUtil.getEntities(level).getAll().spliterator(), false)
+                .filter(e -> e.distanceToSqr(pos.getX(), pos.getY(), pos.getZ()) <= range * range
+                        && BASIC_FILTER.test(e)
+                        && NOT_IN_SMOKE.test(e)
+                        && !e.getType().is(ModTags.EntityTypes.DECOY))
+                .filter(e -> e.position().distanceTo(pos.getCenter()) <= range
+                        && e instanceof VehicleEntity)
+                .toList();
+    }
+
 
     private static double calculateAngle(Entity entityA, Entity entityB) {
         Vec3 start = new Vec3(entityA.getX() - entityB.getX(), entityA.getY() - entityB.getY(), entityA.getZ() - entityB.getZ());
@@ -512,6 +536,11 @@ public class SeekTool {
 
         public Builder noVehicle() {
             this.filters.add(e -> e.getVehicle() == null);
+            return this;
+        }
+
+        public Builder isVehicle() {
+            this.filters.add(e -> e instanceof VehicleEntity);
             return this;
         }
 
