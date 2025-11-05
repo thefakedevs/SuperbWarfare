@@ -46,6 +46,8 @@ public class CustomExplosion extends Explosion {
     private final float damage;
     private int fireTime;
     private float damageMultiplier = 1;
+    // Вероятность поджигания блоков в центре взрыва (0..1). К краям вероятность линейно падает.
+    private float blockIgniteChance = 0f;
 
     public CustomExplosion(Level pLevel, @Nullable Entity pSource, @Nullable DamageSource source, @Nullable ExplosionDamageCalculator pDamageCalculator,
                            float damage, double pToBlowX, double pToBlowY, double pToBlowZ, float pRadius,
@@ -83,6 +85,11 @@ public class CustomExplosion extends Explosion {
 
     public CustomExplosion setDamageMultiplier(float damageMultiplier) {
         this.damageMultiplier = damageMultiplier;
+        return this;
+    }
+
+    public CustomExplosion setBlockIgniteChance(float chance) {
+        this.blockIgniteChance = Mth.clamp(chance, 0f, 1f);
         return this;
     }
 
@@ -192,6 +199,30 @@ public class CustomExplosion extends Explosion {
         }
     }
 
+    @Override
+    public void finalizeExplosion(boolean pSendParticles) {
+        super.finalizeExplosion(pSendParticles);if (this.level.isClientSide) return;
+        if (this.blockIgniteChance <= 0f) return;
+
+        var fireState = net.minecraft.world.level.block.Blocks.FIRE.defaultBlockState();
+        Vec3 center = new Vec3(this.x, this.y, this.z);
+
+        for (BlockPos pos : this.getToBlow()) {
+            double dist = Math.sqrt(Vec3.atCenterOf(pos).distanceToSqr(center));
+            double norm = this.radius > 0 ? Mth.clamp(dist / this.radius, 0.0, 1.0) : 0.0;
+            double falloff = 1.0 - norm;
+            double probability = this.blockIgniteChance * falloff * falloff;
+            if (probability <= 0) continue;
+
+            if (this.level.random.nextDouble() < probability) {
+                BlockPos target = this.level.isEmptyBlock(pos) ? pos : pos.above();
+                if (this.level.isEmptyBlock(target) && fireState.canSurvive(this.level, target)) {
+                    this.level.setBlock(target, fireState, 11);
+                }
+            }
+        }
+    }
+
     public static class Builder {
         private final Level level;
         private Entity directSource;
@@ -206,6 +237,7 @@ public class CustomExplosion extends Explosion {
         private DamageSource damageSource = null;
         private Vec3 particlePosition = null;
         public Vec3 position;
+        private float blockIgniteChance = 0f;
 
         public Builder(@NotNull Entity target) {
             this.level = target.level();
@@ -280,6 +312,11 @@ public class CustomExplosion extends Explosion {
             return this;
         }
 
+        public Builder blockIgniteChance(float chance) {
+            this.blockIgniteChance = Mth.clamp(chance, 0f, 1f);
+            return this;
+        }
+
         public CustomExplosion explode() {
             if (level.isClientSide) return null;
 
@@ -289,7 +326,8 @@ public class CustomExplosion extends Explosion {
                     source, damage,
                     position.x, position.y, position.z, radius, destroyBlock.get())
                     .setFireTime(fireTime)
-                    .setDamageMultiplier(damageMultiplier);
+                    .setDamageMultiplier(damageMultiplier)
+                    .setBlockIgniteChance(blockIgniteChance);
             customExplosion.explode();
             ForgeEventFactory.onExplosionStart(directSource.level(), customExplosion);
             customExplosion.finalizeExplosion(false);

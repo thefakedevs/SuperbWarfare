@@ -127,6 +127,11 @@ public class RpgRocketStandardEntity extends FastThrowableProjectile implements 
     }
 
     @Override
+    public float blockIgniteChance() {
+        return 0.3f;
+    }
+
+    @Override
     public ParticleTool.ParticleType explosionParticleType() {
         return explosionRadius >= 10 ? ParticleTool.ParticleType.HUGE : ParticleTool.ParticleType.MEDIUM;
     }

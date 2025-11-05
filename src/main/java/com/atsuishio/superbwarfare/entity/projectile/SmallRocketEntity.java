@@ -139,6 +139,11 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
     }
 
     @Override
+    public float blockIgniteChance() {
+        return 0.05f;
+    }
+
+    @Override
     public void tick() {
         super.tick();
 

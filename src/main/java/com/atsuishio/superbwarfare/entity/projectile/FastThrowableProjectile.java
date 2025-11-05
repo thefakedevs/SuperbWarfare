@@ -211,6 +211,7 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
                 .attacker(this.getOwner())
                 .damage(explosionDamage)
                 .radius(explosionRadius)
+                .blockIgniteChance(blockIgniteChance())
                 .position(vec3)
                 .withParticleType(explosionParticleType());
     }
@@ -225,6 +226,10 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
 
     public ParticleTool.ParticleType explosionParticleType() {
         return ParticleTool.ParticleType.MEDIUM;
+    }
+
+    public float blockIgniteChance() {
+        return 0f;
     }
 
     public boolean discardAfterExplode() {
