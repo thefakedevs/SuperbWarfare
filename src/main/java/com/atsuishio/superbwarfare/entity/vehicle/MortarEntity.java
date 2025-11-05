@@ -1,7 +1,6 @@
 package com.atsuishio.superbwarfare.entity.vehicle;
 
 import com.atsuishio.superbwarfare.entity.projectile.MortarShellEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ArtilleryEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.RemoteControllableTurret;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.ModEntities;
@@ -13,10 +12,11 @@ import com.atsuishio.superbwarfare.item.Monitor;
 import com.atsuishio.superbwarfare.item.common.ammo.MortarShell;
 import com.atsuishio.superbwarfare.network.message.receive.ShakeClientMessage;
 import com.atsuishio.superbwarfare.tools.FormatTool;
+import com.atsuishio.superbwarfare.tools.ParticleTool;
+import com.atsuishio.superbwarfare.tools.SoundTool;
 import com.atsuishio.superbwarfare.tools.VectorTool;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.arguments.EntityAnchorArgument;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -54,7 +54,7 @@ import java.util.List;
 
 import static com.atsuishio.superbwarfare.tools.RangeTool.calculateLaunchVector;
 
-public class MortarEntity extends VehicleEntity implements GeoEntity, RemoteControllableTurret, ArtilleryEntity {
+public class MortarEntity extends VehicleEntity implements GeoEntity, RemoteControllableTurret {
 
     public static final EntityDataAccessor<Integer> FIRE_TIME = SynchedEntityData.defineId(MortarEntity.class, EntityDataSerializers.INT);
     public static final EntityDataAccessor<Float> PITCH = SynchedEntityData.defineId(MortarEntity.class, EntityDataSerializers.FLOAT);
@@ -158,8 +158,11 @@ public class MortarEntity extends VehicleEntity implements GeoEntity, RemoteCont
 
         if (!this.level().isClientSide()) {
             this.level().playSound(null, this.getX(), this.getY(), this.getZ(), ModSounds.MORTAR_LOAD.get(), SoundSource.PLAYERS, 1f, 1f);
-            this.level().playSound(null, this.getX(), this.getY(), this.getZ(), ModSounds.MORTAR_FIRE.get(), SoundSource.PLAYERS, 8f, 1f);
-            this.level().playSound(null, this.getX(), this.getY(), this.getZ(), ModSounds.MORTAR_DISTANT.get(), SoundSource.PLAYERS, 32f, 1f);
+        }
+
+        if (level() instanceof ServerLevel serverLevel) {
+            SoundTool.playDistantSound(serverLevel, ModSounds.MORTAR_FIRE.get(), position(), 8, random.nextFloat() * 0.1f + 1, null);
+            SoundTool.playDistantSound(serverLevel, ModSounds.MORTAR_DISTANT.get(), position(), 32, random.nextFloat() * 0.1f + 1, null);
         }
     }
 
@@ -214,7 +217,7 @@ public class MortarEntity extends VehicleEntity implements GeoEntity, RemoteCont
             }
         }
 
-        if (mainHandItem.is(ModTags.Items.CROWBAR)) {
+        if (mainHandItem.is(ModTags.Items.TOOLS_CROWBAR)) {
             if (this.items.get(0).getItem() instanceof MortarShell && this.entityData.get(FIRE_TIME) == 0 && level() instanceof ServerLevel) {
                 fire(player);
             }
@@ -233,7 +236,7 @@ public class MortarEntity extends VehicleEntity implements GeoEntity, RemoteCont
             setTarget(player.getMainHandItem(), player);
         }
         if (player.getOffhandItem().getItem() == ModItems.FIRING_PARAMETERS.get()) {
-            setTarget(player.getMainHandItem(), player);
+            setTarget(player.getOffhandItem(), player);
         }
 
         if (player.isShiftKeyDown()) {
@@ -351,9 +354,8 @@ public class MortarEntity extends VehicleEntity implements GeoEntity, RemoteCont
                 entityToSpawn.setPos(this.getX(), this.getEyeY(), this.getZ());
                 entityToSpawn.shoot(shootingAngle.x, shootingAngle.y, shootingAngle.z, (float) shootVelocity(), (float) 0.5);
                 level.addFreshEntity(entityToSpawn);
-                server.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, (this.getX() + 3 * this.getLookAngle().x), (this.getY() + 0.1 + 3 * this.getLookAngle().y), (this.getZ() + 3 * this.getLookAngle().z), 8, 0.4, 0.4, 0.4,
-                        0.007);
-                server.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, this.getX(), this.getY(), this.getZ(), 50, 2, 0.02, 2, 0.0005);
+
+                ParticleTool.spawnMediumCannonMuzzleParticles(getLookAngle(), new Vec3(this.getX(), this.getEyeY(), this.getZ()).add(getLookAngle().scale(1.5)), server, this);
 
                 this.clearContent();
 
@@ -442,11 +444,6 @@ public class MortarEntity extends VehicleEntity implements GeoEntity, RemoteCont
     }
 
     @Override
-    public int getContainerSize() {
-        return 1;
-    }
-
-    @Override
     public int getMaxStackSize() {
         return 1;
     }
@@ -470,7 +467,7 @@ public class MortarEntity extends VehicleEntity implements GeoEntity, RemoteCont
     }
 
     @Override
-    public int getMaxPassengers() {
-        return 0;
+    public boolean hasEnergyStorage() {
+        return false;
     }
 }

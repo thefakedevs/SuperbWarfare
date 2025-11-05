@@ -1,5 +1,6 @@
 {
   "values": [
+    "superbwarfare:repair_tool",
     "superbwarfare:taser",
     "superbwarfare:glock_17",
     "superbwarfare:glock_18",
@@ -18,6 +19,7 @@
     "superbwarfare:qbz_191",
     "superbwarfare:insidious",
     "superbwarfare:mk_14",
+    "superbwarfare:ql_1031",
     "superbwarfare:marlin",
     "superbwarfare:k_98",
     "superbwarfare:mosin_nagant",
@@ -38,7 +40,9 @@
     "superbwarfare:secondary_cataclysm",
     "superbwarfare:rpg",
     "superbwarfare:javelin",
+    "superbwarfare:igla_9k38",
     "superbwarfare:aurelia_sceptre",
-    "superbwarfare:bocek"
+    "superbwarfare:bocek",
+    "superbwarfare:vehicle_gun"
   ]
 }

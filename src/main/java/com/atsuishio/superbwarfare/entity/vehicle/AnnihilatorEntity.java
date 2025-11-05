@@ -1,10 +1,8 @@
 package com.atsuishio.superbwarfare.entity.vehicle;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.ExplosionConfig;
 import com.atsuishio.superbwarfare.config.server.VehicleConfig;
 import com.atsuishio.superbwarfare.entity.OBBEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ArtilleryEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.CannonEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.ThirdPersonCameraPosition;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
@@ -23,9 +21,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
@@ -48,8 +44,8 @@ import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.joml.*;
 import org.joml.Math;
+import org.joml.*;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -61,7 +57,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.List;
 
-public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, CannonEntity, OBBEntity, ArtilleryEntity {
+public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, CannonEntity, OBBEntity {
 
     public static final EntityDataAccessor<Integer> COOL_DOWN = SynchedEntityData.defineId(AnnihilatorEntity.class, EntityDataSerializers.INT);
     public static final EntityDataAccessor<Float> LASER_LEFT_LENGTH = SynchedEntityData.defineId(AnnihilatorEntity.class, EntityDataSerializers.FLOAT);
@@ -107,6 +103,10 @@ public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, Canno
         return new VehicleWeapon[][]{
                 new VehicleWeapon[]{
                         new LaserWeapon()
+                                .sound1p(ModSounds.ANNIHILATOR_FIRE_1P.get())
+                                .sound3p(ModSounds.ANNIHILATOR_FIRE_3P.get())
+                                .sound3pFar(ModSounds.ANNIHILATOR_FAR.get())
+                                .sound3pVeryFar(ModSounds.ANNIHILATOR_VERYFAR.get())
                 }
         };
     }
@@ -157,9 +157,9 @@ public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, Canno
             return InteractionResult.SUCCESS;
         }
 
-        if (stack.is(ModTags.Items.CROWBAR) && !player.isCrouching()) {
+        if (stack.is(ModTags.Items.TOOLS_CROWBAR) && !player.isCrouching()) {
             if (this.entityData.get(COOL_DOWN) == 0) {
-                vehicleShoot(player, 0);
+                vehicleShoot(player);
                 entityData.set(SHOOTER_UUID, player.getStringUUID());
             }
             return InteractionResult.SUCCESS;
@@ -192,24 +192,6 @@ public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, Canno
         double d3 = Math.sqrt(d0 * d0 + d2 * d2);
         entityData.set(YAW, Mth.wrapDegrees((float) (Mth.atan2(d2, d0) * 57.2957763671875) - 90.0F));
         entityData.set(PITCH, Mth.wrapDegrees((float) (-(Mth.atan2(d1, d3) * 57.2957763671875))));
-    }
-
-
-    @Override
-    public void positionRider(@NotNull Entity passenger, @NotNull MoveFunction callback) {
-        if (!this.hasPassenger(passenger)) {
-            return;
-        }
-
-        Matrix4f transform = getVehicleFlatTransform(1);
-
-        float x = 0f;
-        float y = 3.3f;
-        float z = 1.5f;
-
-        Vector4f worldPosition = transformPosition(transform, x, y, z);
-        passenger.setPos(worldPosition.x, worldPosition.y, worldPosition.z);
-        callback.accept(passenger, worldPosition.x, worldPosition.y, worldPosition.z);
     }
 
     @Override
@@ -405,7 +387,6 @@ public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, Canno
                     .damage(300)
                     .radius(15)
                     .position(pos)
-                    .causeVanillaExplosion()
                     .withParticleType(ParticleTool.ParticleType.HUGE)
                     .explode();
         } else {
@@ -414,7 +395,6 @@ public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, Canno
                     .damage(300)
                     .radius(15)
                     .attacker(shooter)
-                    .causeVanillaExplosion()
                     .withParticleType(ParticleTool.ParticleType.HUGE)
                     .position(pos)
                     .explode();
@@ -422,30 +402,23 @@ public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, Canno
     }
 
     @Override
-    public void vehicleShoot(Player player, int type) {
+    public void vehicleShoot(LivingEntity living) {
         if (this.entityData.get(COOL_DOWN) > 0) {
             return;
         }
 
-        if (!this.canConsume(VehicleConfig.ANNIHILATOR_SHOOT_COST.get())) {
+        if (!this.canConsume(VehicleConfig.ANNIHILATOR_SHOOT_COST.get()) && living instanceof Player player) {
             player.displayClientMessage(Component.translatable("tips.superbwarfare.annihilator.energy_not_enough").withStyle(ChatFormatting.RED), true);
             return;
         }
 
-        Level level = player.level();
-        if (level instanceof ServerLevel) {
-            if (player instanceof ServerPlayer serverPlayer) {
-                SoundTool.playLocalSound(serverPlayer, ModSounds.ANNIHILATOR_FIRE_1P.get(), 1, 1);
-                serverPlayer.level().playSound(null, serverPlayer.getOnPos(), ModSounds.ANNIHILATOR_FIRE_3P.get(), SoundSource.PLAYERS, 6, 1);
-                serverPlayer.level().playSound(null, serverPlayer.getOnPos(), ModSounds.ANNIHILATOR_FAR.get(), SoundSource.PLAYERS, 16, 1);
-                serverPlayer.level().playSound(null, serverPlayer.getOnPos(), ModSounds.ANNIHILATOR_VERYFAR.get(), SoundSource.PLAYERS, 32, 1);
-            }
-
+        if (level() instanceof ServerLevel) {
             this.entityData.set(COOL_DOWN, 100);
             this.consumeEnergy(VehicleConfig.ANNIHILATOR_SHOOT_COST.get());
 
             ShakeClientMessage.sendToNearbyPlayers(this, 20, 15, 15, 25);
         }
+
     }
 
     @Override
@@ -496,7 +469,7 @@ public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, Canno
     public void autoAim() {
         if (this.getEnergy() <= 0) return;
 
-        Entity target = SeekTool.seekLivingEntity(this, this.level(), 64, 30);
+        Entity target = SeekTool.seekLivingEntity(this,64, 30);
 
         if (target == null) return;
 
@@ -525,18 +498,6 @@ public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, Canno
         this.setRot(this.getYRot(), this.getXRot());
     }
 
-    protected void clampRotation(Entity entity) {
-        float f = Mth.wrapDegrees(entity.getXRot());
-        float f1 = Mth.clamp(f, -45.0F, 5);
-        entity.xRotO += f1 - f;
-        entity.setXRot(entity.getXRot() + f1 - f);
-    }
-
-    @Override
-    public void onPassengerTurned(@NotNull Entity entity) {
-        this.clampRotation(entity);
-    }
-
     private PlayState movementPredicate(AnimationState<AnnihilatorEntity> event) {
         if (this.entityData.get(COOL_DOWN) > 85) {
             return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("animation.annihilator.fire"));
@@ -555,23 +516,18 @@ public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, Canno
     }
 
     @Override
-    public int mainGunRpm(Player player) {
+    public int mainGunRpm(LivingEntity living) {
         return 0;
     }
 
     @Override
-    public boolean canShoot(Player player) {
+    public boolean canShoot(LivingEntity living) {
         return true;
     }
 
     @Override
-    public int getAmmoCount(Player player) {
+    public int getAmmoCount(LivingEntity living) {
         return (int) (this.getCapability(ForgeCapabilities.ENERGY).map(IEnergyStorage::getEnergyStored).orElse(0) * 100f / (float) this.getMaxEnergy());
-    }
-
-    @Override
-    public boolean hidePassenger(int index) {
-        return true;
     }
 
     @Override
@@ -580,23 +536,13 @@ public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, Canno
     }
 
     @Override
-    public int getWeaponHeat(Player player) {
+    public int getWeaponHeat(LivingEntity living) {
         return 0;
-    }
-
-    @Override
-    public ResourceLocation getVehicleIcon() {
-        return Mod.loc("textures/vehicle_icon/annihilator_icon.png");
     }
 
     @Override
     public double getSensitivity(double original, boolean zoom, int seatIndex, boolean isOnGround) {
         return zoom ? 0.15 : 0.3;
-    }
-
-    @Override
-    public boolean isEnclosed(int index) {
-        return true;
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -623,18 +569,13 @@ public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, Canno
     }
 
     @Override
-    public @Nullable ResourceLocation getVehicleItemIcon() {
-        return Mod.loc("textures/gui/vehicle/type/defense.png");
-    }
-
-    @Override
     public List<OBB> getOBBs() {
         return List.of(this.obb, this.obb2, this.obb3, this.obb4, this.obb5);
     }
 
     @Override
     public void updateOBB() {
-        Matrix4f transform = getVehicleHorizontalTransform(1);
+        Matrix4f transform = getVehicleFlatTransform(1);
 
         Vector4f worldPosition = transformPosition(transform, 0, 2.28125f, 0.875f);
         this.obb.center().set(new Vector3f(worldPosition.x, worldPosition.y, worldPosition.z));
@@ -655,10 +596,5 @@ public class AnnihilatorEntity extends VehicleEntity implements GeoEntity, Canno
         Vector4f worldPosition5 = transformPosition(transform, 0, 2.46875f, -5.28125f);
         this.obb5.center().set(new Vector3f(worldPosition5.x, worldPosition5.y, worldPosition5.z));
         this.obb5.setRotation(VectorTool.combineRotationsYaw(1, this));
-    }
-
-    @Override
-    public boolean hasEnergyStorage() {
-        return true;
     }
 }

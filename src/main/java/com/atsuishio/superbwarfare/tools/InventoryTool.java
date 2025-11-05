@@ -1,9 +1,12 @@
 package com.atsuishio.superbwarfare.tools;
 
+import com.atsuishio.superbwarfare.data.gun.Ammo;
 import com.atsuishio.superbwarfare.init.ModItems;
+import com.atsuishio.superbwarfare.item.common.ammo.AmmoSupplierItem;
 import net.minecraft.core.NonNullList;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
@@ -65,6 +68,57 @@ public class InventoryTool {
         return entity.getCapability(ForgeCapabilities.ITEM_HANDLER)
                 .map(c -> countItem(c, item))
                 .orElse(0);
+    }
+
+    public static int countAmmoItem(@Nullable IItemHandler handler, @Nullable Ammo type) {
+        if (handler == null || type == null) return 0;
+
+        int count = 0;
+        for (int i = 0; i < handler.getSlots(); i++) {
+            var stack = handler.getStackInSlot(i);
+            if (stack.getItem() instanceof AmmoSupplierItem ammoSupplierItem && ammoSupplierItem.type == type) {
+                count += ammoSupplierItem.ammoToAdd * stack.getCount();
+            }
+        }
+
+        return count;
+    }
+
+    public static int countAmmoItem(@Nullable Entity entity, @Nullable Ammo type) {
+        if (entity == null || type == null) return 0;
+
+        return entity.getCapability(ForgeCapabilities.ITEM_HANDLER)
+                .map(cap -> countAmmoItem(cap, type))
+                .orElse(0);
+    }
+
+    public static int consumeAmmoItem(@Nullable Entity entity, @Nullable Ammo type, int count) {
+        if (entity == null || type == null || count <= 0) return 0;
+
+        return entity.getCapability(ForgeCapabilities.ITEM_HANDLER)
+                .map(cap -> consumeAmmoItem(cap, type, count))
+                .orElse(0);
+    }
+
+    public static int consumeAmmoItem(@Nullable IItemHandler handler, @Nullable Ammo type, int count) {
+        if (handler == null || type == null) return 0;
+
+        int initialCount = count;
+        for (int i = 0; i < handler.getSlots(); i++) {
+            var stack = handler.getStackInSlot(i);
+            if (!(stack.getItem() instanceof AmmoSupplierItem ammoSupplierItem && ammoSupplierItem.type == type))
+                continue;
+
+            var supplyCount = ammoSupplierItem.ammoToAdd;
+            var required = (count % supplyCount == 0) ? count / supplyCount : count / supplyCount + 1;
+
+            var countToShrink = Math.min(stack.getCount(), required);
+            stack.shrink(countToShrink);
+            count -= countToShrink * supplyCount;
+            if (count <= 0) break;
+        }
+
+        return initialCount - count;
     }
 
     /**
@@ -151,6 +205,18 @@ public class InventoryTool {
      */
     public static int consumeItem(@Nullable NonNullList<ItemStack> itemList, Item item, int count) {
         return consumeItem(itemList, stack -> stack.is(item), count);
+    }
+
+    /**
+     * 消耗生物物品列表内指定物品
+     * @param living  物品类型
+     * @param item  物品类型
+     * @param count 要消耗的数量
+     */
+    public static void consumeItem(LivingEntity living, Item item, int count) {
+        living.getCapability(ForgeCapabilities.ITEM_HANDLER).ifPresent(handler -> {
+            InventoryTool.consumeItem(handler, item, count);
+        });
     }
 
 

@@ -67,9 +67,12 @@ public class ModItemModelProvider extends ItemModelProvider {
         gunItem(ModItems.M_2_HB);
         gunItem(ModItems.QBZ_191);
         gunItem(ModItems.AWM);
+        gunItem(ModItems.IGLA_9K38);
+        gunItem(ModItems.REPAIR_TOOL);
+        gunItem(ModItems.QL_1031);
 
+        simpleItem(ModItems.VEHICLE_GUN);
         simpleItem(ModItems.EMPTY_PERK, "perk/");
-
         simpleItem(ModItems.MORTAR_SHELL);
 
         // misc
@@ -124,7 +127,6 @@ public class ModItemModelProvider extends ItemModelProvider {
         handheldItem(ModItems.CROWBAR);
         handheldItem(ModItems.DEFUSER);
         simpleItem(ModItems.FIRING_PARAMETERS);
-        simpleItem(ModItems.BEAM_TEST);
         simpleItem(ModItems.HANDGUN_AMMO);
         simpleItem(ModItems.RIFLE_AMMO);
         simpleItem(ModItems.SNIPER_AMMO);
@@ -145,6 +147,10 @@ public class ModItemModelProvider extends ItemModelProvider {
         simpleItem(ModItems.MEDICAL_KIT);
         simpleItem(ModItems.PARACHUTE);
         simpleItem(ModItems.VEHICLE_DAMAGE_ANALYZER);
+        simpleItem(ModItems.IGLA_MISSILE);
+        simpleItem(ModItems.LASER_UNIT);
+        simpleItem(ModItems.TOW_MISSILE);
+        simpleItem(ModItems.TOW_DEPLOYER);
 
         simpleItem(ModItems.TUNGSTEN_ROD);
 
@@ -161,9 +167,9 @@ public class ModItemModelProvider extends ItemModelProvider {
         // armor
         simpleItem(ModItems.RU_HELMET_6B47);
         simpleItem(ModItems.RU_CHEST_6B43);
+        simpleItem(ModItems.US_HELMET_PASGT);
         simpleItem(ModItems.UN_HELMET_PRESS);
         simpleItem(ModItems.UN_CHEST_PRESS);
-        simpleItem(ModItems.US_HELMET_PASTG);
         simpleItem(ModItems.US_CHEST_IOTV);
         simpleItem(ModItems.GE_HELMET_M_35);
 
@@ -212,6 +218,8 @@ public class ModItemModelProvider extends ItemModelProvider {
         gunBlueprintItem(ModItems.INSIDIOUS_BLUEPRINT);
         gunBlueprintItem(ModItems.MP_5_BLUEPRINT);
         gunBlueprintItem(ModItems.QBZ_191_BLUEPRINT);
+        gunBlueprintItem(ModItems.IGLA_BLUEPRINT);
+        gunBlueprintItem(ModItems.QL_1031_BLUEPRINT);
 
         // blocks
         evenSimplerBlockItem(ModBlocks.BARBED_WIRE);

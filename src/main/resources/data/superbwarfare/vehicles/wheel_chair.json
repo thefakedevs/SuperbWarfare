@@ -2,14 +2,28 @@
   "ID": "superbwarfare:wheel_chair",
   "MaxHealth": 30,
   "MaxEnergy": 24000,
+  "Seats": {
+    "Transform" : "Vehicle",
+    "Position": [0, 0.35, 0],
+    "MinYaw": -90,
+    "MaxYaw": 90
+  },
   "UpStep": 1.1,
+  "RotateOffsetHeight": 0.4,
   "Mass": 0.03,
   "DamageModifiers": [
     "superbwarfare:vehicle_strike * 2",
     "superbwarfare:grapeshot_hit * 0.75"
   ],
-  "ExplosionDamage": 10,
-  "ExplosionRadius": 2,
-  "ExplosionParticleType": "Small",
-  "ExplodePassengersOnDestroy": false
+  "VehicleContainerType": "Empty",
+  "DestroyInfo": {
+    "ParticleType": "Small",
+    "ExplosionDamage": 10,
+    "ExplosionRadius": 2,
+    "ExplodePassengers": false,
+    "ExplodeBlocks": false
+  },
+  "VehicleIcon": "superbwarfare:textures/vehicle_icon/wheel_chair_icon.png",
+  "ContainerIcon": "superbwarfare:textures/gui/vehicle/type/otto.png",
+  "Type": "Car"
 }

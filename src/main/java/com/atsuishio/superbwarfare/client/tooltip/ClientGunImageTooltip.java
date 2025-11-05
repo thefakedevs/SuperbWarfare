@@ -5,7 +5,6 @@ import com.atsuishio.superbwarfare.data.gun.FireMode;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.GunProp;
 import com.atsuishio.superbwarfare.init.ModKeyMappings;
-import com.atsuishio.superbwarfare.init.ModTags;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.perk.Perk;
 import com.atsuishio.superbwarfare.tools.FormatTool;
@@ -15,8 +14,10 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import org.jetbrains.annotations.NotNull;
 
 public class ClientGunImageTooltip implements ClientTooltipComponent {
@@ -25,10 +26,6 @@ public class ClientGunImageTooltip implements ClientTooltipComponent {
     protected final int height;
     protected final ItemStack stack;
     protected final GunData data;
-
-    protected GunData getGunData() {
-        return GunData.from(stack);
-    }
 
     public ClientGunImageTooltip(GunImageComponent tooltip) {
         this.width = tooltip.width;
@@ -45,10 +42,17 @@ public class ClientGunImageTooltip implements ClientTooltipComponent {
         renderLevelAndUpgradePointTooltip(font, guiGraphics, x, y + 10);
 
         int yo = 20;
-        if (shouldRenderBypassAndHeadshotTooltip(stack)) {
+        if (shouldRenderBypassAndHeadshotTooltip()) {
             renderBypassAndHeadshotTooltip(font, guiGraphics, x, y + yo);
             yo += 10;
         }
+
+        if (shouldRenderEnergyTooltip()) {
+            yo += 10;
+            renderEnergyTooltip(font, guiGraphics, x, y + yo);
+            yo += 10;
+        }
+
         if (shouldRenderEditTooltip()) {
             renderWeaponEditTooltip(font, guiGraphics, x, y + yo);
             yo += 20;
@@ -65,19 +69,23 @@ public class ClientGunImageTooltip implements ClientTooltipComponent {
         guiGraphics.pose().popPose();
     }
 
-    protected boolean shouldRenderBypassAndHeadshotTooltip(ItemStack stack) {
-        return !stack.is(ModTags.Items.LAUNCHER);
+    protected boolean shouldRenderBypassAndHeadshotTooltip() {
+        return data.get(GunProp.BYPASSES_ARMOR) > 0 || data.get(GunProp.HEADSHOT) > 0;
     }
 
     protected boolean shouldRenderPerks() {
-        return GunData.from(stack).perk.get(Perk.Type.AMMO) != null
-                || GunData.from(stack).perk.get(Perk.Type.DAMAGE) != null
-                || GunData.from(stack).perk.get(Perk.Type.FUNCTIONAL) != null;
+        return data.perk.get(Perk.Type.AMMO) != null
+                || data.perk.get(Perk.Type.DAMAGE) != null
+                || data.perk.get(Perk.Type.FUNCTIONAL) != null;
+    }
+
+    protected boolean shouldRenderEnergyTooltip() {
+        return stack.getCapability(ForgeCapabilities.ENERGY).map(storage -> storage.getMaxEnergyStored() > 0).orElse(false);
     }
 
     protected boolean shouldRenderEditTooltip() {
         if (this.stack.getItem() instanceof GunItem gunItem) {
-            return gunItem.canEditAttachments(stack);
+            return gunItem.canEditAttachments(GunData.from(stack));
         }
         return false;
     }
@@ -96,37 +104,39 @@ public class ClientGunImageTooltip implements ClientTooltipComponent {
      */
     protected Component getDamageComponent() {
         double damage = data.get(GunProp.DAMAGE);
-        double extraDamage = -1;
-        for (var type : Perk.Type.values()) {
-            var instance = getGunData().perk.getInstance(type);
-            if (instance != null) {
-                if (instance.perk().getExtraDisplayDamage(damage, getGunData(), instance) >= 0) {
-                    extraDamage = instance.perk().getExtraDisplayDamage(damage, getGunData(), instance);
-                }
-            }
-        }
-        String dmgStr = FormatTool.format1D(damage) + (extraDamage >= 0 ? " + " + FormatTool.format1D(extraDamage) : "");
+        double explosionDamage = data.get(GunProp.EXPLOSION_DAMAGE);
+
+        String dmgStr = FormatTool.format1D(damage);
         if (data.get(GunProp.PROJECTILE_AMOUNT) > 1) {
-            if (extraDamage >= 0) {
-                dmgStr = "(" + dmgStr + ") * " + data.get(GunProp.PROJECTILE_AMOUNT);
-            } else {
-                dmgStr = dmgStr + " * " + data.get(GunProp.PROJECTILE_AMOUNT);
-            }
+            dmgStr = dmgStr + " * " + data.get(GunProp.PROJECTILE_AMOUNT);
         }
 
-        return Component.translatable("des.superbwarfare.guns.damage").withStyle(ChatFormatting.GRAY)
+        var component = Component.translatable("des.superbwarfare.guns.damage").withStyle(ChatFormatting.GRAY)
                 .append(Component.empty().withStyle(ChatFormatting.RESET))
-                .append(Component.literal(dmgStr)
-                        .withStyle(ChatFormatting.GREEN));
+                .append(Component.literal(dmgStr).withStyle(ChatFormatting.GREEN));
+
+        if (explosionDamage > 0) {
+            String expDmgStr = FormatTool.format1D(explosionDamage);
+            if (data.get(GunProp.PROJECTILE_AMOUNT) > 1) {
+                expDmgStr = expDmgStr + " * " + data.get(GunProp.PROJECTILE_AMOUNT);
+            }
+            component = component
+                    .append(Component.empty().withStyle(ChatFormatting.RESET))
+                    .append(Component.literal(" + " + expDmgStr).withStyle(ChatFormatting.GOLD));
+        }
+
+        return component;
     }
 
     /**
      * 获取武器射速的文本组件
      */
     protected Component getRpmComponent() {
-        if (this.stack.getItem() instanceof GunItem &&
-                (GunData.from(this.stack).get(GunProp.AVAILABLE_FIRE_MODES).contains(FireMode.AUTO)
-                        || GunData.from(this.stack).get(GunProp.AVAILABLE_FIRE_MODES).contains(FireMode.BURST))) {
+        if (!(this.stack.getItem() instanceof GunItem)) return Component.empty();
+        var data = GunData.from(this.stack);
+        var info = data.selectedFireModeInfo();
+
+        if (info.mode == FireMode.AUTO || info.mode == FireMode.BURST) {
             return Component.translatable("des.superbwarfare.guns.rpm").withStyle(ChatFormatting.GRAY)
                     .append(Component.empty().withStyle(ChatFormatting.RESET))
                     .append(Component.literal(FormatTool.format0D(data.get(GunProp.RPM)))
@@ -148,8 +158,8 @@ public class ClientGunImageTooltip implements ClientTooltipComponent {
      * 获取武器等级文本组件
      */
     protected Component getLevelComponent() {
-        int level = getGunData().level.get();
-        double rate = getGunData().exp.get() / (20 * Math.pow(level, 2) + 160 * level + 20);
+        int level = data.level.get();
+        double rate = data.exp.get() / (20 * Math.pow(level, 2) + 160 * level + 20);
 
         ChatFormatting formatting;
         if (level < 10) {
@@ -175,7 +185,7 @@ public class ClientGunImageTooltip implements ClientTooltipComponent {
      * 获取武器强化点数文本组件
      */
     protected Component getUpgradePointComponent() {
-        int upgradePoint = Mth.floor(getGunData().upgradePoint.get());
+        int upgradePoint = Mth.floor(data.upgradePoint.get());
         return Component.translatable("des.superbwarfare.guns.upgrade_point").withStyle(ChatFormatting.GRAY)
                 .append(Component.empty().withStyle(ChatFormatting.RESET))
                 .append(Component.literal(String.valueOf(upgradePoint)).withStyle(ChatFormatting.WHITE).withStyle(ChatFormatting.BOLD));
@@ -208,6 +218,47 @@ public class ClientGunImageTooltip implements ClientTooltipComponent {
         return Component.translatable("des.superbwarfare.guns.headshot").withStyle(ChatFormatting.GRAY)
                 .append(Component.empty().withStyle(ChatFormatting.RESET))
                 .append(Component.literal(FormatTool.format1D(headshot, "x")).withStyle(ChatFormatting.AQUA));
+    }
+
+    /**
+     * 渲染武器能量信息
+     */
+    protected void renderEnergyTooltip(Font font, GuiGraphics guiGraphics, int x, int y) {
+        guiGraphics.drawString(font, getEnergyComponent(), x, y, 0xFFFFFF);
+    }
+
+    /**
+     * 获取武器能量文本组件
+     */
+    protected Component getEnergyComponent() {
+        assert stack.getCapability(ForgeCapabilities.ENERGY).resolve().isPresent();
+        var storage = stack.getCapability(ForgeCapabilities.ENERGY).resolve().get();
+        int energy = storage.getEnergyStored();
+        int maxEnergy = storage.getMaxEnergyStored();
+        float percentage = Mth.clamp((float) energy / maxEnergy, 0, 1);
+        MutableComponent component = Component.empty();
+
+        ChatFormatting format;
+        if (percentage <= .2f) {
+            format = ChatFormatting.RED;
+        } else if (percentage <= .6f) {
+            format = ChatFormatting.YELLOW;
+        } else {
+            format = ChatFormatting.GREEN;
+        }
+
+        int count = (int) (percentage * 50);
+        for (int i = 0; i < count; i++) {
+            component.append(Component.literal("|").withStyle(format));
+        }
+        component.append(Component.empty().withStyle(ChatFormatting.RESET));
+        for (int i = 0; i < 50 - count; i++) {
+            component.append(Component.literal("|").withStyle(ChatFormatting.GRAY));
+        }
+
+        component.append(Component.literal(" " + energy + "/" + maxEnergy + " FE").withStyle(ChatFormatting.GRAY));
+
+        return component;
     }
 
     /**
@@ -288,7 +339,7 @@ public class ClientGunImageTooltip implements ClientTooltipComponent {
     protected int getDefaultMaxWidth(Font font) {
         int width = font.width(getDamageComponent().getVisualOrderText()) + font.width(getRpmComponent().getVisualOrderText()) + 16;
         width = Math.max(width, font.width(getLevelComponent().getVisualOrderText()) + font.width(getUpgradePointComponent().getVisualOrderText()) + 16);
-        if (shouldRenderBypassAndHeadshotTooltip(stack)) {
+        if (shouldRenderBypassAndHeadshotTooltip()) {
             width = Math.max(width, font.width(getBypassComponent().getVisualOrderText()) + font.width(getHeadshotComponent().getVisualOrderText()) + 16);
         }
         if (shouldRenderEditTooltip()) {
@@ -320,7 +371,8 @@ public class ClientGunImageTooltip implements ClientTooltipComponent {
     public int getHeight() {
         int height = Math.max(20, this.height);
 
-        if (shouldRenderBypassAndHeadshotTooltip(stack)) height += 10;
+        if (shouldRenderBypassAndHeadshotTooltip()) height += 10;
+        if (shouldRenderEnergyTooltip()) height += 20;
         if (shouldRenderEditTooltip()) height += 20;
         if (shouldRenderPerks()) {
             height += 16;
@@ -339,11 +391,22 @@ public class ClientGunImageTooltip implements ClientTooltipComponent {
 
     @Override
     public int getWidth(@NotNull Font font) {
+        int width = getMaxPerkDesWidth(font);
+
         if (Screen.hasShiftDown()) {
-            int width = getMaxPerkDesWidth(font);
-            return width == 0 ? Math.max(this.width, getDefaultMaxWidth(font)) : Math.max(width, getDefaultMaxWidth(font));
+            if (width == 0) {
+                width = Math.max(this.width, getDefaultMaxWidth(font));
+            } else {
+                width = Math.max(width, getDefaultMaxWidth(font));
+            }
         } else {
-            return getDefaultMaxWidth(font);
+            width = getDefaultMaxWidth(font);
         }
+
+        if (shouldRenderEnergyTooltip()) {
+            width = Math.max(width, font.width(getEnergyComponent().getVisualOrderText()) + 10);
+        }
+
+        return width;
     }
 }

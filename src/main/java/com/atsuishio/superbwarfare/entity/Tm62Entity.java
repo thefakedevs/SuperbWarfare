@@ -2,7 +2,6 @@ package com.atsuishio.superbwarfare.entity;
 
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.ExplosionConfig;
-import com.atsuishio.superbwarfare.entity.projectile.MineEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModifier;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
 import com.atsuishio.superbwarfare.init.ModEntities;
@@ -41,7 +40,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.Optional;
 import java.util.UUID;
 
-public class Tm62Entity extends Entity implements GeoEntity, OwnableEntity, MineEntity {
+public class Tm62Entity extends Entity implements GeoEntity, OwnableEntity {
 
     protected static final EntityDataAccessor<Optional<UUID>> OWNER_UUID = SynchedEntityData.defineId(Tm62Entity.class, EntityDataSerializers.OPTIONAL_UUID);
     protected static final EntityDataAccessor<String> LAST_ATTACKER_UUID = SynchedEntityData.defineId(Tm62Entity.class, EntityDataSerializers.STRING);
@@ -223,12 +222,13 @@ public class Tm62Entity extends Entity implements GeoEntity, OwnableEntity, Mine
             }
 
             if (trigger) {
-                triggerExplode();
-                if (this.level() instanceof ServerLevel) {
+                this.triggerExplode();
+
+                if (this.level() instanceof ServerLevel && ExplosionConfig.EXPLOSION_DESTROY.get() && ExplosionConfig.EXTRA_EXPLOSION_EFFECT.get()) {
                     AABB aabb = new AABB(position(), position()).inflate(2);
                     BlockPos.betweenClosedStream(aabb).forEach((blockPos) -> {
                         float hard = this.level().getBlockState(blockPos).getBlock().defaultDestroyTime();
-                        if (ExplosionConfig.EXPLOSION_DESTROY.get() && hard != -1) {
+                        if (hard != -1) {
                             this.level().destroyBlock(blockPos, true);
                         }
                     });
@@ -242,7 +242,6 @@ public class Tm62Entity extends Entity implements GeoEntity, OwnableEntity, Mine
                 .attacker(this.getOwner())
                 .damage(450)
                 .radius(13)
-                .causeVanillaExplosion()
                 .withParticleType(ParticleTool.ParticleType.HUGE)
                 .explode();
 

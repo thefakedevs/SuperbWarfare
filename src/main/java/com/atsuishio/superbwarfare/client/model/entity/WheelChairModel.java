@@ -1,24 +1,18 @@
 package com.atsuishio.superbwarfare.client.model.entity;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.entity.vehicle.WheelChairEntity;
-import net.minecraft.resources.ResourceLocation;
-import software.bernie.geckolib.model.GeoModel;
+import org.jetbrains.annotations.Nullable;
 
-public class WheelChairModel extends GeoModel<WheelChairEntity> {
-
-    @Override
-    public ResourceLocation getAnimationResource(WheelChairEntity entity) {
-        return null;
-    }
+public class WheelChairModel extends VehicleModel<WheelChairEntity> {
 
     @Override
-    public ResourceLocation getModelResource(WheelChairEntity entity) {
-        return Mod.loc("geo/wheel_chair.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(WheelChairEntity entity) {
-        return Mod.loc("textures/entity/wheel_chair.png");
+    public @Nullable TransformContext<WheelChairEntity> collectTransform(String boneName) {
+        return switch (boneName) {
+            case "w_rb" -> (bone, vehicle, state) -> bone.setRotX(vehicle.rightWheelRot);
+            case "w_lb" -> (bone, vehicle, state) -> bone.setRotX(vehicle.leftWheelRot);
+            case "w_rr" -> (bone, vehicle, state) -> bone.setRotX(4 * vehicle.rightWheelRot);
+            case "w_lr" -> (bone, vehicle, state) -> bone.setRotX(4 * vehicle.leftWheelRot);
+            default -> super.collectTransform(boneName);
+        };
     }
 }

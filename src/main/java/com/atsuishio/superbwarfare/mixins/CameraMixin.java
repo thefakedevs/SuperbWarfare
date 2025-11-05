@@ -1,10 +1,11 @@
 package com.atsuishio.superbwarfare.mixins;
 
+import com.atsuishio.superbwarfare.client.ICustomCamera;
 import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.init.ModItems;
-import com.atsuishio.superbwarfare.init.ModTags;
+import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.tools.EntityFindUtil;
 import com.mojang.math.Axis;
 import net.minecraft.client.Camera;
@@ -17,8 +18,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import org.joml.Math;
-import org.joml.Matrix4f;
-import org.joml.Vector4f;
+import org.joml.*;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -27,7 +28,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Camera.class)
-public abstract class CameraMixin {
+public abstract class CameraMixin implements ICustomCamera {
+
+    @Shadow
+    @Final
+    private Quaternionf rotation;
 
     @Shadow(aliases = "Lnet/minecraft/client/Camera;setRotation(FF)V")
     protected abstract void setRotation(float p_90573_, float p_90574_);
@@ -79,6 +84,21 @@ public abstract class CameraMixin {
             }
 
             if (player.getVehicle() instanceof VehicleEntity vehicle) {
+//                // TODO 完善四元数相关
+//                var quat = vehicle.getCameraQuat(partialTicks, player, ClientEventHandler.zoomVehicle, Minecraft.getInstance().options.getCameraType() == CameraType.FIRST_PERSON);
+//                if (quat != null) {
+//                    this.rotation.set(quat);
+//
+//                    this.xRot = quat.x;
+//                    this.yRot = quat.y;
+//
+//                    this.forwards.set(0.0F, 0.0F, 1.0F).rotate(this.rotation);
+//                    this.up.set(0.0F, 1.0F, 0.0F).rotate(this.rotation);
+//                    this.left.set(1.0F, 0.0F, 0.0F).rotate(this.rotation);
+//
+//                    info.cancel();
+//                }
+
                 var rotation = vehicle.getCameraRotation(partialTicks, player, ClientEventHandler.zoomVehicle, Minecraft.getInstance().options.getCameraType() == CameraType.FIRST_PERSON);
                 if (rotation != null) {
                     setRotation(rotation.x, rotation.y);
@@ -91,6 +111,7 @@ public abstract class CameraMixin {
                 if (rotation != null || position != null) {
                     info.cancel();
                 }
+
             }
         }
     }
@@ -114,7 +135,7 @@ public abstract class CameraMixin {
     public void superbWarfare$setup(BlockGetter area, Entity entity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
         if (Minecraft.getInstance().options.getCameraType() == CameraType.THIRD_PERSON_BACK
                 && entity instanceof Player player
-                && player.getMainHandItem().is(ModTags.Items.GUN)
+                && player.getMainHandItem().getItem() instanceof GunItem
                 && Math.max(ClientEventHandler.bowPullPos, ClientEventHandler.zoomPos) > 0
         ) {
             move(-getMaxZoom(-2.9 * Math.max(ClientEventHandler.bowPullPos, ClientEventHandler.zoomPos)), 0, -ClientEventHandler.cameraLocation * Math.max(ClientEventHandler.bowPullPos, ClientEventHandler.zoomPos));
@@ -134,4 +155,19 @@ public abstract class CameraMixin {
 
     @Shadow
     protected abstract double getMaxZoom(double desiredCameraDistance);
+
+    @Shadow @Final private Vector3f forwards;
+
+    @Shadow @Final private Vector3f up;
+
+    @Shadow @Final private Vector3f left;
+
+    @Shadow private float xRot;
+
+    @Shadow private float yRot;
+
+    @Override
+    public Quaternionf superbwarfare$getRotation() {
+        return this.rotation;
+    }
 }

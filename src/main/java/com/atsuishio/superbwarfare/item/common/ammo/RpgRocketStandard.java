@@ -2,7 +2,7 @@ package com.atsuishio.superbwarfare.item.common.ammo;
 
 import com.atsuishio.superbwarfare.advancement.CriteriaRegister;
 import com.atsuishio.superbwarfare.client.renderer.item.RpgRocketStandardRenderer;
-import com.atsuishio.superbwarfare.entity.projectile.RpgRocketEntity;
+import com.atsuishio.superbwarfare.entity.projectile.RpgRocketStandardEntity;
 import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModSounds;
 import com.atsuishio.superbwarfare.item.DispenserLaunchable;
@@ -111,7 +111,8 @@ public class RpgRocketStandard extends Item implements GeoItem, DispenserLauncha
             @Override
             @ParametersAreNonnullByDefault
             protected @NotNull Projectile getProjectile(Level pLevel, Position pPosition, ItemStack pStack) {
-                return new RpgRocketEntity(ModEntities.RPG_ROCKET.get(), pPosition.x(), pPosition.y(), pPosition.z(), pLevel, 320f, 100f, 6f, 0.015f, true);            }
+                return new RpgRocketStandardEntity(ModEntities.RPG_ROCKET_STANDARD.get(), pPosition.x(), pPosition.y(), pPosition.z(), pLevel, 340, 80, 5, 0.015f);
+            }
 
             @Override
             protected void playSound(BlockSource pSource) {

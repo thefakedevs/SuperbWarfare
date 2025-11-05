@@ -1,9 +1,10 @@
 package com.atsuishio.superbwarfare.client.sound;
 
+import com.atsuishio.superbwarfare.compat.netmusic.NetMusicCompatHolder;
 import com.atsuishio.superbwarfare.entity.projectile.FastThrowableProjectile;
 import com.atsuishio.superbwarfare.entity.vehicle.A10Entity;
 import com.atsuishio.superbwarfare.entity.vehicle.Hpj11Entity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.MobileVehicleEntity;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -12,9 +13,17 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 public class ModSoundInstances {
 
     public static void init() {
-        MobileVehicleEntity.trackSound = vehicle -> Minecraft.getInstance().getSoundManager().play(new VehicleSoundInstance.TrackSound(vehicle));
-        MobileVehicleEntity.engineSound = vehicle -> Minecraft.getInstance().getSoundManager().play(new VehicleSoundInstance.EngineSound(vehicle));
-        MobileVehicleEntity.swimSound = vehicle -> Minecraft.getInstance().getSoundManager().play(new VehicleSoundInstance.SwimSound(vehicle));
+        VehicleEntity.trackSound = vehicle -> Minecraft.getInstance().getSoundManager().play(new VehicleSoundInstance.TrackSound(vehicle));
+        VehicleEntity.engineSound = vehicle -> Minecraft.getInstance().getSoundManager().play(new VehicleSoundInstance.EngineSound(vehicle));
+        VehicleEntity.swimSound = vehicle -> Minecraft.getInstance().getSoundManager().play(new VehicleSoundInstance.SwimSound(vehicle));
+        VehicleEntity.hornSound = vehicle -> Minecraft.getInstance().getSoundManager().play(new HornSoundInstance.VehicleHornSound(vehicle));
+        VehicleEntity.inCarMusic = vehicle -> {
+            if (NetMusicCompatHolder.canPlayMusic(vehicle)) {
+                NetMusicCompatHolder.playMusic(vehicle);
+            } else {
+                Minecraft.getInstance().getSoundManager().play(new InCarMusicInstance.InCarMusicSound(vehicle));
+            }
+        };
 
         A10Entity.fireSound = vehicle -> Minecraft.getInstance().getSoundManager().play(new VehicleFireSoundInstance.A10FireSound(vehicle));
         Hpj11Entity.fireSound = vehicle -> Minecraft.getInstance().getSoundManager().play(new VehicleFireSoundInstance.HPJ11CloseFireSound(vehicle));

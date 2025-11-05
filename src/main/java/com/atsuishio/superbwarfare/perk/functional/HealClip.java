@@ -8,6 +8,7 @@ import com.atsuishio.superbwarfare.tools.DamageTypeTool;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.player.Player;
 import org.jetbrains.annotations.Nullable;
 
@@ -20,7 +21,7 @@ public class HealClip extends Perk {
     }
 
     @Override
-    public void tick(GunData data, PerkInstance instance, @Nullable Entity living) {
+    public void tick(GunData data, PerkInstance instance, @Nullable Entity entity) {
         data.perk.reduceCooldown(this, "HealClipTime");
     }
 
@@ -35,7 +36,7 @@ public class HealClip extends Perk {
     }
 
     @Override
-    public void preReload(GunData data, PerkInstance instance, @Nullable Entity living) {
+    public void preReload(GunData data, PerkInstance instance, @Nullable Entity entity) {
         int time = data.perk.getTag(this).getInt("HealClipTime");
         if (time > 0) {
             data.perk.getTag(this).remove("HealClipTime");
@@ -46,8 +47,8 @@ public class HealClip extends Perk {
     }
 
     @Override
-    public void postReload(GunData data, PerkInstance instance, @Nullable Entity target) {
-        if (!(target instanceof LivingEntity living)) return;
+    public void postReload(GunData data, PerkInstance instance, @Nullable Entity entity) {
+        if (!(entity instanceof LivingEntity living)) return;
 
         if (!data.perk.getTag(this).contains("HealClip")) {
             return;
@@ -58,9 +59,15 @@ public class HealClip extends Perk {
             healClipLevel = 1;
         }
 
-        living.heal(12.0f * (0.8f + 0.2f * healClipLevel));
-        List<Player> players = target.level().getEntitiesOfClass(Player.class, target.getBoundingBox().inflate(5))
-                .stream().filter(p -> p.isAlliedTo(target)).toList();
+        float healAmount = 12 * (0.8f + 0.2f * healClipLevel);
+        float absorption = healAmount - living.getMaxHealth() + living.getHealth();
+        living.heal(healAmount);
+        if (absorption > 0) {
+            living.setAbsorptionAmount(absorption * 0.3f);
+        }
+
+        List<Player> players = entity.level().getEntitiesOfClass(Player.class, entity.getBoundingBox().inflate(5))
+                .stream().filter(p -> p.isAlliedTo(entity) || (entity instanceof OwnableEntity ownableEntity && ownableEntity.getOwner() == p)).toList();
         int finalHealClipLevel = healClipLevel;
         players.forEach(p -> p.heal(6.0f * (0.8f + 0.2f * finalHealClipLevel)));
     }

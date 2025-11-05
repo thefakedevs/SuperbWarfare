@@ -1,17 +1,14 @@
 package com.atsuishio.superbwarfare.item.gun.sniper;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.renderer.gun.AwmItemRenderer;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.value.AttachmentType;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
-import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.item.gun.GunGeoItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.tools.GunsTool;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
@@ -25,11 +22,10 @@ import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.renderer.GeoItemRenderer;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class AwmItem extends GunItem {
+public class AwmItem extends GunGeoItem {
 
     public AwmItem() {
         super(new Properties().rarity(Rarity.EPIC));
@@ -48,37 +44,18 @@ public class AwmItem extends GunItem {
         if (event.getData(DataTickets.ITEM_RENDER_PERSPECTIVE) != ItemDisplayContext.FIRST_PERSON_RIGHT_HAND)
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.awm.idle"));
 
-        if (GunData.from(stack).bolt.actionTimer.get() > 0) {
+        var data = GunData.from(stack);
+
+        if (data.bolt.actionTimer.get() > 0) {
             return event.setAndContinue(RawAnimation.begin().thenPlay("animation.awm.shift"));
         }
 
-        if (GunData.from(stack).reload.empty()) {
+        if (data.reload.empty()) {
             return event.setAndContinue(RawAnimation.begin().thenPlay("animation.awm.reload_empty"));
         }
 
-        if (GunData.from(stack).reload.normal()) {
+        if (data.reload.normal()) {
             return event.setAndContinue(RawAnimation.begin().thenPlay("animation.awm.reload_normal"));
-        }
-
-        return event.setAndContinue(RawAnimation.begin().thenLoop("animation.awm.idle"));
-    }
-
-    private PlayState idlePredicate(AnimationState<AwmItem> event) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) return PlayState.STOP;
-        ItemStack stack = player.getMainHandItem();
-        if (!(stack.getItem() instanceof GunItem)) return PlayState.STOP;
-        if (event.getData(DataTickets.ITEM_RENDER_PERSPECTIVE) != ItemDisplayContext.FIRST_PERSON_RIGHT_HAND)
-            return event.setAndContinue(RawAnimation.begin().thenLoop("animation.awm.idle"));
-
-        if (player.isSprinting() && player.onGround()
-                && ClientEventHandler.cantSprint == 0
-                && !(GunData.from(stack).reload.normal() || GunData.from(stack).reload.empty()) && ClientEventHandler.drawTime < 0.01) {
-            if (ClientEventHandler.tacticalSprint && GunData.from(stack).bolt.actionTimer.get() == 0) {
-                return event.setAndContinue(RawAnimation.begin().thenLoop("animation.awm.run_fast"));
-            } else {
-                return event.setAndContinue(RawAnimation.begin().thenLoop("animation.awm.run"));
-            }
         }
 
         return event.setAndContinue(RawAnimation.begin().thenLoop("animation.awm.idle"));
@@ -98,20 +75,8 @@ public class AwmItem extends GunItem {
     public void registerControllers(AnimatableManager.ControllerRegistrar data) {
         var fireAnimController = new AnimationController<>(this, "fireAnimController", 1, this::fireAnimPredicate);
         data.add(fireAnimController);
-        var idleController = new AnimationController<>(this, "idleController", 6, this::idlePredicate);
-        data.add(idleController);
         var editController = new AnimationController<>(this, "editController", 1, this::editPredicate);
         data.add(editController);
-    }
-
-    @Override
-    public Set<SoundEvent> getReloadSound() {
-        return Set.of(ModSounds.AWM_RELOAD_EMPTY.get(), ModSounds.AWM_RELOAD_NORMAL.get(), ModSounds.AWM_BOLT.get());
-    }
-
-    @Override
-    public ResourceLocation getGunIcon(ItemStack stack) {
-        return Mod.loc("textures/gun_icon/awm_icon.png");
     }
 
     @Override
@@ -125,24 +90,29 @@ public class AwmItem extends GunItem {
     }
 
     @Override
-    public int getCustomMagazine(ItemStack stack) {
-        int magType = GunData.from(stack).attachment.get(AttachmentType.MAGAZINE);
+    public int getCustomMagazine(GunData data) {
+        int magType = data.attachment.get(AttachmentType.MAGAZINE);
         return magType == 1 ? 5 : 0;
     }
 
     @Override
-    public double getCustomZoom(ItemStack stack) {
-        int scopeType = GunData.from(stack).attachment.get(AttachmentType.SCOPE);
+    public double getCustomZoom(GunData data) {
+        int scopeType = data.attachment.get(AttachmentType.SCOPE);
         return switch (scopeType) {
             case 2 -> 2.15;
-            case 3 -> GunsTool.getGunDoubleTag(stack, "CustomZoom");
+            case 3 -> GunsTool.getGunDoubleTag(data.stack, "CustomZoom");
             default -> 0;
         };
     }
 
     @Override
-    public boolean canAdjustZoom(ItemStack stack) {
-        return GunData.from(stack).attachment.get(AttachmentType.SCOPE) == 3;
+    public boolean canAdjustZoom(GunData data) {
+        return data.attachment.get(AttachmentType.SCOPE) == 3;
+    }
+
+    @Override
+    public void whenNoAmmo(GunData data) {
+        data.closeStrike.set(true);
     }
 
     @Override
@@ -158,37 +128,37 @@ public class AwmItem extends GunItem {
     }
 
     @Override
-    public boolean hasCustomBarrel(ItemStack stack) {
+    public boolean hasCustomBarrel(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasCustomScope(ItemStack stack) {
+    public boolean hasCustomScope(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasCustomMagazine(ItemStack stack) {
+    public boolean hasCustomMagazine(GunData data) {
         return true;
     }
 
     @Override
-    public boolean isOpenBolt(ItemStack stack) {
+    public boolean isOpenBolt(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasBipod(ItemStack stack) {
+    public boolean hasBipod(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasBulletInBarrel(ItemStack stack) {
+    public boolean hasBulletInBarrel(GunData data) {
         return true;
     }
 
     @Override
-    public boolean canEditAttachments(ItemStack stack) {
+    public boolean canEditAttachments(GunData data) {
         return true;
     }
 }

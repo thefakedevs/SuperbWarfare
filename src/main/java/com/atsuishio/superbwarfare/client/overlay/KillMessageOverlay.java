@@ -7,7 +7,6 @@ import com.atsuishio.superbwarfare.client.tooltip.ClientDogTagImageTooltip;
 import com.atsuishio.superbwarfare.compat.tacz.TACZGunEventHandler;
 import com.atsuishio.superbwarfare.config.client.DisplayConfig;
 import com.atsuishio.superbwarfare.config.client.KillMessageConfig;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ArmedVehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.KillMessageHandler;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
@@ -15,19 +14,18 @@ import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.item.curio.DogTagItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.tools.DamageTypeTool;
-import com.atsuishio.superbwarfare.tools.PlayerKillRecord;
+import com.atsuishio.superbwarfare.tools.LivingKillRecord;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -36,30 +34,23 @@ import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 import org.jetbrains.annotations.Nullable;
 import top.theillusivec4.curios.api.CuriosApi;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-
 @OnlyIn(Dist.CLIENT)
 public class KillMessageOverlay implements IGuiOverlay {
 
     public static final String ID = Mod.MODID + "_kill_message";
 
-    private static final ResourceLocation HEADSHOT = Mod.loc("textures/screens/damage_types/headshot.png");
+    private static final ResourceLocation HEADSHOT = Mod.loc("textures/overlay/damage_types/headshot.png");
 
-    private static final ResourceLocation KNIFE = Mod.loc("textures/screens/damage_types/knife.png");
-    private static final ResourceLocation EXPLOSION = Mod.loc("textures/screens/damage_types/explosion.png");
-    private static final ResourceLocation CLAYMORE = Mod.loc("textures/screens/damage_types/claymore.png");
-    private static final ResourceLocation GENERIC = Mod.loc("textures/screens/damage_types/generic.png");
-    private static final ResourceLocation BEAST = Mod.loc("textures/screens/damage_types/beast.png");
-    private static final ResourceLocation BLEEDING = Mod.loc("textures/screens/damage_types/bleeding.png");
-    private static final ResourceLocation SHOCK = Mod.loc("textures/screens/damage_types/shock.png");
-    private static final ResourceLocation BLOOD_CRYSTAL = Mod.loc("textures/screens/damage_types/blood_crystal.png");
-    private static final ResourceLocation BURN = Mod.loc("textures/screens/damage_types/burn.png");
-    private static final ResourceLocation DRONE = Mod.loc("textures/screens/damage_types/drone.png");
-    private static final ResourceLocation LASER = Mod.loc("textures/screens/damage_types/laser.png");
-    private static final ResourceLocation VEHICLE = Mod.loc("textures/screens/damage_types/vehicle_strike.png");
-
-    private static final ResourceLocation WORLD_PEACE_STAFF = Mod.loc("textures/gun_icon/compat/world_peace_staff.png");
+    private static final ResourceLocation KNIFE = Mod.loc("textures/overlay/damage_types/knife.png");
+    private static final ResourceLocation EXPLOSION = Mod.loc("textures/overlay/damage_types/explosion.png");
+    private static final ResourceLocation CLAYMORE = Mod.loc("textures/overlay/damage_types/claymore.png");
+    private static final ResourceLocation GENERIC = Mod.loc("textures/overlay/damage_types/generic.png");
+    private static final ResourceLocation BEAST = Mod.loc("textures/overlay/damage_types/beast.png");
+    private static final ResourceLocation SHOCK = Mod.loc("textures/overlay/damage_types/shock.png");
+    private static final ResourceLocation BURN = Mod.loc("textures/overlay/damage_types/burn.png");
+    private static final ResourceLocation DRONE = Mod.loc("textures/overlay/damage_types/drone.png");
+    private static final ResourceLocation LASER = Mod.loc("textures/overlay/damage_types/laser.png");
+    private static final ResourceLocation VEHICLE = Mod.loc("textures/overlay/damage_types/vehicle_strike.png");
 
     @Override
     public void render(ForgeGui gui, GuiGraphics guiGraphics, float partialTick, int screenWidth, int screenHeight) {
@@ -106,7 +97,7 @@ public class KillMessageOverlay implements IGuiOverlay {
             }
         }
 
-        var arr = KillMessageHandler.QUEUE.toArray(new PlayerKillRecord[0]);
+        var arr = KillMessageHandler.QUEUE.toArray(new LivingKillRecord[0]);
         var record = arr[0];
 
         if (record.freeze) {
@@ -125,17 +116,17 @@ public class KillMessageOverlay implements IGuiOverlay {
             }
         }
 
-        for (PlayerKillRecord r : KillMessageHandler.QUEUE) {
+        for (LivingKillRecord r : KillMessageHandler.QUEUE) {
             posY = renderKillMessages(r, guiGraphics, partialTick, posX, posY, left, bottom);
         }
     }
 
-    private static float renderKillMessages(PlayerKillRecord record, GuiGraphics guiGraphics, float partialTick, int width, float baseTop, boolean left, boolean bottom) {
+    private static float renderKillMessages(LivingKillRecord record, GuiGraphics guiGraphics, float partialTick, int width, float baseTop, boolean left, boolean bottom) {
         float top = baseTop;
 
         Font font = Minecraft.getInstance().font;
 
-        String targetName = getEntityName(record.target);
+        String targetName = getTargetName(record.target);
         int targetNameWidth = font.width(targetName);
 
         guiGraphics.pose().pushPose();
@@ -321,7 +312,7 @@ public class KillMessageOverlay implements IGuiOverlay {
     }
 
     @Nullable
-    private static ResourceLocation getDamageTypeIcon(PlayerKillRecord record) {
+    private static ResourceLocation getDamageTypeIcon(LivingKillRecord record) {
         ResourceLocation icon;
         // 渲染爆头图标
         if (record.headshot) {
@@ -347,10 +338,6 @@ public class KillMessageOverlay implements IGuiOverlay {
                     icon = BEAST;
                 } else if (record.damageType == ModDamageTypes.MINE) {
                     icon = CLAYMORE;
-                } else if (record.damageType == ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation("dreamaticvoyage", "bleeding"))) {
-                    icon = BLEEDING;
-                } else if (record.damageType == ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation("dreamaticvoyage", "blood_crystal"))) {
-                    icon = BLOOD_CRYSTAL;
                 } else if (record.damageType == ModDamageTypes.SHOCK) {
                     icon = SHOCK;
                 } else if (record.damageType == ModDamageTypes.BURN || record.damageType == DamageTypes.IN_FIRE || record.damageType == DamageTypes.ON_FIRE || record.damageType == DamageTypes.LAVA) {
@@ -370,28 +357,62 @@ public class KillMessageOverlay implements IGuiOverlay {
     }
 
     public static String getEntityName(Entity entity) {
-        AtomicReference<String> targetName = new AtomicReference<>(entity.getDisplayName().getString());
-        if (!DisplayConfig.DOG_TAG_NAME_VISIBLE.get()) return targetName.get();
-        if (entity instanceof Player targetPlayer) {
-            CuriosApi.getCuriosInventory(targetPlayer).ifPresent(
+        String entityName = entity.getDisplayName().getString();
+        String[] name = {entityName};
+        if (entity instanceof LivingEntity living && living instanceof OwnableEntity ownableEntity && ownableEntity.getOwner() instanceof Player player) {
+            if (DisplayConfig.DOG_TAG_NAME_VISIBLE.get()) {
+                name[0] = player.getDisplayName().getString() + " + " + entityName;
+                CuriosApi.getCuriosInventory(player).ifPresent(
+                        c -> c.findFirstCurio(ModItems.DOG_TAG.get()).ifPresent(
+                                s -> {
+                                    if (s.stack().hasCustomHoverName()) {
+                                        name[0] = s.stack().getHoverName().getString() + " + " + entityName;
+                                    }
+                                }
+                        )
+                );
+            } else {
+                name[0] = player.getDisplayName().getString() + " + " + entityName;
+            }
+        } else if (entity instanceof Player player) {
+            if (!DisplayConfig.DOG_TAG_NAME_VISIBLE.get()) return name[0];
+            CuriosApi.getCuriosInventory(player).ifPresent(
                     c -> c.findFirstCurio(ModItems.DOG_TAG.get()).ifPresent(
                             s -> {
                                 if (s.stack().hasCustomHoverName()) {
-                                    targetName.set(s.stack().getHoverName().getString());
+                                    name[0] = s.stack().getHoverName().getString();
                                 }
                             }
                     )
             );
         }
-        return targetName.get();
+        return name[0];
+    }
+
+    public static String getTargetName(Entity entity) {
+        String entityName = entity.getDisplayName().getString();
+        String[] name = {entityName};
+        if (entity instanceof Player player) {
+            if (!DisplayConfig.DOG_TAG_NAME_VISIBLE.get()) return name[0];
+            CuriosApi.getCuriosInventory(player).ifPresent(
+                    c -> c.findFirstCurio(ModItems.DOG_TAG.get()).ifPresent(
+                            s -> {
+                                if (s.stack().hasCustomHoverName()) {
+                                    name[0] = s.stack().getHoverName().getString();
+                                }
+                            }
+                    )
+            );
+        }
+        return name[0];
     }
 
     @Nullable
-    public static ResourceLocation getWeaponIcon(PlayerKillRecord record) {
-        Player player = record.attacker;
-        if (player != null && player.getVehicle() instanceof VehicleEntity vehicleEntity) {
+    public static ResourceLocation getWeaponIcon(LivingKillRecord record) {
+        LivingEntity attacker = record.attacker;
+        if (attacker.getVehicle() instanceof VehicleEntity vehicleEntity) {
             // 载具图标
-            if ((vehicleEntity instanceof ArmedVehicleEntity iArmedVehicle && iArmedVehicle.banHand(player)) || record.damageType == ModDamageTypes.VEHICLE_STRIKE) {
+            if ((vehicleEntity.banHand(attacker)) || record.damageType == ModDamageTypes.VEHICLE_STRIKE) {
                 return vehicleEntity.getVehicleIcon();
             } else {
                 if (record.stack.getItem() instanceof GunItem gunItem) {
@@ -407,28 +428,23 @@ public class KillMessageOverlay implements IGuiOverlay {
             } else if (TACZGunEventHandler.compatCondition()) {
                 return TACZGunEventHandler.getTaczCompatIcon(record.stack);
             }
-
-            // TODO 如果是特殊武器击杀，则渲染对应图标
-            if (record.stack.getItem().getDescriptionId().equals("item.dreamaticvoyage.world_peace_staff")) {
-                return WORLD_PEACE_STAFF;
-            }
         }
         return null;
     }
 
     public static boolean shouldRenderDogTagIcon(LivingEntity living) {
-        AtomicBoolean flag = new AtomicBoolean(false);
+        boolean[] flag = {false};
         CuriosApi.getCuriosInventory(living).ifPresent(
                 c -> c.findFirstCurio(ModItems.DOG_TAG.get()).ifPresent(
                         s -> {
                             var stack = s.stack();
                             if (ClientDogTagImageTooltip.shouldRenderIcon(stack)) {
-                                flag.set(true);
+                                flag[0] = true;
                             }
                         }
                 )
         );
-        return flag.get() && DisplayConfig.DOG_TAG_ICON_VISIBLE.get();
+        return flag[0] && DisplayConfig.DOG_TAG_ICON_VISIBLE.get();
     }
 
     public static void renderDogTagIcon(GuiGraphics guiGraphics, LivingEntity living, float x, float y) {

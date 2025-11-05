@@ -64,6 +64,13 @@ public class ModItemTagProvider extends ItemTagsProvider {
         this.tag(commonItemTag("raw_materials/tungsten")).add(ModItems.SCHEELITE.get());
         this.tag(commonItemTag("raw_materials/silver")).add(ModItems.RAW_SILVER.get());
 
+        // 这个tag仅用于其他mod配方兼容，自己家配方不用这个
+        this.tag(commonItemTag("ingots/scheelite")).add(ModItems.TUNGSTEN_INGOT.get());
+        this.tag(commonItemTag("ores/scheelite")).add(ModItems.SCHEELITE_ORE.get(), ModItems.DEEPSLATE_SCHEELITE_ORE.get());
+        this.tag(commonItemTag("raw_materials/scheelite")).add(ModItems.SCHEELITE.get());
+        this.tag(commonItemTag("dusts/scheelite")).add(ModItems.TUNGSTEN_POWDER.get());
+        this.tag(commonItemTag("storage_blocks/scheelite")).add(ModItems.TUNGSTEN_BLOCK.get());
+
         this.tag(Tags.Items.ORE_RATES_SINGULAR).add(ModItems.GALENA_ORE.get(), ModItems.DEEPSLATE_GALENA_ORE.get(),
                 ModItems.SCHEELITE_ORE.get(), ModItems.DEEPSLATE_SCHEELITE_ORE.get(),
                 ModItems.SILVER_ORE.get(), ModItems.DEEPSLATE_SILVER_ORE.get());
@@ -76,7 +83,69 @@ public class ModItemTagProvider extends ItemTagsProvider {
 
         this.tag(commonItemTag("tools/crowbar")).add(ModItems.CROWBAR.get());
 
-        // TODO 清理枪械Tag
+        this.tag(ModTags.Items.HAMMER).add(ModItems.HAMMER.get(), ModItems.GOLDEN_HAMMER.get(), ModItems.STEEL_HAMMER.get(), ModItems.DIAMOND_HAMMER.get(),
+                ModItems.CEMENTED_CARBIDE_HAMMER.get(), ModItems.NETHERITE_HAMMER.get());
+        this.tag(ModTags.Items.TOOLS_HAMMER).addTag(ModTags.Items.HAMMER);
+
+        // 专门给其他模组添加动画用的枪械武器分类 tag
+        this.tag(ModTags.Items.ANIMATED_PISTOL).add(
+                ModItems.TASER.get(),
+                ModItems.GLOCK_17.get(),
+                ModItems.GLOCK_18.get(),
+                ModItems.MP_443.get(),
+                ModItems.M_1911.get(),
+                ModItems.TRACHELIUM.get(),
+                ModItems.REPAIR_TOOL.get());
+
+        this.tag(ModTags.Items.ANIMATED_SNIPER).add(
+                ModItems.MOSIN_NAGANT.get(),
+                ModItems.SVD.get(),
+                ModItems.AWM.get(),
+                ModItems.NTW_20.get());
+
+        this.tag(ModTags.Items.ANIMATED_RIFLE).add(
+                ModItems.AK_47.get(),
+                ModItems.AK_12.get(),
+                ModItems.SKS.get(),
+                ModItems.M_4.get(),
+                ModItems.HK_416.get(),
+                ModItems.QBZ_95.get(),
+                ModItems.QBZ_191.get(),
+                ModItems.INSIDIOUS.get(),
+                ModItems.MK_14.get(),
+                ModItems.MARLIN.get(),
+                ModItems.K_98.get(),
+                ModItems.M_98B.get(),
+                ModItems.SENTINEL.get(),
+                ModItems.HUNTING_RIFLE.get(),
+                ModItems.QL_1031.get());
+
+
+        this.tag(ModTags.Items.ANIMATED_SHOTGUN).add(
+                ModItems.HOMEMADE_SHOTGUN.get(),
+                ModItems.M_870.get(),
+                ModItems.AA_12.get(),
+                ModItems.M_79.get(),
+                ModItems.SECONDARY_CATACLYSM.get());
+
+        this.tag(ModTags.Items.ANIMATED_SMG).add(
+                ModItems.MP_5.get(),
+                ModItems.VECTOR.get());
+
+        this.tag(ModTags.Items.ANIMATED_RPG).add(
+                ModItems.RPG.get(),
+                ModItems.JAVELIN.get(),
+                ModItems.IGLA_9K38.get());
+
+        this.tag(ModTags.Items.ANIMATED_MG).add(
+                ModItems.DEVOTION.get(),
+                ModItems.RPK.get(),
+                ModItems.M_60.get(),
+                ModItems.M_2_HB.get());
+
+        this.tag(ModTags.Items.ANIMATED_MINIGUN).add(
+                ModItems.MINIGUN.get());
+
         ModItems.GUNS.getEntries().forEach(registryObject -> this.tag(ModTags.Items.GUN).add(registryObject.get()));
 
         this.tag(ModTags.Items.SMG).add(ModItems.VECTOR.get());
@@ -84,22 +153,15 @@ public class ModItemTagProvider extends ItemTagsProvider {
         this.tag(ModTags.Items.RIFLE).add(ModItems.M_4.get(), ModItems.HK_416.get(), ModItems.SKS.get(),
                 ModItems.MK_14.get(), ModItems.MARLIN.get(), ModItems.AK_47.get(), ModItems.AK_12.get(), ModItems.QBZ_95.get(), ModItems.QBZ_191.get());
 
-        this.tag(ModTags.Items.SNIPER_RIFLE).add(ModItems.HUNTING_RIFLE.get(), ModItems.SENTINEL.get(),
-                ModItems.SVD.get(), ModItems.M_98B.get(), ModItems.K_98.get(), ModItems.MOSIN_NAGANT.get(), ModItems.AWM.get());
-
-        this.tag(ModTags.Items.HEAVY_WEAPON).add(ModItems.NTW_20.get(), ModItems.M_2_HB.get());
+        this.tag(ModTags.Items.SNIPER_RIFLE).add(ModItems.HUNTING_RIFLE.get(), ModItems.SENTINEL.get(), ModItems.NTW_20.get(),
+                ModItems.SVD.get(), ModItems.M_98B.get(), ModItems.K_98.get(), ModItems.MOSIN_NAGANT.get(), ModItems.AWM.get(), ModItems.QL_1031.get());
 
         this.tag(ModTags.Items.SHOTGUN).add(ModItems.HOMEMADE_SHOTGUN.get(), ModItems.M_870.get(), ModItems.AA_12.get());
 
-        this.tag(ModTags.Items.NORMAL_GUN).add(ModItems.HOMEMADE_SHOTGUN.get(), ModItems.AK_47.get(), ModItems.AK_12.get(), ModItems.SVD.get(), ModItems.M_60.get(), ModItems.MK_14.get(), ModItems.VECTOR.get(),
-                ModItems.SKS.get(), ModItems.RPK.get(), ModItems.HK_416.get(), ModItems.AA_12.get(), ModItems.M_4.get(), ModItems.DEVOTION.get(), ModItems.TRACHELIUM.get(), ModItems.M_79.get(),
-                ModItems.HUNTING_RIFLE.get(), ModItems.NTW_20.get(), ModItems.M_98B.get(), ModItems.SENTINEL.get(), ModItems.M_870.get(), ModItems.MARLIN.get(), ModItems.GLOCK_17.get(), ModItems.RPG.get(),
-                ModItems.GLOCK_18.get(), ModItems.M_1911.get(), ModItems.AURELIA_SCEPTRE.get(), ModItems.QBZ_95.get(), ModItems.K_98.get(), ModItems.MOSIN_NAGANT.get(), ModItems.MP_443.get(), ModItems.INSIDIOUS.get(), ModItems.SECONDARY_CATACLYSM.get(),
-                ModItems.TASER.get(), ModItems.MINIGUN.get(), ModItems.MP_5.get(), ModItems.M_2_HB.get(), ModItems.QBZ_191.get(), ModItems.AWM.get());
+        this.tag(ModTags.Items.MACHINE_GUN).add(ModItems.MINIGUN.get(), ModItems.M_2_HB.get());
 
-        this.tag(ModTags.Items.LAUNCHER).add(ModItems.RPG.get(), ModItems.JAVELIN.get())
-                .addTag(ModTags.Items.LAUNCHER_GRENADE);
-        this.tag(ModTags.Items.LAUNCHER_GRENADE).add(ModItems.M_79.get(), ModItems.SECONDARY_CATACLYSM.get());
+        this.tag(ModTags.Items.LAUNCHER).add(ModItems.RPG.get(), ModItems.JAVELIN.get(), ModItems.IGLA_9K38.get(),
+                ModItems.M_79.get(), ModItems.SECONDARY_CATACLYSM.get());
 
         this.tag(ModTags.Items.MILITARY_ARMOR).add(ModItems.RU_CHEST_6B43.get(), ModItems.US_CHEST_IOTV.get());
 
@@ -111,20 +173,20 @@ public class ModItemTagProvider extends ItemTagsProvider {
 
         this.tag(ModTags.Items.RARE_BLUEPRINT).add(ModItems.GLOCK_18_BLUEPRINT.get(), ModItems.M_79_BLUEPRINT.get(), ModItems.M_4_BLUEPRINT.get(),
                 ModItems.SKS_BLUEPRINT.get(), ModItems.M_870_BLUEPRINT.get(), ModItems.AK_47_BLUEPRINT.get(), ModItems.K_98_BLUEPRINT.get(),
-                ModItems.MOSIN_NAGANT_BLUEPRINT.get(), ModItems.M_2_HB_BLUEPRINT.get(), ModItems.HK_416_BLUEPRINT.get(), ModItems.AK_12_BLUEPRINT.get()
-                , ModItems.QBZ_95_BLUEPRINT.get(), ModItems.RPG_BLUEPRINT.get());
+                ModItems.MOSIN_NAGANT_BLUEPRINT.get(), ModItems.M_2_HB_BLUEPRINT.get(), ModItems.HK_416_BLUEPRINT.get(), ModItems.AK_12_BLUEPRINT.get(),
+                ModItems.QBZ_95_BLUEPRINT.get(), ModItems.RPG_BLUEPRINT.get(), ModItems.HUNTING_RIFLE_BLUEPRINT.get());
 
-        this.tag(ModTags.Items.EPIC_BLUEPRINT).add(ModItems.TRACHELIUM_BLUEPRINT.get(), ModItems.HUNTING_RIFLE_BLUEPRINT.get(), ModItems.BOCEK_BLUEPRINT.get(),
-                ModItems.RPK_BLUEPRINT.get(), ModItems.VECTOR_BLUEPRINT.get(), ModItems.MK_14_BLUEPRINT.get(), ModItems.M_60_BLUEPRINT.get(), ModItems.SVD_BLUEPRINT.get(),
-                ModItems.M_98B_BLUEPRINT.get(), ModItems.DEVOTION_BLUEPRINT.get(), ModItems.INSIDIOUS_BLUEPRINT.get(), ModItems.QBZ_191_BLUEPRINT.get(), ModItems.AWM_BLUEPRINT.get());
+        this.tag(ModTags.Items.EPIC_BLUEPRINT).add(ModItems.TRACHELIUM_BLUEPRINT.get(), ModItems.BOCEK_BLUEPRINT.get(), ModItems.RPK_BLUEPRINT.get(),
+                ModItems.VECTOR_BLUEPRINT.get(), ModItems.MK_14_BLUEPRINT.get(), ModItems.M_60_BLUEPRINT.get(), ModItems.SVD_BLUEPRINT.get(),
+                ModItems.M_98B_BLUEPRINT.get(), ModItems.DEVOTION_BLUEPRINT.get(), ModItems.INSIDIOUS_BLUEPRINT.get(), ModItems.QBZ_191_BLUEPRINT.get(),
+                ModItems.AWM_BLUEPRINT.get(), ModItems.IGLA_BLUEPRINT.get(), ModItems.SENTINEL_BLUEPRINT.get());
 
         this.tag(ModTags.Items.LEGENDARY_BLUEPRINT).add(ModItems.AA_12_BLUEPRINT.get(), ModItems.NTW_20_BLUEPRINT.get(), ModItems.MINIGUN_BLUEPRINT.get(),
-                ModItems.SENTINEL_BLUEPRINT.get(), ModItems.JAVELIN_BLUEPRINT.get(), ModItems.SECONDARY_CATACLYSM_BLUEPRINT.get(), ModItems.MK_42_BLUEPRINT.get(),
-                ModItems.MLE_1934_BLUEPRINT.get(), ModItems.ANNIHILATOR_BLUEPRINT.get(), ModItems.HPJ_11_BLUEPRINT.get(), ModItems.AURELIA_SCEPTRE_BLUEPRINT.get()
-                , ModItems.BL_132_BLUEPRINT.get());
+                ModItems.JAVELIN_BLUEPRINT.get(), ModItems.SECONDARY_CATACLYSM_BLUEPRINT.get(), ModItems.MK_42_BLUEPRINT.get(),
+                ModItems.MLE_1934_BLUEPRINT.get(), ModItems.ANNIHILATOR_BLUEPRINT.get(), ModItems.HPJ_11_BLUEPRINT.get(), ModItems.AURELIA_SCEPTRE_BLUEPRINT.get(),
+                ModItems.BL_132_BLUEPRINT.get());
 
         this.tag(ModTags.Items.CANNON_BLUEPRINT).add(ModItems.MK_42_BLUEPRINT.get(), ModItems.MLE_1934_BLUEPRINT.get(), ModItems.ANNIHILATOR_BLUEPRINT.get(),
                 ModItems.HPJ_11_BLUEPRINT.get(), ModItems.BL_132_BLUEPRINT.get());
     }
-
 }

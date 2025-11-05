@@ -3,6 +3,8 @@ package com.atsuishio.superbwarfare.client.screens;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.block.ContainerBlock;
 import com.atsuishio.superbwarfare.client.RenderHelper;
+import com.atsuishio.superbwarfare.client.animation.AnimationCurves;
+import com.atsuishio.superbwarfare.client.animation.ValueAnimator;
 import com.atsuishio.superbwarfare.client.screens.component.AssembleButton;
 import com.atsuishio.superbwarfare.client.screens.component.CategoryButton;
 import com.atsuishio.superbwarfare.client.screens.component.PageButton;
@@ -12,10 +14,9 @@ import com.atsuishio.superbwarfare.compat.jei.SbwJEIPlugin;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModRecipes;
 import com.atsuishio.superbwarfare.menu.VehicleAssemblingMenu;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.send.AssembleVehicleMessage;
 import com.atsuishio.superbwarfare.recipe.vehicle.VehicleAssemblingRecipe;
-import com.atsuishio.superbwarfare.tools.animation.AnimationCurves;
-import com.atsuishio.superbwarfare.tools.animation.ValueAnimator;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -409,7 +410,7 @@ public class VehicleAssemblingScreen extends AbstractContainerScreen<VehicleAsse
                     return;
                 }
             }
-            Mod.PACKET_HANDLER.sendToServer(new AssembleVehicleMessage(this.currentRecipe.getId(), this.menu.containerId));
+            NetworkRegistry.PACKET_HANDLER.sendToServer(new AssembleVehicleMessage(this.currentRecipe.getId(), this.menu.containerId));
         }));
     }
 

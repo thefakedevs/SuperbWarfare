@@ -1,7 +1,6 @@
 package com.atsuishio.superbwarfare.entity;
 
 import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.entity.projectile.MineEntity;
 import com.atsuishio.superbwarfare.entity.projectile.PtkmProjectileEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModifier;
@@ -49,7 +48,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.Optional;
 import java.util.UUID;
 
-public class Ptkm1rEntity extends Entity implements GeoEntity, OwnableEntity, MineEntity {
+public class Ptkm1rEntity extends Entity implements GeoEntity, OwnableEntity {
 
     protected static final EntityDataAccessor<Optional<UUID>> OWNER_UUID = SynchedEntityData.defineId(Ptkm1rEntity.class, EntityDataSerializers.OPTIONAL_UUID);
     protected static final EntityDataAccessor<String> LAST_ATTACKER_UUID = SynchedEntityData.defineId(Ptkm1rEntity.class, EntityDataSerializers.STRING);
@@ -224,12 +223,16 @@ public class Ptkm1rEntity extends Entity implements GeoEntity, OwnableEntity, Mi
         int range = 60;
         Entity target = null;
 
-        for (var entity : SeekTool.getEntityWithinRange(this, level(), range)) {
+        var list = new SeekTool.Builder(this)
+                .withinRange(range)
+                .build();
+
+        for (var entity : list) {
             var condition =
                     entity.onGround()
                     && this.getOwner() != entity
                     && !(entity instanceof Player player && (player.isCreative() || player.isSpectator()))
-                    && (this.getOwner() != null && !SeekTool.friendlyToPlayer(this.getOwner(), entity) && entity != this.getOwner().getVehicle())
+                    && (this.getOwner() != null && !SeekTool.IS_FRIENDLY.test(this.getOwner(), entity) && entity != this.getOwner().getVehicle())
                     && !entity.isShiftKeyDown()
                     && ((entity.getBoundingBox().getSize() > 1.5 || entity instanceof VehicleEntity || entity instanceof SenpaiEntity) && entity.getDeltaMovement().lengthSqr() > 0.009);
             if (!condition) continue;
@@ -309,7 +312,6 @@ public class Ptkm1rEntity extends Entity implements GeoEntity, OwnableEntity, Mi
                 .damage(100)
                 .radius(6)
                 .attacker(this.getOwner())
-                .causeVanillaExplosion()
                 .withParticleType(ParticleTool.ParticleType.HUGE)
                 .explode();
 

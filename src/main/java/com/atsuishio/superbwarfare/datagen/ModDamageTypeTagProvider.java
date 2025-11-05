@@ -51,27 +51,30 @@ public class ModDamageTypeTagProvider extends DamageTypeTagsProvider {
                 ModDamageTypes.LASER_HEADSHOT,
                 ModDamageTypes.SHOCK,
                 ModDamageTypes.BURN,
+                ModDamageTypes.REPAIR_TOOL,
                 ModDamageTypes.PROJECTILE_HIT,
                 ModDamageTypes.PROJECTILE_EXPLOSION
         );
 
         this.tag(DamageTypeTags.ALWAYS_HURTS_ENDER_DRAGONS).add(ModDamageTypes.PROJECTILE_EXPLOSION, ModDamageTypes.CUSTOM_EXPLOSION,
-                ModDamageTypes.PROJECTILE_HIT, ModDamageTypes.GRAPESHOT_HIT, ModDamageTypes.LASER, ModDamageTypes.LASER_HEADSHOT, ModDamageTypes.LASER_STATIC);
+                ModDamageTypes.PROJECTILE_HIT, ModDamageTypes.GRAPESHOT_HIT, ModDamageTypes.LASER, ModDamageTypes.LASER_HEADSHOT, ModDamageTypes.LASER_STATIC, ModDamageTypes.REPAIR_TOOL);
         this.tag(DamageTypeTags.BYPASSES_ARMOR).add(ModDamageTypes.GUN_FIRE_ABSOLUTE, ModDamageTypes.GUN_FIRE_HEADSHOT_ABSOLUTE,
                 ModDamageTypes.SHOCK, ModDamageTypes.PROJECTILE_HIT, ModDamageTypes.GRAPESHOT_HIT, ModDamageTypes.LASER, ModDamageTypes.LASER_HEADSHOT, ModDamageTypes.LASER_STATIC,
-                ModDamageTypes.VEHICLE_STRIKE, ModDamageTypes.VEHICLE_EXPLOSION, ModDamageTypes.AIR_CRASH);
+                ModDamageTypes.VEHICLE_STRIKE, ModDamageTypes.VEHICLE_EXPLOSION, ModDamageTypes.AIR_CRASH, ModDamageTypes.REPAIR_TOOL);
         this.tag(DamageTypeTags.BYPASSES_EFFECTS).add(ModDamageTypes.SHOCK);
         this.tag(DamageTypeTags.BYPASSES_ENCHANTMENTS).add(ModDamageTypes.GUN_FIRE_ABSOLUTE, ModDamageTypes.GUN_FIRE_HEADSHOT_ABSOLUTE,
                 ModDamageTypes.SHOCK, ModDamageTypes.PROJECTILE_HIT, ModDamageTypes.GRAPESHOT_HIT, ModDamageTypes.LASER, ModDamageTypes.LASER_HEADSHOT, ModDamageTypes.LASER_STATIC,
                 ModDamageTypes.VEHICLE_STRIKE, ModDamageTypes.VEHICLE_EXPLOSION, ModDamageTypes.AIR_CRASH);
         this.tag(DamageTypeTags.IS_EXPLOSION).add(ModDamageTypes.PROJECTILE_EXPLOSION, ModDamageTypes.CUSTOM_EXPLOSION, ModDamageTypes.LUNGE_MINE);
         this.tag(DamageTypeTags.IS_FIRE).add(ModDamageTypes.BURN);
+        this.tag(ModTags.DamageTypes.BYPASSES_VEHICLE).add(ModDamageTypes.REPAIR_TOOL);
 
         this.tag(otherModTag("cataclysm", "bypasses_hurt_time")).add(
                 ModDamageTypes.GUN_FIRE_ABSOLUTE,
                 ModDamageTypes.GUN_FIRE_HEADSHOT_ABSOLUTE,
                 ModDamageTypes.AIR_CRASH,
                 ModDamageTypes.BURN,
+                ModDamageTypes.REPAIR_TOOL,
                 ModDamageTypes.PROJECTILE_HIT,
                 ModDamageTypes.GRAPESHOT_HIT,
                 ModDamageTypes.CUSTOM_EXPLOSION,

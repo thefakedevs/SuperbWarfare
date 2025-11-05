@@ -1,6 +1,6 @@
 package com.atsuishio.superbwarfare.entity.projectile;
 
-import com.atsuishio.superbwarfare.Mod;
+import com.atsuishio.superbwarfare.api.event.ProjectileHitEvent;
 import com.atsuishio.superbwarfare.client.particle.BulletDecalOption;
 import com.atsuishio.superbwarfare.client.particle.CustomCloudOption;
 import com.atsuishio.superbwarfare.config.server.ProjectileConfig;
@@ -13,9 +13,12 @@ import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.*;
 import com.atsuishio.superbwarfare.item.Beast;
 import com.atsuishio.superbwarfare.item.Transcript;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.network.message.receive.ClientMotionSyncMessage;
 import com.atsuishio.superbwarfare.tools.*;
+import com.atsuishio.superbwarfare.world.phys.EntityResult;
+import com.atsuishio.superbwarfare.world.phys.ExtendedEntityRayTraceResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
@@ -45,14 +48,13 @@ import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BellBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.TargetBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.*;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.entity.PartEntity;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.PlayMessages;
@@ -71,7 +73,7 @@ import java.util.function.Predicate;
 import static com.atsuishio.superbwarfare.tools.ParticleTool.sendParticle;
 
 @SuppressWarnings({"unused", "UnusedReturnValue", "SuspiciousNameCombination"})
-public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyncMotionEntity {
+public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyncMotionEntity, ExplosiveProjectile {
 
     public static final EntityDataAccessor<Float> COLOR_R = SynchedEntityData.defineId(ProjectileEntity.class, EntityDataSerializers.FLOAT);
     public static final EntityDataAccessor<Float> COLOR_G = SynchedEntityData.defineId(ProjectileEntity.class, EntityDataSerializers.FLOAT);
@@ -103,8 +105,10 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
     private boolean zoom = false;
     // 子弹的穿甲比例
     private float bypassArmorRate = 0.0f;
-    // 高爆弹等级
-    private int heLevel = 0;
+    // 爆炸伤害（用于高爆弹等）
+    private float explosionDamage = 0.0f;
+    // 爆炸半径（用于高爆弹等）
+    private float explosionRadius = 0.0f;
     // 燃烧弹等级
     private int fireLevel = 0;
     // 是否为龙息弹
@@ -270,8 +274,8 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
             legShot = true;
         }
 
-        if (heLevel > 0) {
-            explosionBullet(this, this.damage, heLevel, hitPos);
+        if (this.explosionDamage > 0) {
+            explosionBullet(this, hitPos);
         }
 
         return new EntityResult(entity, hitPos, headshot, legShot);
@@ -384,7 +388,7 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
     @Override
     public void syncMotion() {
         if (!this.level().isClientSide) {
-            Mod.PACKET_HANDLER.send(PacketDistributor.ALL.noArg(), new ClientMotionSyncMessage(this));
+            NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.ALL.noArg(), new ClientMotionSyncMessage(this));
         }
     }
 
@@ -400,23 +404,9 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
             this.level().playSound(null, result.getLocation().x, result.getLocation().y, result.getLocation().z, event, SoundSource.AMBIENT, 1.0F, 1.0F);
             Vec3 hitVec = result.getLocation();
 
-            if (state.getBlock() instanceof BellBlock bell) {
-                bell.attemptToRing(this.level(), resultPos, blockHitResult.getDirection());
-            }
-
-            if (ProjectileConfig.ALLOW_PROJECTILE_DESTROY_BLOCKS.get() && state.is(ModTags.Blocks.BULLET_CAN_DESTROY)) {
-                this.level().destroyBlock(resultPos, false, this.getShooter());
-            }
-
-            if (state.getBlock() instanceof TargetBlock && this.shooter != null) {
-                int rings = getRings(blockHitResult, hitVec);
-                double dis = this.shooter.position().distanceTo(hitVec);
-                recordHitScore(rings, dis);
-            }
-
             this.onHitBlock(hitVec, blockHitResult);
-            if (heLevel > 0) {
-                explosionBullet(this, this.damage, heLevel, hitVec);
+            if (this.explosionDamage > 0) {
+                explosionBullet(this, hitVec);
             }
             if (fireLevel > 0 && this.level() instanceof ServerLevel serverLevel) {
                 ParticleTool.sendParticle(serverLevel, ParticleTypes.LAVA, hitVec.x, hitVec.y, hitVec.z,
@@ -436,13 +426,12 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
                 }
             }
 
-            this.onHitEntity(entity, entityHitResult.isHeadshot(), entityHitResult.isLegShot());
+            this.onHitEntity(entity, entityHitResult);
             entity.invulnerableTime = 0;
         }
     }
 
-    private static int getRings(@NotNull BlockHitResult blockHitResult, @NotNull Vec3 hitVec) {
-        Direction direction = blockHitResult.getDirection();
+    private int getRings(@NotNull Direction direction, @NotNull Vec3 hitVec) {
         double x = Math.abs(Mth.frac(hitVec.x) - 0.5);
         double y = Math.abs(Mth.frac(hitVec.y) - 0.5);
         double z = Math.abs(Mth.frac(hitVec.z) - 0.5);
@@ -459,7 +448,11 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
         return Math.max(1, Mth.ceil(10.0 * Mth.clamp((0.5 - v) / 0.5, 0.0, 1.0)));
     }
 
-    private void recordHitScore(int score, double distance) {
+    public void recordHitScore(@NotNull Direction direction, @NotNull Vec3 hitVec) {
+        if (this.shooter == null) return;
+        int score = this.getRings(direction, hitVec);
+        double distance = this.shooter.position().distanceTo(hitVec);
+
         if (!(shooter instanceof Player player)) {
             return;
         }
@@ -471,7 +464,7 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
         if (!this.level().isClientSide() && this.shooter instanceof ServerPlayer serverPlayer) {
             var holder = score == 10 ? Holder.direct(ModSounds.HEADSHOT.get()) : Holder.direct(ModSounds.INDICATION.get());
             serverPlayer.connection.send(new ClientboundSoundPacket(holder, SoundSource.PLAYERS, player.getX(), player.getY(), player.getZ(), 1f, 1f, player.level().random.nextLong()));
-            Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) player), new ClientIndicatorMessage(score == 10 ? 1 : 0, 5));
+            NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> (ServerPlayer) player), new ClientIndicatorMessage(score == 10 ? 1 : 0, 5));
         }
 
         ItemStack stack = player.getOffhandItem();
@@ -555,6 +548,9 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
             Direction face = result.getDirection();
             BlockState state = level().getBlockState(pos);
 
+            if (MinecraftForge.EVENT_BUS.post(new ProjectileHitEvent.HitBlock(pos, state, face, this.shooter, this, result.getLocation())))
+                return;
+
             double vx = face.getStepX();
             double vy = face.getStepY();
             double vz = face.getStepZ();
@@ -602,8 +598,13 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
         return vec3.normalize().add(this.random.triangle(0.0D, 0.0172275D * spread), this.random.triangle(0.0D, 0.0172275D * spread), this.random.triangle(0.0D, 0.0172275D * spread));
     }
 
-    protected void onHitEntity(Entity entity, boolean headshot, boolean legShot) {
+    protected void onHitEntity(Entity entity, ExtendedEntityRayTraceResult result) {
         if (entity == null) return;
+
+        boolean headshot = result.isHeadshot();
+        boolean legShot = result.isLegShot();
+
+        if (MinecraftForge.EVENT_BUS.post(new ProjectileHitEvent.HitEntity(this.shooter, this, result))) return;
 
         if (entity instanceof PartEntity<?> part) {
             entity = part.getParent();
@@ -618,21 +619,20 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
             }
         }
 
-        this.damage *= (float) (getDeltaMovement().length() / velocity);
+        this.damage *= (float) Mth.clamp(getDeltaMovement().length() / velocity, 0, 1);
 
         if (headshot) {
             if (!this.level().isClientSide() && this.shooter instanceof ServerPlayer player) {
                 var holder = Holder.direct(ModSounds.HEADSHOT.get());
                 player.connection.send(new ClientboundSoundPacket(holder, SoundSource.PLAYERS, player.getX(), player.getY(), player.getZ(), 1f, 1f, player.level().random.nextLong()));
-
-                Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(1, 5));
+                NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(1, 5));
             }
             performOnHit(entity, this.damage, true, this.knockback);
         } else {
             if (!this.level().isClientSide() && this.shooter instanceof ServerPlayer player) {
                 var holder = Holder.direct(ModSounds.INDICATION.get());
                 player.connection.send(new ClientboundSoundPacket(holder, SoundSource.PLAYERS, player.getX(), player.getY(), player.getZ(), 1f, 1f, player.level().random.nextLong()));
-                Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
+                NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
             }
 
             if (legShot) {
@@ -676,13 +676,12 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
         }
     }
 
-    protected void explosionBullet(Entity projectile, float damage, int heLevel, Vec3 hitVec) {
+    protected void explosionBullet(Entity projectile, Vec3 hitVec) {
         new CustomExplosion.Builder(projectile)
                 .attacker(this.getShooter())
-                .damage((float) ((0.9 * damage) * (1 + 0.1 * heLevel)))
-                .radius((float) ((1.5 + 0.02 * damage) * (1 + 0.05 * heLevel)))
+                .damage(this.explosionDamage)
+                .radius(this.explosionRadius)
                 .position(hitVec)
-//                .bulletExplode()
                 .explode();
     }
 
@@ -694,7 +693,7 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
         return this.damage;
     }
 
-    public void shoot(Player player, double vecX, double vecY, double vecZ, float velocity, float spread) {
+    public void shoot(LivingEntity living, double vecX, double vecY, double vecZ, float velocity, float spread) {
         Vec3 vec3 = (new Vec3(vecX, vecY, vecZ)).normalize().
                 add(this.random.triangle(0.0D, 0.0172275D * (double) spread), this.random.triangle(0.0D, 0.0172275D * (double) spread), this.random.triangle(0.0D, 0.0172275D * (double) spread)).
                 scale(velocity);
@@ -814,11 +813,7 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
         entity.invulnerableTime = 0;
 
         float headShotModifier = isHeadshot ? this.headShot : 1;
-        if (normalDamage > 0) {
-            entity.hurt(isHeadshot ? ModDamageTypes.causeGunFireHeadshotDamage(this.level().registryAccess(), this, this.shooter)
-                    : ModDamageTypes.causeGunFireDamage(this.level().registryAccess(), this, this.shooter), normalDamage * headShotModifier);
-            entity.invulnerableTime = 0;
-        }
+        // 先造成穿甲伤害
         if (absoluteDamage > 0) {
             DamageHandler.doDamage(entity, isHeadshot ? ModDamageTypes.causeGunFireHeadshotAbsoluteDamage(this.level().registryAccess(), this, this.shooter)
                     : ModDamageTypes.causeGunFireAbsoluteDamage(this.level().registryAccess(), this, this.shooter), absoluteDamage * headShotModifier);
@@ -829,45 +824,25 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
                 vehicle.hurt(ModDamageTypes.causeGunFireAbsoluteDamage(this.level().registryAccess(), this, this.shooter), absoluteDamage * (this.bypassArmorRate - 1) * 0.5f);
             }
         }
+        if (normalDamage > 0) {
+            entity.hurt(isHeadshot ? ModDamageTypes.causeGunFireHeadshotDamage(this.level().registryAccess(), this, this.shooter)
+                    : ModDamageTypes.causeGunFireDamage(this.level().registryAccess(), this, this.shooter), normalDamage * headShotModifier);
+            entity.invulnerableTime = 0;
+        }
     }
 
-    public static class EntityResult {
-        private final Entity entity;
-        private final Vec3 hitVec;
-        private final boolean headshot;
-        private final boolean legShot;
+    @Override
+    public void setGravity(float gravity) {
+    }
 
-        public EntityResult(Entity entity, Vec3 hitVec, boolean headshot, boolean legShot) {
-            this.entity = entity;
-            this.hitVec = hitVec;
-            this.headshot = headshot;
-            this.legShot = legShot;
-        }
+    @Override
+    public void setExplosionDamage(float explosionDamage) {
+        this.explosionDamage = explosionDamage;
+    }
 
-        /**
-         * Gets the entity that was hit by the projectile
-         */
-        public Entity getEntity() {
-            return this.entity;
-        }
-
-        /**
-         * Gets the position the projectile hit
-         */
-        public Vec3 getHitPos() {
-            return this.hitVec;
-        }
-
-        /**
-         * Gets if this was a headshot
-         */
-        public boolean isHeadshot() {
-            return this.headshot;
-        }
-
-        public boolean isLegShot() {
-            return this.legShot;
-        }
+    @Override
+    public void setExplosionRadius(float radius) {
+        this.explosionRadius = radius;
     }
 
     @Override
@@ -926,11 +901,6 @@ public class ProjectileEntity extends Projectile implements GeoEntity, CustomSyn
 
     public ProjectileEntity beast() {
         this.beast = true;
-        return this;
-    }
-
-    public ProjectileEntity heBullet(int heLevel) {
-        this.heLevel = heLevel;
         return this;
     }
 

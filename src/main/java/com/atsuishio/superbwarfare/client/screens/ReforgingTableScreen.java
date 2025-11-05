@@ -2,6 +2,7 @@ package com.atsuishio.superbwarfare.client.screens;
 
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.menu.ReforgingTableMenu;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.send.GunReforgeMessage;
 import com.atsuishio.superbwarfare.network.message.send.SetPerkLevelMessage;
 import com.atsuishio.superbwarfare.perk.Perk;
@@ -116,13 +117,8 @@ public class ReforgingTableScreen extends AbstractContainerScreen<ReforgingTable
         }
 
         @Override
-        public void render(@NotNull GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
-            super.render(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
-        }
-
-        @Override
         public void onPress() {
-            Mod.PACKET_HANDLER.sendToServer(GunReforgeMessage.INSTANCE);
+            NetworkRegistry.PACKET_HANDLER.sendToServer(GunReforgeMessage.INSTANCE);
         }
 
         @Override
@@ -168,7 +164,7 @@ public class ReforgingTableScreen extends AbstractContainerScreen<ReforgingTable
                 }
             }
 
-            Mod.PACKET_HANDLER.sendToServer(new SetPerkLevelMessage(type.ordinal(), true));
+            NetworkRegistry.PACKET_HANDLER.sendToServer(new SetPerkLevelMessage(type.ordinal(), true));
         }
 
         @Override
@@ -214,7 +210,7 @@ public class ReforgingTableScreen extends AbstractContainerScreen<ReforgingTable
                 }
             }
 
-            Mod.PACKET_HANDLER.sendToServer(new SetPerkLevelMessage(type.ordinal(), false));
+            NetworkRegistry.PACKET_HANDLER.sendToServer(new SetPerkLevelMessage(type.ordinal(), false));
         }
 
         @Override

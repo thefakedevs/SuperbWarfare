@@ -3,13 +3,13 @@ package com.atsuishio.superbwarfare.event;
 import com.atsuishio.superbwarfare.client.MouseMovementHandler;
 import com.atsuishio.superbwarfare.config.client.ControlConfig;
 import com.atsuishio.superbwarfare.data.gun.GunData;
+import com.atsuishio.superbwarfare.data.vehicle.subdata.VehicleType;
 import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.AirEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.WeaponVehicleEntity;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModMobEffects;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.send.MouseMoveMessage;
 import com.atsuishio.superbwarfare.tools.EntityFindUtil;
 import net.minecraft.client.CameraType;
@@ -82,7 +82,7 @@ public class ClientMouseHandler {
             DroneEntity drone = EntityFindUtil.findDrone(player.level(), stack.getOrCreateTag().getString("LinkedDrone"));
             if (drone != null) {
                 if (notInGame()) {
-                    com.atsuishio.superbwarfare.Mod.PACKET_HANDLER.sendToServer(new MouseMoveMessage(0, 0));
+                    NetworkRegistry.PACKET_HANDLER.sendToServer(new MouseMoveMessage(0, 0));
                     return;
                 }
                 speedX = (drone.getMouseSensitivity() / ClientEventHandler.droneFovLerp) * (posN.x - posO.x);
@@ -91,20 +91,21 @@ public class ClientMouseHandler {
                 lerpSpeedX = Mth.lerp(drone.getMouseSpeedX(), lerpSpeedX, speedX);
                 lerpSpeedY = Mth.lerp(drone.getMouseSpeedY(), lerpSpeedY, speedY);
 
-                com.atsuishio.superbwarfare.Mod.PACKET_HANDLER.sendToServer(new MouseMoveMessage(lerpSpeedX, lerpSpeedY));
+                NetworkRegistry.PACKET_HANDLER.sendToServer(new MouseMoveMessage(lerpSpeedX, lerpSpeedY));
             }
             return;
         }
 
         if (player.getVehicle() instanceof VehicleEntity vehicle && player == vehicle.getFirstPassenger()) {
             if (notInGame()) {
-                com.atsuishio.superbwarfare.Mod.PACKET_HANDLER.sendToServer(new MouseMoveMessage(0, 0));
+                NetworkRegistry.PACKET_HANDLER.sendToServer(new MouseMoveMessage(0, 0));
                 return;
             }
 
             int y = 1;
 
-            if (vehicle instanceof AirEntity && ControlConfig.INVERT_AIRCRAFT_CONTROL.get()) {
+            if ((vehicle.getVehicleType() == VehicleType.AIRPLANE || vehicle.getVehicleType() == VehicleType.HELICOPTER)
+                    && ControlConfig.INVERT_AIRCRAFT_CONTROL.get()) {
                 y = -1;
             }
 
@@ -128,15 +129,15 @@ public class ClientMouseHandler {
 
             if (!isFreeCam(player)) {
                 if (Minecraft.getInstance().options.getCameraType() == CameraType.FIRST_PERSON) {
-                    com.atsuishio.superbwarfare.Mod.PACKET_HANDLER.sendToServer(new MouseMoveMessage(
+                    NetworkRegistry.PACKET_HANDLER.sendToServer(new MouseMoveMessage(
                             (1 - (Mth.abs(vehicle.getRoll()) / 90)) * lerpSpeedX + ((Mth.abs(vehicle.getRoll()) / 90)) * lerpSpeedY * i,
                             (1 - (Mth.abs(vehicle.getRoll()) / 90)) * lerpSpeedY + ((Mth.abs(vehicle.getRoll()) / 90)) * lerpSpeedX * (vehicle.getRoll() < 0 ? -1 : 1))
                     );
                 } else {
-                    com.atsuishio.superbwarfare.Mod.PACKET_HANDLER.sendToServer(new MouseMoveMessage(lerpSpeedX, lerpSpeedY));
+                    NetworkRegistry.PACKET_HANDLER.sendToServer(new MouseMoveMessage(lerpSpeedX, lerpSpeedY));
                 }
             } else {
-                com.atsuishio.superbwarfare.Mod.PACKET_HANDLER.sendToServer(new MouseMoveMessage(0, 0));
+                NetworkRegistry.PACKET_HANDLER.sendToServer(new MouseMoveMessage(0, 0));
             }
         }
     }
@@ -186,7 +187,9 @@ public class ClientMouseHandler {
         // 反转鼠标
         if (player == null) return 1;
 
-        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle instanceof AirEntity && vehicle.getFirstPassenger() == player) {
+        if (player.getVehicle() instanceof VehicleEntity vehicle
+                && (vehicle.getVehicleType() == VehicleType.AIRPLANE || vehicle.getVehicleType() == VehicleType.HELICOPTER)
+                && vehicle.getFirstPassenger() == player) {
             return ControlConfig.INVERT_AIRCRAFT_CONTROL.get() ? -1 : 1;
         }
         return 1;
@@ -216,7 +219,7 @@ public class ClientMouseHandler {
             return original / Math.max(1 + 0.2 * ClientEventHandler.artilleryIndicatorZoom, 0.1);
         }
 
-        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle instanceof WeaponVehicleEntity weaponVehicle && weaponVehicle.banHand(player)) {
+        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player)) {
             return vehicle.getSensitivity(original, ClientEventHandler.zoomVehicle, vehicle.getSeatIndex(player), vehicle.onGround());
         }
 

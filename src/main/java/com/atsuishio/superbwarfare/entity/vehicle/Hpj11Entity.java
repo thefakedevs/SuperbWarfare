@@ -3,7 +3,10 @@ package com.atsuishio.superbwarfare.entity.vehicle;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.VehicleConfig;
 import com.atsuishio.superbwarfare.entity.TargetEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.*;
+import com.atsuishio.superbwarfare.entity.vehicle.base.AutoAimable;
+import com.atsuishio.superbwarfare.entity.vehicle.base.CannonEntity;
+import com.atsuishio.superbwarfare.entity.vehicle.base.ThirdPersonCameraPosition;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModifier;
 import com.atsuishio.superbwarfare.entity.vehicle.weapon.SmallCannonShellWeapon;
 import com.atsuishio.superbwarfare.entity.vehicle.weapon.VehicleWeapon;
@@ -12,16 +15,13 @@ import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModTags;
 import com.atsuishio.superbwarfare.item.common.container.ContainerBlockItem;
-import com.atsuishio.superbwarfare.tools.EntityFindUtil;
-import com.atsuishio.superbwarfare.tools.InventoryTool;
-import com.atsuishio.superbwarfare.tools.RangeTool;
-import com.atsuishio.superbwarfare.tools.VectorTool;
+import com.atsuishio.superbwarfare.tools.*;
+import com.atsuishio.superbwarfare.world.TDMSavedData;
 import com.mojang.math.Axis;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.OldUsersConverter;
@@ -54,11 +54,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import static com.atsuishio.superbwarfare.tools.SeekTool.smokeFilter;
+public class Hpj11Entity extends VehicleEntity implements GeoEntity, CannonEntity, OwnableEntity, AutoAimable {
 
-public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEntity, CannonEntity, OwnableEntity, AutoAimable, DefenseEntity {
-
-    public static Consumer<MobileVehicleEntity> fireSound = vehicle -> {
+    public static Consumer<VehicleEntity> fireSound = vehicle -> {
     };
 
     public static final EntityDataAccessor<Integer> ANIM_TIME = SynchedEntityData.defineId(Hpj11Entity.class, EntityDataSerializers.INT);
@@ -85,6 +83,11 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
     }
 
     @Override
+    public int getContainerSize() {
+        return 102;
+    }
+
+    @Override
     protected void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(ANIM_TIME, 0);
@@ -104,6 +107,7 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
                                 .explosionDamage(VehicleConfig.HPJ11_EXPLOSION_DAMAGE.get().floatValue())
                                 .explosionRadius(VehicleConfig.HPJ11_EXPLOSION_RADIUS.get().floatValue())
                                 .aa(true)
+                                .aaProjectileWeapon(true)
                                 .icon(Mod.loc("textures/screens/vehicle_weapon/cannon_30mm.png"))
                 }
         };
@@ -169,7 +173,7 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
     public @NotNull InteractionResult interact(Player player, @NotNull InteractionHand hand) {
         ItemStack stack = player.getMainHandItem();
         if (player.isCrouching()) {
-            if (stack.is(ModTags.Items.CROWBAR) && (getOwner() == null || player == getOwner())) {
+            if (stack.is(ModTags.Items.TOOLS_CROWBAR) && (getOwner() == null || player == getOwner())) {
                 ItemStack container = ContainerBlockItem.createInstance(this);
                 if (!player.addItem(container)) {
                     player.drop(container, false);
@@ -234,9 +238,9 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
             this.setDeltaMovement(this.getDeltaMovement().add(0.0, -0.04, 0.0));
         }
 
-        if (this.getFirstPassenger() instanceof Player player && fireInputDown) {
+        if (this.getFirstPassenger() instanceof Player player && fireInputDown()) {
             if ((this.entityData.get(AMMO) > 0 || InventoryTool.hasCreativeAmmoBox(player)) && !cannotFire) {
-                vehicleShoot(player, 0);
+                vehicleShoot(player);
             }
         }
 
@@ -285,7 +289,7 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
 
         Entity target = EntityFindUtil.findEntity(level(), entityData.get(TARGET_UUID));
 
-        if (target != null && this.getOwner() instanceof Player player && smokeFilter(target)) {
+        if (target != null && this.getOwner() instanceof Player player && SeekTool.NOT_IN_SMOKE.test(target)) {
             if (target instanceof Player player1 && (player1.isSpectator() || player1.isCreative())) {
                 this.entityData.set(TARGET_UUID, "none");
                 return;
@@ -319,7 +323,7 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
             Vec3 targetPos = target.getBoundingBox().getCenter();
             Vec3 targetVel = target.getDeltaMovement();
 
-            Vec3 targetVec = RangeTool.calculateFiringSolution(barrelRootPos, targetPos, targetVel, 20, 0.03);
+            Vec3 targetVec = RangeTool.calculateFiringSolution(barrelRootPos, targetPos, targetVel, projectileVelocity(player), projectileGravity(player));
 
             double d0 = targetVec.x;
             double d1 = targetVec.y;
@@ -336,7 +340,7 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
 
             if (target.distanceTo(this) <= 144 && VectorTool.calculateAngle(getViewVector(1), targetVec) < 10) {
                 if (checkNoClip(this, target, barrelRootPos) && entityData.get(AMMO) > 0) {
-                    vehicleShoot(player, 0);
+                    vehicleShoot(player);
                 } else {
                     changeTargetTimer++;
                 }
@@ -362,7 +366,7 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
         if (this.getOwner() == null) return false;
         if (pEntity.getTeam() == null) return false;
 
-        return !pEntity.isAlliedTo(this.getOwner()) || (pEntity.getTeam() != null && pEntity.getTeam().getName().equals("TDM"));
+        return !pEntity.isAlliedTo(this.getOwner()) || (pEntity.getTeam() != null && TDMSavedData.enabledTDM(pEntity));
     }
 
     @Override
@@ -370,7 +374,7 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
         if (this.getOwner() == null) return false;
         if (projectile.getOwner() != null && projectile.getOwner() == this.getOwner()) return false;
         return (projectile.getOwner() != null && !projectile.getOwner().isAlliedTo(this.getOwner()))
-                || (projectile.getOwner() != null && projectile.getOwner().getTeam() != null && projectile.getOwner().getTeam().getName().equals("TDM"))
+                || (projectile.getOwner() != null && projectile.getOwner().getTeam() != null && TDMSavedData.enabledTDM(projectile.getOwner()))
                 || projectile.getOwner() == null;
     }
 
@@ -406,54 +410,32 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
         this.interpolationSteps = 10;
     }
 
-    @Override
-    public void positionRider(@NotNull Entity passenger, @NotNull MoveFunction callback) {
-        if (!this.hasPassenger(passenger)) {
-            return;
-        }
-        passenger.setPos(getX(), getY(), getZ());
-        callback.accept(passenger, getX(), getY(), getZ());
-        copyEntityData(passenger);
-    }
-
-    public void copyEntityData(Entity entity) {
-        float f = Mth.wrapDegrees(entity.getYRot() - getYRot());
-        float g = Mth.clamp(f, -90.0f, 90.0f);
-        entity.yRotO += g - f;
-        entity.setYRot(entity.getYRot() + g - f);
-        entity.setYHeadRot(entity.getYRot());
-        entity.setYBodyRot(getYRot());
-    }
-
     public Vec3 driverPos(float ticks) {
         Matrix4f transform = getVehicleFlatTransform(ticks);
-        Vector4f worldPosition = transformPosition(transform, -1.0625f, 3.25f, -1.0625f);
+        Vector4f worldPosition = transformPosition(transform, -1.0625f, 3f, -1.0625f);
         return new Vec3(worldPosition.x, worldPosition.y, worldPosition.z);
     }
 
     @Override
-    public Vec3 driverZoomPos(float ticks) {
+    public Vec3 zoomPos(Entity entity, float ticks) {
         Matrix4f transform = getBarrelTransform(ticks);
-        Vector4f worldPosition = transformPosition(transform, 0f, 1f, 0);
+        Vector4f worldPosition = transformPosition(transform, 0f, 0.5f, 0);
         return new Vec3(worldPosition.x, worldPosition.y, worldPosition.z);
     }
 
     @Override
-    public void vehicleShoot(Player player, int type) {
+    public void vehicleShoot(LivingEntity living) {
         if (cannotFire) return;
         if (this.getEnergy() < VehicleConfig.HPJ11_SHOOT_COST.get()) return;
 
-        boolean hasCreativeAmmo = (getFirstPassenger() instanceof Player pPlayer && InventoryTool.hasCreativeAmmoBox(pPlayer)) || hasItem(ModItems.CREATIVE_AMMO_BOX.get());
+        boolean hasCreativeAmmo = InventoryTool.hasCreativeAmmoBox(getFirstPassenger()) || hasItem(ModItems.CREATIVE_AMMO_BOX.get());
 
         entityData.set(FIRE_TIME, Math.min(entityData.get(FIRE_TIME) + 3, 5));
 
-        var entityToSpawn = ((SmallCannonShellWeapon) getWeapon(0)).create(player);
+        var entityToSpawn = ((SmallCannonShellWeapon) getWeapon(0)).create(living);
 
-        Matrix4f transform = getBarrelTransform(1);
-        Vector4f worldPosition = transformPosition(transform, 0f, 0.4f, 0);
-
-        entityToSpawn.setPos(worldPosition.x, worldPosition.y, worldPosition.z);
-        entityToSpawn.shoot(getLookAngle().x, getLookAngle().y, getLookAngle().z, 20, 0.25f);
+        entityToSpawn.setPos(getShootPos(living, 1).x, getShootPos(living, 1).y, getShootPos(living, 1).z);
+        entityToSpawn.shoot(getLookAngle().x, getLookAngle().y, getLookAngle().z, projectileVelocity(living), 0.25f);
         level().addFreshEntity(entityToSpawn);
 
         this.entityData.set(GUN_ROTATE, entityData.get(GUN_ROTATE) + 0.5f);
@@ -473,6 +455,24 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
 
     public float shootingPitch() {
         return 0.8f + entityData.get(FIRE_TIME) * 0.1f;
+    }
+
+    @Override
+    public Vec3 getShootPos(int seatIndex, float ticks) {
+        Matrix4f transform = getBarrelTransform(1);
+        Vector4f worldPosition = transformPosition(transform, 0f, 0.35f, 0);
+        return new Vec3(worldPosition.x, worldPosition.y, worldPosition.z);
+    }
+
+    // 炮弹发射速度
+    @Override
+    public float projectileVelocity(Entity entity) {
+        return 20;
+    }
+    // 炮弹重力
+    @Override
+    public float projectileGravity(Entity entity) {
+        return 0.03f;
     }
 
     public Matrix4f getBarrelTransform(float ticks) {
@@ -502,18 +502,6 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
         }
     }
 
-    protected void clampRotation(Entity entity) {
-        float f = Mth.wrapDegrees(entity.getXRot());
-        float f1 = Mth.clamp(f, -90.0F, 32.5F);
-        entity.xRotO += f1 - f;
-        entity.setXRot(entity.getXRot() + f1 - f);
-    }
-
-    @Override
-    public void onPassengerTurned(@NotNull Entity entity) {
-        this.clampRotation(entity);
-    }
-
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar data) {
     }
@@ -524,23 +512,18 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
     }
 
     @Override
-    public int mainGunRpm(Player player) {
+    public int mainGunRpm(LivingEntity living) {
         return 0;
     }
 
     @Override
-    public boolean canShoot(Player player) {
+    public boolean canShoot(LivingEntity living) {
         return false;
     }
 
     @Override
-    public int getAmmoCount(Player player) {
+    public int getAmmoCount(LivingEntity living) {
         return this.entityData.get(AMMO);
-    }
-
-    @Override
-    public boolean hidePassenger(int index) {
-        return true;
     }
 
     @Override
@@ -549,31 +532,18 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
     }
 
     @Override
-    public int getWeaponHeat(Player player) {
+    public int getWeaponHeat(LivingEntity living) {
         return entityData.get(HEAT);
     }
 
     @Override
     public Vec3 getBarrelVector(float pPartialTicks) {
-        if (getFirstPassenger() != null) {
-            return getFirstPassenger().getViewVector(pPartialTicks);
-        }
-        return super.getBarrelVector(pPartialTicks);
-    }
-
-    @Override
-    public ResourceLocation getVehicleIcon() {
-        return Mod.loc("textures/vehicle_icon/hpj_11_icon.png");
+        return getViewVector(pPartialTicks);
     }
 
     @Override
     public double getSensitivity(double original, boolean zoom, int seatIndex, boolean isOnGround) {
         return zoom ? 0.25 : 0.3;
-    }
-
-    @Override
-    public boolean isEnclosed(int index) {
-        return true;
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -590,7 +560,7 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
     public Vec3 getCameraPosition(float partialTicks, Player player, boolean zoom, boolean isFirstPerson) {
         if (zoom || isFirstPerson) {
             if (zoom) {
-                return new Vec3(this.driverZoomPos(partialTicks).x, this.driverZoomPos(partialTicks).y, this.driverZoomPos(partialTicks).z);
+                return new Vec3(this.zoomPos(player, partialTicks).x, this.zoomPos(player, partialTicks).y, this.zoomPos(player, partialTicks).z);
             } else {
                 return new Vec3(this.driverPos(partialTicks).x, this.driverPos(partialTicks).y, this.driverPos(partialTicks).z);
             }
@@ -601,10 +571,5 @@ public class Hpj11Entity extends ContainerMobileVehicleEntity implements GeoEnti
     @OnlyIn(Dist.CLIENT)
     public boolean useFixedCameraPos(Entity entity) {
         return true;
-    }
-
-    @Override
-    public @Nullable ResourceLocation getVehicleItemIcon() {
-        return Mod.loc("textures/gui/vehicle/type/defense.png");
     }
 }

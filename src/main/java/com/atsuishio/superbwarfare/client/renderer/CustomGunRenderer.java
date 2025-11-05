@@ -3,7 +3,7 @@ package com.atsuishio.superbwarfare.client.renderer;
 import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.client.model.item.CustomGunModel;
 import com.atsuishio.superbwarfare.config.client.DisplayConfig;
-import com.atsuishio.superbwarfare.item.gun.GunItem;
+import com.atsuishio.superbwarfare.item.gun.GunGeoItem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -21,7 +21,7 @@ import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoItemRenderer;
 import software.bernie.geckolib.util.RenderUtils;
 
-public class CustomGunRenderer<T extends GunItem & GeoAnimatable> extends GeoItemRenderer<T> {
+public class CustomGunRenderer<T extends GunGeoItem & GeoAnimatable> extends GeoItemRenderer<T> {
 
     public static final float SCALE_RECIPROCAL = 1.0f / 16.0f;
 
@@ -34,6 +34,15 @@ public class CustomGunRenderer<T extends GunItem & GeoAnimatable> extends GeoIte
 
     public CustomGunRenderer(GeoModel<T> model) {
         super(model);
+    }
+
+    @Override
+    public void preRender(PoseStack poseStack, T animatable, BakedGeoModel model, @Nullable MultiBufferSource bufferSource, @Nullable VertexConsumer buffer, boolean isReRender, float partialTick, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
+        if (this.model instanceof CustomGunModel<T> gunModel) {
+            gunModel.gunItemStack = this.currentItemStack;
+        }
+
+        super.preRender(poseStack, animatable, model, bufferSource, buffer, isReRender, partialTick, packedLight, packedOverlay, red, green, blue, alpha);
     }
 
     @Override
@@ -50,6 +59,9 @@ public class CustomGunRenderer<T extends GunItem & GeoAnimatable> extends GeoIte
 
     @Override
     public RenderType getRenderType(T animatable, ResourceLocation texture, MultiBufferSource bufferSource, float partialTick) {
+        if (texture == null) {
+            return RenderType.translucent();
+        }
         return RenderType.entityTranslucent(texture);
     }
 
@@ -140,11 +152,15 @@ public class CustomGunRenderer<T extends GunItem & GeoAnimatable> extends GeoIte
         } else {
             modelLocation = geoModel.getModelResource(animatable);
         }
+        // 资源包重载过程中该值可能为空（恼）
+        if (modelLocation == null) return;
 
         BakedGeoModel model = geoModel.getBakedModel(modelLocation);
 
         if (renderType == null)
             renderType = getRenderType(animatable, getTextureLocation(animatable), bufferSource, partialTick);
+
+        if (renderType == null) return;
 
         if (buffer == null)
             buffer = bufferSource.getBuffer(renderType);

@@ -1,25 +1,24 @@
 package com.atsuishio.superbwarfare.entity.vehicle;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.VehicleConfig;
-import com.atsuishio.superbwarfare.data.vehicle.VehicleProp;
+import com.atsuishio.superbwarfare.data.vehicle.DefaultVehicleData;
+import com.atsuishio.superbwarfare.data.vehicle.VehicleData;
+import com.atsuishio.superbwarfare.data.vehicle.subdata.DestroyInfo;
 import com.atsuishio.superbwarfare.entity.projectile.MelonBombEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.MobileVehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.ThirdPersonCameraPosition;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientMouseHandler;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
 import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModSounds;
 import com.atsuishio.superbwarfare.tools.CameraTool;
 import com.atsuishio.superbwarfare.tools.ParticleTool;
-import com.mojang.math.Axis;
-import it.unimi.dsi.fastutil.Pair;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -41,7 +40,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Math;
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 import org.joml.Vector4f;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
@@ -54,15 +52,14 @@ import static com.atsuishio.superbwarfare.event.ClientEventHandler.isFreeCam;
 import static com.atsuishio.superbwarfare.event.ClientMouseHandler.freeCameraPitch;
 import static com.atsuishio.superbwarfare.event.ClientMouseHandler.freeCameraYaw;
 
-public class Tom6Entity extends MobileVehicleEntity implements GeoEntity {
+public class Tom6Entity extends VehicleEntity implements GeoEntity {
 
     public static final EntityDataAccessor<Boolean> MELON = SynchedEntityData.defineId(Tom6Entity.class, EntityDataSerializers.BOOLEAN);
+
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
-    private float yRotSync;
 
     public float deltaXo;
     public float deltaYo;
-
     public float deltaX;
     public float deltaY;
 
@@ -72,10 +69,21 @@ public class Tom6Entity extends MobileVehicleEntity implements GeoEntity {
 
     public Tom6Entity(EntityType<Tom6Entity> type, Level world) {
         super(type, world);
+    }
 
-        appendModification(VehicleProp.EXPLOSION_DAMAGE, (data, v) -> data.vehicle.getEntityData().get(MELON) ? VehicleConfig.TOM_6_BOMB_EXPLOSION_DAMAGE.get() : v);
-        appendModification(VehicleProp.EXPLOSION_RADIUS, (data, v) -> data.vehicle.getEntityData().get(MELON) ? VehicleConfig.TOM_6_BOMB_EXPLOSION_RADIUS.get().floatValue() : v);
-        appendModification(VehicleProp.EXPLOSION_PARTICLE_TYPE, (data, v) -> data.vehicle.getEntityData().get(MELON) ? ParticleTool.ParticleType.HUGE : v);
+    @Override
+    public DefaultVehicleData compute(VehicleData vehicleData, DefaultVehicleData rawData) {
+        if (this.entityData.get(MELON)) {
+            rawData.destroyInfo = new DestroyInfo(
+                    rawData.destroyInfo.crashPassengers,
+                    rawData.destroyInfo.explodePassengers,
+                    rawData.destroyInfo.explodeBlocks,
+                    VehicleConfig.TOM_6_BOMB_EXPLOSION_DAMAGE.get(),
+                    VehicleConfig.TOM_6_BOMB_EXPLOSION_RADIUS.get().floatValue(),
+                    ParticleTool.ParticleType.HUGE
+            );
+        }
+        return rawData;
     }
 
     @Override
@@ -129,8 +137,8 @@ public class Tom6Entity extends MobileVehicleEntity implements GeoEntity {
         deltaYo = deltaY;
         super.baseTick();
 
-        deltaX = entityData.get(MOUSE_SPEED_Y);
-        deltaY = entityData.get(MOUSE_SPEED_X);
+        deltaX = getMouseMoveSpeedY();
+        deltaY = getMouseMoveSpeedX();
 
         float f = (float) Mth.clamp(0.69f + 0.101f * Mth.abs(90 - (float) calculateAngle(this.getDeltaMovement(), this.getViewVector(1))) / 90, 0.01, 0.99);
 
@@ -155,10 +163,12 @@ public class Tom6Entity extends MobileVehicleEntity implements GeoEntity {
         Entity passenger = this.getFirstPassenger();
 
         if (passenger == null || isInWater()) {
-            this.leftInputDown = false;
-            this.rightInputDown = false;
-            this.forwardInputDown = false;
-            this.backInputDown = false;
+            setLeftInputDown(false);
+            setRightInputDown(false);
+            setForwardInputDown(false);
+            setBackInputDown(false);
+            setUpInputDown(false);
+            setDownInputDown(false);
             this.entityData.set(POWER, this.entityData.get(POWER) * 0.95f);
             if (onGround()) {
                 this.setDeltaMovement(this.getDeltaMovement().multiply(0.96, 1, 0.96));
@@ -166,19 +176,22 @@ public class Tom6Entity extends MobileVehicleEntity implements GeoEntity {
                 this.setXRot(Mth.clamp(this.getXRot() + 0.1f, -89, 89));
             }
         } else if (passenger instanceof Player player) {
-            if (forwardInputDown && getEnergy() > 0) {
-                this.consumeEnergy(VehicleConfig.TOM_6_ENERGY_COST.get());
+            if (forwardInputDown() && getEnergy() > 0) {
                 this.entityData.set(POWER, Math.min(this.entityData.get(POWER) + 0.1f, 1f));
             }
 
-            if (backInputDown || downInputDown) {
+            if (this.level() instanceof ServerLevel) {
+                this.consumeEnergy((int) (Mth.abs(this.entityData.get(POWER)) * VehicleConfig.TOM_6_ENERGY_COST.get()));
+            }
+
+            if (backInputDown() || downInputDown()) {
                 this.entityData.set(POWER, Math.max(this.entityData.get(POWER) - (this.entityData.get(POWER) > 0 ? 0.1f : 0.01f), onGround() ? -0.2f : 0.2f));
             }
 
             if (!onGround()) {
-                if (rightInputDown) {
+                if (rightInputDown()) {
                     this.entityData.set(DELTA_ROT, this.entityData.get(DELTA_ROT) - 0.4f);
-                } else if (this.leftInputDown) {
+                } else if (this.leftInputDown()) {
                     this.entityData.set(DELTA_ROT, this.entityData.get(DELTA_ROT) + 0.4f);
                 }
             }
@@ -194,19 +207,19 @@ public class Tom6Entity extends MobileVehicleEntity implements GeoEntity {
 
             float i = getXRot() / 90;
 
-            yRotSync = addY * (1 - Mth.abs(i)) + addZ * i;
+            float yRotSync = addY * (1 - Mth.abs(i)) + addZ * i;
 
             this.setYRot(this.getYRot() + yRotSync);
             this.setXRot(Mth.clamp(this.getXRot() + addX, onGround() ? -12 : -120, onGround() ? 3 : 120));
             this.setZRot(this.getRoll() - addZ * (1 - Mth.abs(i)));
 
             // 空格投掷西瓜炸弹
-            if (upInputDown && !onGround() && entityData.get(MELON)) {
+            if (upInputDown() && !onGround() && entityData.get(MELON)) {
                 entityData.set(MELON, false);
 
                 Matrix4f transform = getVehicleTransform(1);
                 Vector4f worldPosition;
-                worldPosition = transformPosition(transform, 0, -0.2f, 0);
+                worldPosition = transformPosition(transform, 0, 0.3f, 0);
 
                 MelonBombEntity melonBomb = new MelonBombEntity(player, player.level());
                 melonBomb.setExplosionDamage(VehicleConfig.TOM_6_BOMB_EXPLOSION_DAMAGE.get());
@@ -216,7 +229,7 @@ public class Tom6Entity extends MobileVehicleEntity implements GeoEntity {
                 passenger.level().addFreshEntity(melonBomb);
 
                 this.level().playSound(null, getOnPos(), SoundEvents.IRON_DOOR_OPEN, SoundSource.PLAYERS, 1, 1);
-                upInputDown = false;
+                setUpInputDown(false);
             }
         }
 
@@ -243,74 +256,6 @@ public class Tom6Entity extends MobileVehicleEntity implements GeoEntity {
         return (float) getDeltaMovement().length();
     }
 
-    protected void clampRotation(Entity entity) {
-        float f = Mth.wrapDegrees(entity.getXRot() - this.getXRot());
-        float f1 = Mth.clamp(f, -85.0F, 60F);
-        entity.xRotO += f1 - f;
-        entity.setXRot(entity.getXRot() + f1 - f);
-
-        entity.setYBodyRot(this.getYRot());
-        float f2 = Mth.wrapDegrees(entity.getYRot() - this.getYRot());
-        float f3 = Mth.clamp(f2, -45.0F, 45.0F);
-        entity.yRotO += f3 - f2;
-        entity.setYRot(entity.getYRot() + f3 - f2);
-        entity.setYBodyRot(this.getYRot());
-    }
-
-    @Override
-    public void onPassengerTurned(@NotNull Entity entity) {
-        this.clampRotation(entity);
-    }
-
-    @Override
-    public void positionRider(@NotNull Entity passenger, @NotNull MoveFunction callback) {
-        // From Immersive_Aircraft
-        if (!this.hasPassenger(passenger)) {
-            return;
-        }
-
-        Matrix4f transform = getVehicleTransform(1);
-
-        float x = 0f;
-        float y = 0.45f + (float) passenger.getMyRidingOffset();
-        float z = -0.4f;
-
-        int i = this.getSeatIndex(passenger);
-
-        if (i == 0) {
-            Vector4f worldPosition = transformPosition(transform, x, y, z);
-            passenger.setPos(worldPosition.x, worldPosition.y, worldPosition.z);
-            callback.accept(passenger, worldPosition.x, worldPosition.y, worldPosition.z);
-        }
-
-        if (passenger != this.getFirstPassenger()) {
-            passenger.setXRot(passenger.getXRot() + (getXRot() - xRotO));
-        }
-
-        copyEntityData(passenger);
-    }
-
-    public void copyEntityData(Entity entity) {
-        float i = getXRot() / 90;
-        float f = Mth.wrapDegrees(entity.getYRot() - getYRot());
-        float g = Mth.clamp(f, -105.0f, 105.0f);
-
-        entity.yRotO += g - f;
-        entity.setYRot(entity.getYRot() + g - f + yRotSync * Mth.abs(i));
-        entity.setYHeadRot(entity.getYRot());
-        entity.setYBodyRot(getYRot());
-    }
-
-    @Override
-    public Matrix4f getVehicleTransform(float ticks) {
-        Matrix4f transform = new Matrix4f();
-        transform.translate((float) Mth.lerp(ticks, xo, getX()), (float) Mth.lerp(ticks, yo + 0.5f, getY() + 0.5f), (float) Mth.lerp(ticks, zo, getZ()));
-        transform.rotate(Axis.YP.rotationDegrees(-Mth.lerp(ticks, yRotO, getYRot())));
-        transform.rotate(Axis.XP.rotationDegrees(Mth.lerp(ticks, xRotO, getXRot())));
-        transform.rotate(Axis.ZP.rotationDegrees(Mth.lerp(ticks, prevRoll, getRoll())));
-        return transform;
-    }
-
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar data) {
     }
@@ -321,33 +266,8 @@ public class Tom6Entity extends MobileVehicleEntity implements GeoEntity {
     }
 
     @Override
-    public ResourceLocation getVehicleIcon() {
-        return Mod.loc("textures/vehicle_icon/tom_6_icon.png");
-    }
-
-    @Override
     public double getSensitivity(double original, boolean zoom, int seatIndex, boolean isOnGround) {
         return 0.3;
-    }
-
-    @OnlyIn(Dist.CLIENT)
-    @Nullable
-    public Pair<Quaternionf, Quaternionf> getPassengerRotation(Entity entity, float tickDelta) {
-        return Pair.of(Axis.XP.rotationDegrees(-this.getViewXRot(tickDelta)), Axis.ZP.rotationDegrees(-this.getRoll(tickDelta)));
-    }
-
-    @Override
-    public @Nullable ResourceLocation getVehicleItemIcon() {
-        return Mod.loc("textures/gui/vehicle/type/aircraft.png");
-    }
-
-    public Matrix4f getClientVehicleTransform(float ticks) {
-        Matrix4f transform = new Matrix4f();
-        transform.translate((float) Mth.lerp(ticks, xo, getX()), (float) Mth.lerp(ticks, yo + 0.5f, getY() + 0.5f), (float) Mth.lerp(ticks, zo, getZ()));
-        transform.rotate(Axis.YP.rotationDegrees((float) (-Mth.lerp(ticks, yRotO, getYRot()) + freeCameraYaw)));
-        transform.rotate(Axis.XP.rotationDegrees((float) (Mth.lerp(ticks, xRotO, getXRot()) + freeCameraPitch)));
-        transform.rotate(Axis.ZP.rotationDegrees(Mth.lerp(ticks, prevRoll, getRoll())));
-        return transform;
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -366,7 +286,7 @@ public class Tom6Entity extends MobileVehicleEntity implements GeoEntity {
         if (isFreeCam(player) && this.getSeatIndex(player) == 0 && Mth.abs((float) (freeCameraYaw * freeCameraPitch)) > 0.01) {
             Matrix4f transform = getClientVehicleTransform(partialTicks);
 
-            Vector4f maxCameraPosition = transformPosition(transform, 0, 2.5f, -6 - (float) ClientMouseHandler.custom3pDistanceLerp);
+            Vector4f maxCameraPosition = transformPosition(transform, 0, 3f, -6 - (float) ClientMouseHandler.custom3pDistanceLerp);
             Vec3 finalPos = CameraTool.getMaxZoom(transform, maxCameraPosition);
 
             if (isFirstPerson) {

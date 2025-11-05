@@ -4,25 +4,14 @@ import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.entity.vehicle.Bl132Entity;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.constant.DataTickets;
-import software.bernie.geckolib.core.animatable.model.CoreGeoBone;
-import software.bernie.geckolib.core.animation.AnimationState;
-import software.bernie.geckolib.model.GeoModel;
-import software.bernie.geckolib.model.data.EntityModelData;
 
 import java.util.UUID;
 
-public class Bl132Model extends GeoModel<Bl132Entity> {
+import static com.atsuishio.superbwarfare.entity.vehicle.Bl132Entity.*;
 
-    @Override
-    public ResourceLocation getAnimationResource(Bl132Entity entity) {
-        return Mod.loc("animations/bl_132.animation.json");
-    }
-
-    @Override
-    public ResourceLocation getModelResource(Bl132Entity entity) {
-        return Mod.loc("geo/bl_132.geo.json");
-    }
+public class Bl132Model extends VehicleModel<Bl132Entity> {
 
     @Override
     public ResourceLocation getTextureResource(Bl132Entity entity) {
@@ -34,9 +23,25 @@ public class Bl132Model extends GeoModel<Bl132Entity> {
     }
 
     @Override
-    public void setCustomAnimations(Bl132Entity animatable, long instanceId, AnimationState<Bl132Entity> animationState) {
-        CoreGeoBone bone = getAnimationProcessor().getBone("gun");
-        EntityModelData entityData = animationState.getData(DataTickets.ENTITY_MODEL_DATA);
-        bone.setRotX((entityData.headPitch()) * Mth.DEG_TO_RAD);
+    public @Nullable TransformContext<Bl132Entity> collectTransform(String boneName) {
+        return switch (boneName) {
+            case "barrel" -> (bone, vehicle, state) -> {
+                var entityData = state.getData(DataTickets.ENTITY_MODEL_DATA);
+                if (entityData != null) {
+                    bone.setRotX(entityData.headPitch() * Mth.DEG_TO_RAD);
+                }
+            };
+            case "flare" -> (bone, vehicle, state) -> bone.setHidden(vehicle.getEntityData().get(COOL_DOWN) <= 75);
+            case "flare2" -> (bone, vehicle, state) -> bone.setHidden(vehicle.getEntityData().get(BARREL_ANIM_2) <= 10);
+            case "flare3" -> (bone, vehicle, state) -> bone.setHidden(vehicle.getEntityData().get(BARREL_ANIM_3) <= 10);
+            case "flare4" -> (bone, vehicle, state) -> bone.setHidden(vehicle.getEntityData().get(BARREL_ANIM_4) <= 10);
+
+            default -> super.collectTransform(boneName);
+        };
+    }
+
+    @Override
+    public boolean hideFor1stPassengerWhileZooming() {
+        return true;
     }
 }

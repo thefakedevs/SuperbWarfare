@@ -1,20 +1,15 @@
 package com.atsuishio.superbwarfare.item.gun.sniper;
 
-import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.capability.energy.ItemEnergyProvider;
 import com.atsuishio.superbwarfare.client.renderer.gun.SentinelItemRenderer;
 import com.atsuishio.superbwarfare.client.tooltip.component.SentinelImageComponent;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.GunProp;
-import com.atsuishio.superbwarfare.event.ClientEventHandler;
+import com.atsuishio.superbwarfare.data.gun.ShootParameters;
 import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.item.gun.GunGeoItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
 import net.minecraft.world.item.Item;
@@ -22,11 +17,8 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.constant.DataTickets;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
@@ -37,52 +29,12 @@ import software.bernie.geckolib.renderer.GeoItemRenderer;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
-public class SentinelItem extends GunItem {
-
-    private final Supplier<Integer> energyCapacity;
+public class SentinelItem extends GunGeoItem {
 
     public SentinelItem() {
         super(new Item.Properties().rarity(Rarity.EPIC));
-
-        this.energyCapacity = () -> 24000;
-    }
-
-    @Override
-    public boolean isBarVisible(@NotNull ItemStack pStack) {
-        if (!pStack.getCapability(ForgeCapabilities.ENERGY).isPresent()) {
-            return false;
-        }
-
-        AtomicInteger energy = new AtomicInteger(0);
-        pStack.getCapability(ForgeCapabilities.ENERGY).ifPresent(
-                e -> energy.set(e.getEnergyStored())
-        );
-        return energy.get() != 0;
-    }
-
-    @Override
-    public int getBarWidth(@NotNull ItemStack pStack) {
-        AtomicInteger energy = new AtomicInteger(0);
-        pStack.getCapability(ForgeCapabilities.ENERGY).ifPresent(
-                e -> energy.set(e.getEnergyStored())
-        );
-
-        return Math.round((float) energy.get() * 13.0F / 24000F);
-    }
-
-    @Override
-    public ICapabilityProvider initCapabilities(ItemStack stack, CompoundTag tag) {
-        return new ItemEnergyProvider(stack, energyCapacity.get());
-    }
-
-    @Override
-    public int getBarColor(@NotNull ItemStack pStack) {
-        return 0x95E9FF;
     }
 
     @Override
@@ -117,39 +69,15 @@ public class SentinelItem extends GunItem {
         return event.setAndContinue(RawAnimation.begin().thenLoop("animation.sentinel.idle"));
     }
 
-    private PlayState idlePredicate(AnimationState<SentinelItem> event) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) return PlayState.STOP;
-        ItemStack stack = player.getMainHandItem();
-        if (!(stack.getItem() instanceof GunItem)) return PlayState.STOP;
-        if (event.getData(DataTickets.ITEM_RENDER_PERSPECTIVE) != ItemDisplayContext.FIRST_PERSON_RIGHT_HAND)
-            return event.setAndContinue(RawAnimation.begin().thenLoop("animation.sentinel.idle"));
-
-        if (player.isSprinting() && player.onGround()
-                && ClientEventHandler.cantSprint == 0
-                && !(GunData.from(stack).reload.normal() || GunData.from(stack).reload.empty())
-                && !GunData.from(stack).charging() && ClientEventHandler.drawTime < 0.01) {
-            if (ClientEventHandler.tacticalSprint && GunData.from(stack).bolt.actionTimer.get() == 0) {
-                return event.setAndContinue(RawAnimation.begin().thenLoop("animation.sentinel.run_fast"));
-            } else {
-                return event.setAndContinue(RawAnimation.begin().thenLoop("animation.sentinel.run"));
-            }
-        }
-
-        return event.setAndContinue(RawAnimation.begin().thenLoop("animation.sentinel.idle"));
-    }
-
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar data) {
         var fireAnimController = new AnimationController<>(this, "fireAnimController", 1, this::fireAnimPredicate);
         data.add(fireAnimController);
-        var idleController = new AnimationController<>(this, "idleController", 4, this::idlePredicate);
-        data.add(idleController);
     }
 
     @Override
-    public double getCustomDamage(ItemStack stack) {
-        var data = GunData.from(stack);
+    public double getCustomDamage(GunData data) {
+        var stack = data.stack;
         return stack.getCapability(ForgeCapabilities.ENERGY)
                 .map(cap -> cap.getEnergyStored() > 0 ? 0.2857142857142857 * data.getDefault().damage : 0)
                 .orElse(0D);
@@ -171,47 +99,25 @@ public class SentinelItem extends GunItem {
     }
 
     @Override
-    public Set<SoundEvent> getReloadSound() {
-        return Set.of(
-                ModSounds.SENTINEL_RELOAD_EMPTY.get(),
-                ModSounds.SENTINEL_RELOAD_NORMAL.get(),
-                ModSounds.SENTINEL_CHARGE.get(),
-                ModSounds.SENTINEL_BOLT.get()
-        );
-    }
-
-    @Override
-    public ResourceLocation getGunIcon(ItemStack stack) {
-        return Mod.loc("textures/gun_icon/sentinel_icon.png");
-    }
-
-    @Override
     public @NotNull Optional<TooltipComponent> getTooltipImage(@NotNull ItemStack pStack) {
         return Optional.of(new SentinelImageComponent(pStack));
     }
 
     @Override
-    public boolean isOpenBolt(ItemStack stack) {
+    public boolean isOpenBolt(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasBulletInBarrel(ItemStack stack) {
+    public boolean hasBulletInBarrel(GunData data) {
         return true;
     }
 
     @Override
-    public void afterShoot(
-            @Nullable Entity shooter,
-            @NotNull ServerLevel level,
-            @NotNull Vec3 shootPosition,
-            @NotNull Vec3 shootDirection,
-            @NotNull GunData data,
-            double spread,
-            boolean zoom,
-            @Nullable UUID uuid
-    ) {
-        super.afterShoot(shooter, level, shootPosition, shootDirection, data, spread, zoom, uuid);
+    public void afterShoot(@NotNull ShootParameters parameters) {
+        super.afterShoot(parameters);
+
+        var data = parameters.data();
 
         data.stack.getCapability(ForgeCapabilities.ENERGY).ifPresent(cap -> cap.extractEnergy(3000, false));
     }

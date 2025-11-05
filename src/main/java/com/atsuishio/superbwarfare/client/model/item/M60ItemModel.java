@@ -1,13 +1,11 @@
 package com.atsuishio.superbwarfare.client.model.item;
 
-import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.client.AnimationHelper;
+import com.atsuishio.superbwarfare.client.animation.AnimationHelper;
 import com.atsuishio.superbwarfare.client.overlay.CrossHairOverlay;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.item.gun.machinegun.M60Item;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -17,31 +15,6 @@ import software.bernie.geckolib.core.animation.AnimationState;
 import static com.atsuishio.superbwarfare.event.ClientEventHandler.isProne;
 
 public class M60ItemModel extends CustomGunModel<M60Item> {
-
-    @Override
-    public ResourceLocation getAnimationResource(M60Item animatable) {
-        return Mod.loc("animations/m_60.animation.json");
-    }
-
-    @Override
-    public ResourceLocation getModelResource(M60Item animatable) {
-        return Mod.loc("geo/m_60.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(M60Item animatable) {
-        return Mod.loc("textures/item/m_60.png");
-    }
-
-    @Override
-    public ResourceLocation getLODModelResource(M60Item animatable) {
-        return Mod.loc("geo/lod/m_60.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getLODTextureResource(M60Item animatable) {
-        return Mod.loc("textures/item/lod/m_60.png");
-    }
 
     @Override
     public void setCustomAnimations(M60Item animatable, long instanceId, AnimationState<M60Item> animationState) {
@@ -99,12 +72,10 @@ public class M60ItemModel extends CustomGunModel<M60Item> {
             b1.setScaleZ(0);
         }
 
-        float times = 0.6f * (float) Math.min(Minecraft.getInstance().getDeltaFrameTime(), 0.8);
         double zt = ClientEventHandler.zoomTime;
         double zp = ClientEventHandler.zoomPos;
         double zpz = ClientEventHandler.zoomPosZ;
 
-        double fpz = ClientEventHandler.firePosZ * 13 * times;
         double fp = ClientEventHandler.firePos;
         double fr = ClientEventHandler.fireRot;
 
@@ -116,25 +87,13 @@ public class M60ItemModel extends CustomGunModel<M60Item> {
 
         gun.setRotZ(-0.087f * (float) zp + (float) (0.05f * zpz));
 
-        shen.setPosX((float) (0.95f * ClientEventHandler.recoilHorizon * fpz * fp));
-        shen.setPosY((float) (0.15f * fp + 0.18f * fr));
-        shen.setPosZ((float) (0.325 * fp + 0.34f * fr + 0.75 * fpz));
-        shen.setRotX((float) (0.01f * fp + 0.05f * fr + 0.01f * fpz));
-        shen.setRotY((float) (0.04f * ClientEventHandler.recoilHorizon * fpz));
-        shen.setRotZ((float) ((0.08f + 0.1 * fr) * ClientEventHandler.recoilHorizon));
-
-        shen.setPosX((float) (shen.getPosX() * (1 - 0.5 * zt)));
-        shen.setPosY((float) (shen.getPosY() * (-1 + 0.4 * zt)));
-        shen.setPosZ((float) (shen.getPosZ() * (1 - 0.6 * zt)));
-        shen.setRotX((float) (shen.getRotX() * (1 - 0.9 * zt)));
-        shen.setRotY((float) (shen.getRotY() * (1 - 0.9 * zt)));
-        shen.setRotZ((float) (shen.getRotZ() * (1 - 0.9 * zt)));
+        ClientEventHandler.handleShootAnimation(shen, 0.7f, -0.4f, 1.5f, 1.1f, 1, 1, 0.7f, 0.7f);
 
         CrossHairOverlay.gunRot = shen.getRotZ();
 
         tiba.setRotZ((float) (-0.25f * fp + 0.4 * fr));
 
-        ClientEventHandler.gunRootMove(getAnimationProcessor());
+        ClientEventHandler.gunRootMove(getAnimationProcessor(), 3, 0, 0, false);
 
         CoreGeoBone camera = getAnimationProcessor().getBone("camera");
         CoreGeoBone main = getAnimationProcessor().getBone("0");

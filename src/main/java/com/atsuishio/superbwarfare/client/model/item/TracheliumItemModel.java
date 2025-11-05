@@ -1,14 +1,12 @@
 package com.atsuishio.superbwarfare.client.model.item;
 
-import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.client.AnimationHelper;
+import com.atsuishio.superbwarfare.client.animation.AnimationHelper;
 import com.atsuishio.superbwarfare.client.overlay.CrossHairOverlay;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.value.AttachmentType;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
-import com.atsuishio.superbwarfare.item.gun.handgun.Trachelium;
+import com.atsuishio.superbwarfare.item.gun.handgun.TracheliumItem;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -17,43 +15,16 @@ import software.bernie.geckolib.core.animation.AnimationState;
 
 import static com.atsuishio.superbwarfare.event.ClientEventHandler.isProne;
 
-public class TracheliumItemModel extends CustomGunModel<Trachelium> {
+public class TracheliumItemModel extends CustomGunModel<TracheliumItem> {
 
     public static float posYAlt = -0.83f;
     public static float scaleZAlt = 0.8f;
     public static float posZAlt = 13.7f;
 
-    public static float fireRotY = 0f;
-    public static float fireRotZ = 0f;
     public static float rotXBipod = 0f;
 
     @Override
-    public ResourceLocation getAnimationResource(Trachelium animatable) {
-        return Mod.loc("animations/trachelium.animation.json");
-    }
-
-    @Override
-    public ResourceLocation getModelResource(Trachelium animatable) {
-        return Mod.loc("geo/trachelium.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(Trachelium animatable) {
-        return Mod.loc("textures/item/trachelium.png");
-    }
-
-    @Override
-    public ResourceLocation getLODModelResource(Trachelium animatable) {
-        return Mod.loc("geo/lod/trachelium.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getLODTextureResource(Trachelium animatable) {
-        return Mod.loc("textures/item/lod/trachelium.png");
-    }
-
-    @Override
-    public void setCustomAnimations(Trachelium animatable, long instanceId, AnimationState<Trachelium> animationState) {
+    public void setCustomAnimations(TracheliumItem animatable, long instanceId, AnimationState<TracheliumItem> animationState) {
         Player player = Minecraft.getInstance().player;
         if (player == null) return;
         ItemStack stack = player.getMainHandItem();
@@ -73,10 +44,6 @@ public class TracheliumItemModel extends CustomGunModel<Trachelium> {
         double zt = ClientEventHandler.zoomTime;
         double zp = ClientEventHandler.zoomPos;
         double zpz = ClientEventHandler.zoomPosZ;
-
-        double fpz = ClientEventHandler.firePosZ * 8 * times;
-        double fp = ClientEventHandler.firePos;
-        double fr = ClientEventHandler.fireRot;
 
         int stockType = GunData.from(stack).attachment.get(AttachmentType.STOCK);
         int barrelType = GunData.from(stack).attachment.get(AttachmentType.BARREL);
@@ -128,22 +95,7 @@ public class TracheliumItemModel extends CustomGunModel<Trachelium> {
             };
         }
 
-        fireRotY = (float) Mth.lerp(0.2f * times, fireRotY, 0.2f * ClientEventHandler.recoilHorizon * fpz);
-        fireRotZ = (float) Mth.lerp(2f * times, fireRotZ, (0.4f + 0.5 * fpz) * ClientEventHandler.recoilHorizon);
-
-        shen.setPosX((float) (0.95f * ClientEventHandler.recoilHorizon * fpz * fp));
-        shen.setPosY((float) (0.2f * fp + 0.24f * fr));
-        shen.setPosZ((float) (1.225 * fp + 0.1f * fr + 0.55 * fpz));
-        shen.setRotX((float) (0.14f * fp + 0.14f * fr + 0.14f * fpz));
-        shen.setRotY(fireRotY);
-        shen.setRotZ(fireRotZ);
-
-        shen.setPosX((float) (shen.getPosX() * (1 - 0.4 * zt)));
-        shen.setPosY((float) (shen.getPosY() * (1 - 0.5 * zt) * (isProne(player) ? 0.03 : 1)));
-        shen.setPosZ((float) (shen.getPosZ() * (1 - 0.7 * zt) * (isProne(player) ? 0.4 : 1)));
-        shen.setRotX((float) (shen.getRotX() * (1 - 0.27 * zt) * (barrelType == 1 ? 0.4 : 1.2) * (stockType == 2 ? 0.6 : 1.2) * (gripType == 1 ? 0.8 : 1.2) * (isProne(player) && gripType == 3 ? 0.03 : 1.2)));
-        shen.setRotY((float) (shen.getRotY() * (1 - 0.7 * zt)));
-        shen.setRotZ((float) (shen.getRotZ() * (1 - 0.65 * zt)));
+        ClientEventHandler.handleShootAnimation(shen, 1.25f, -2f, 1.85f, 3.5f, 1.3f, 1f, 0.2f, 0.75f);
 
         CrossHairOverlay.gunRot = shen.getRotZ();
 
@@ -160,7 +112,7 @@ public class TracheliumItemModel extends CustomGunModel<Trachelium> {
             ammohole.setRotZ(0);
         }
 
-        ClientEventHandler.gunRootMove(getAnimationProcessor());
+        ClientEventHandler.gunRootMove(getAnimationProcessor(), 2, 0, 3, false);
 
         CoreGeoBone l = getAnimationProcessor().getBone("l");
         CoreGeoBone r = getAnimationProcessor().getBone("r");

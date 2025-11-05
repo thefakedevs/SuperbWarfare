@@ -1,14 +1,12 @@
 package com.atsuishio.superbwarfare.client.model.item;
 
-import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.client.AnimationHelper;
+import com.atsuishio.superbwarfare.client.animation.AnimationHelper;
 import com.atsuishio.superbwarfare.client.overlay.CrossHairOverlay;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.value.AttachmentType;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.item.gun.smg.VectorItem;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -16,35 +14,7 @@ import software.bernie.geckolib.core.animatable.model.CoreGeoBone;
 import software.bernie.geckolib.core.animation.AnimationState;
 
 public class VectorItemModel extends CustomGunModel<VectorItem> {
-
-    public static float fireRotY = 0f;
-    public static float fireRotZ = 0f;
     public static float rotXSight = 0f;
-
-    @Override
-    public ResourceLocation getAnimationResource(VectorItem animatable) {
-        return Mod.loc("animations/vector.animation.json");
-    }
-
-    @Override
-    public ResourceLocation getModelResource(VectorItem animatable) {
-        return Mod.loc("geo/vector.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(VectorItem animatable) {
-        return Mod.loc("textures/item/vector.png");
-    }
-
-    @Override
-    public ResourceLocation getLODModelResource(VectorItem animatable) {
-        return Mod.loc("geo/lod/vector.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getLODTextureResource(VectorItem animatable) {
-        return Mod.loc("textures/item/lod/vector.png");
-    }
 
     @Override
     public void setCustomAnimations(VectorItem animatable, long instanceId, AnimationState<VectorItem> animationState) {
@@ -61,7 +31,7 @@ public class VectorItemModel extends CustomGunModel<VectorItem> {
 
         var data = GunData.from(stack);
 
-        switch (data.fireMode.get()) {
+        switch (data.selectedFireModeInfo().mode) {
             case SEMI -> kmj.setRotX(-120 * Mth.DEG_TO_RAD);
             case BURST -> kmj.setRotX(-60 * Mth.DEG_TO_RAD);
             case AUTO -> kmj.setRotX(0);
@@ -71,10 +41,6 @@ public class VectorItemModel extends CustomGunModel<VectorItem> {
         double zt = ClientEventHandler.zoomTime;
         double zp = ClientEventHandler.zoomPos;
         double zpz = ClientEventHandler.zoomPosZ;
-
-        double fpz = ClientEventHandler.firePosZ * 20 * times;
-        double fp = ClientEventHandler.firePos;
-        double fr = ClientEventHandler.fireRot;
 
         int type = GunData.from(stack).attachment.get(AttachmentType.SCOPE);
 
@@ -102,22 +68,7 @@ public class VectorItemModel extends CustomGunModel<VectorItem> {
             };
         }
 
-        fireRotY = (float) Mth.lerp(0.5f * times, fireRotY, 0.2f * ClientEventHandler.recoilHorizon * fpz);
-        fireRotZ = (float) Mth.lerp(2f * times, fireRotZ, (0.2f + 0.3 * fpz) * ClientEventHandler.recoilHorizon);
-
-        shen.setPosX(-0.4f * (float) (ClientEventHandler.recoilHorizon * (0.5 + 0.4 * ClientEventHandler.fireSpread)));
-        shen.setPosY((float) (0.15f * fp + 0.18f * fr));
-        shen.setPosZ((float) (0.375 * fp + 0.44f * fr + 0.75 * fpz));
-        shen.setRotX((float) (0.01f * fp + 0.05f * fr + 0.01f * fpz));
-        shen.setRotY(fireRotY);
-        shen.setRotZ(fireRotZ);
-
-        shen.setPosX((float) (shen.getPosX() * (1 - 0.1 * zt)));
-        shen.setPosY((float) (shen.getPosY() * (-1 + 0.8 * zt)));
-        shen.setPosZ((float) (shen.getPosZ() * (1 - 0.1 * zt)));
-        shen.setRotX((float) (shen.getRotX() * (1 - (type == 3 ? 0.96 : type == 1 ? 0.8 : 0.9) * zt)));
-        shen.setRotY((float) (shen.getRotY() * (1 - (type == 3 ? 0.95 : 0.9) * zt)));
-        shen.setRotZ((float) (shen.getRotZ() * (1 - 0.4 * zt)));
+        ClientEventHandler.handleShootAnimation(shen, 1f, -0.75f, 1f, 0.9f, 1f, 1f, 0.5f, 0.85f);
 
         CrossHairOverlay.gunRot = shen.getRotZ();
 
@@ -125,7 +76,7 @@ public class VectorItemModel extends CustomGunModel<VectorItem> {
         sight1fold.setRotX(rotXSight * Mth.DEG_TO_RAD);
         sight2fold.setRotX(rotXSight * Mth.DEG_TO_RAD);
 
-        ClientEventHandler.gunRootMove(getAnimationProcessor());
+        ClientEventHandler.gunRootMove(getAnimationProcessor(), 1, 0, 3, false);
 
         CoreGeoBone camera = getAnimationProcessor().getBone("camera");
         CoreGeoBone main = getAnimationProcessor().getBone("0");

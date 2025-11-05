@@ -13,10 +13,12 @@
   "BypassesArmor": 0.15,
   "SoundRadius": 8,
   "RPM": 400,
+  "GunType": "Handgun",
   "DamageReduce": {
     "Type": "Handgun"
   },
   "AmmoType": "@HandgunAmmo",
+  "Icon": "superbwarfare:textures/gun_icon/mp_443_icon.png",
   "AvailablePerks": [
     "@Ammo",
     "superbwarfare:heal_clip",
@@ -25,6 +27,7 @@
     "superbwarfare:subsistence",
     "superbwarfare:powerful_attraction",
     "superbwarfare:intelligent_chip",
+    "superbwarfare:backpack_linked_magazine",
     "superbwarfare:kill_clip",
     "superbwarfare:gutshot_straight",
     "superbwarfare:monster_hunter",
@@ -35,5 +38,17 @@
     "!superbwarfare:longer_wire",
     "!superbwarfare:butterfly_bullet",
     "!superbwarfare:cupid_arrow"
-  ]
+  ],
+  "SoundInfo": {
+    "Fire1P": "superbwarfare:mp_443_fire_1p",
+    "Fire3P": "superbwarfare:mp_443_fire_3p",
+    "Fire3PFar": "superbwarfare:glock_17_far",
+    "Fire3PVeryFar": "superbwarfare:glock_17_veryfar",
+    "ReloadNormal": "superbwarfare:glock_17_reload_normal",
+    "ReloadEmpty": "superbwarfare:glock_17_reload_empty",
+    "CancellableSounds": [
+      "superbwarfare:glock_17_reload_normal",
+      "superbwarfare:glock_17_reload_empty"
+    ]
+  }
 }

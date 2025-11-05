@@ -1,7 +1,7 @@
 package com.atsuishio.superbwarfare.client.renderer.gun;
 
-import com.atsuishio.superbwarfare.client.AnimationHelper;
 import com.atsuishio.superbwarfare.client.ItemModelHelper;
+import com.atsuishio.superbwarfare.client.animation.AnimationHelper;
 import com.atsuishio.superbwarfare.client.model.item.SentinelItemModel;
 import com.atsuishio.superbwarfare.client.renderer.CustomGunRenderer;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
@@ -16,8 +16,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import software.bernie.geckolib.animatable.GeoItem;
 import software.bernie.geckolib.cache.object.GeoBone;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SentinelItemRenderer extends CustomGunRenderer<SentinelItem> {
 
@@ -47,18 +45,18 @@ public class SentinelItemRenderer extends CustomGunRenderer<SentinelItem> {
         if (itemStack.getItem() instanceof GunItem && GeoItem.getId(itemStack) == this.getInstanceId(animatable)) {
             if (this.renderPerspective == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND || this.renderPerspective == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND) {
 
-                AtomicBoolean flag = new AtomicBoolean(false);
+                boolean[] flag = {false};
                 itemStack.getCapability(ForgeCapabilities.ENERGY).ifPresent(
-                        iEnergyStorage -> flag.set(iEnergyStorage.getEnergyStored() > 0)
+                        iEnergyStorage -> flag[0] = iEnergyStorage.getEnergyStored() > 0
                 );
 
                 if (name.equals("charge_illuminated")) {
-                    bone.setHidden(!flag.get());
+                    bone.setHidden(!flag[0]);
                     bone.setRotZ((System.currentTimeMillis() % 36000000) / 200f);
                 }
 
                 ItemModelHelper.handleGunAttachments(bone, itemStack, name);
-                AnimationHelper.handleShootFlare(name, stack, itemStack, bone, buffer, packedLightIn, 0, 0, 1.53125, 0.6);
+                AnimationHelper.handleShootFlare(name, stack, itemStack, bone, buffer, packedLightIn);
 
                 if (this.renderPerspective == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) {
                     AnimationHelper.handleZoomCrossHair(currentBuffer, renderType, name, stack, bone, buffer, 0, 0.265, -0.05, 0.075f, 255, 0, 0, 255, "apex_3x", false);

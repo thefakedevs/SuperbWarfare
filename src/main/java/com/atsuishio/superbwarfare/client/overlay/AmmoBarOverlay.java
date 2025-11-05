@@ -7,22 +7,27 @@ import com.atsuishio.superbwarfare.config.client.DisplayConfig;
 import com.atsuishio.superbwarfare.data.gun.AmmoConsumer;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.GunProp;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ArmedVehicleEntity;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModKeyMappings;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
+import com.atsuishio.superbwarfare.tools.FormatTool;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.gui.overlay.ForgeGui;
 import net.minecraftforge.client.gui.overlay.IGuiOverlay;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
 
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 @OnlyIn(Dist.CLIENT)
@@ -30,32 +35,50 @@ public class AmmoBarOverlay implements IGuiOverlay {
 
     public static final String ID = Mod.MODID + "_ammo_bar";
 
-    private static final ResourceLocation LINE = Mod.loc("textures/gun_icon/fire_mode/line.png");
-    private static final ResourceLocation SEMI = Mod.loc("textures/gun_icon/fire_mode/semi.png");
-    private static final ResourceLocation BURST = Mod.loc("textures/gun_icon/fire_mode/burst.png");
-    private static final ResourceLocation AUTO = Mod.loc("textures/gun_icon/fire_mode/auto.png");
-    private static final ResourceLocation TOP = Mod.loc("textures/gun_icon/fire_mode/top.png");
-    private static final ResourceLocation DIR = Mod.loc("textures/gun_icon/fire_mode/dir.png");
-    private static final ResourceLocation MOUSE = Mod.loc("textures/gun_icon/fire_mode/mouse.png");
+    private static final ResourceLocation LINE = Mod.loc("textures/overlay/ammo_bar/fire_mode/line.png");
+    private static final ResourceLocation MOUSE = Mod.loc("textures/overlay/ammo_bar/fire_mode/mouse.png");
     private static final ResourceLocation CHOSEN = Mod.loc("textures/gui/attachment/chosen.png");
     private static final ResourceLocation NOT_CHOSEN = Mod.loc("textures/gui/attachment/not_chosen.png");
     private static final ResourceLocation AMMO_STACK = Mod.loc("textures/gui/attachment/ammo_stack.png");
 
+    private static final Function<String, ResourceLocation> TO_RESOURCE_LOCATION = Util.memoize((str) -> Mod.loc("textures/overlay/ammo_bar/fire_mode/" + str + ".png"));
+
     private static ResourceLocation getFireMode(GunData data) {
-        return switch (data.fireMode.get()) {
-            case SEMI -> SEMI;
-            case BURST -> BURST;
-            case AUTO -> AUTO;
-        };
+        return TO_RESOURCE_LOCATION.apply(toUnderScores(data.selectedFireModeInfo().name));
+    }
+
+    private static String toUnderScores(String str) {
+        var builder = new StringBuilder();
+
+        for (int i = 0; i < str.length(); i++) {
+            var c = str.charAt(i);
+            if (Character.isUpperCase(c)) {
+                if (i != 0) {
+                    builder.append('_');
+                }
+                builder.append(Character.toLowerCase(c));
+            } else {
+                builder.append(c);
+            }
+        }
+
+        return builder.toString();
     }
 
     private static String getGunAmmoString(GunData data, Player player) {
+        if (data.selectedAmmoConsumer().type == AmmoConsumer.AmmoConsumeType.ENERGY) {
+            double energy = data.stack.getCapability(ForgeCapabilities.ENERGY)
+                    .map(storage -> Mth.clamp((double) storage.getEnergyStored() / Math.max(1, storage.getMaxEnergyStored()), 0, 1))
+                    .orElse(0d);
+            return FormatTool.format1DZZ(energy * 100) + "%";
+        }
         if (data.meleeOnly() || data.useBackpackAmmo() && data.hasInfiniteBackupAmmo(player)) return "∞";
         return data.useBackpackAmmo() ? data.countBackupAmmo(player) - data.virtualAmmo.get() + "" : data.ammo.get() + "";
     }
 
     private static String getBackupAmmoString(GunData data, Player player) {
-        if (data.meleeOnly() || data.useBackpackAmmo()) return "";
+        if (data.meleeOnly() || data.useBackpackAmmo() || data.selectedAmmoConsumer().type == AmmoConsumer.AmmoConsumeType.ENERGY)
+            return "";
         return data.hasInfiniteBackupAmmo(player) ? "∞" : data.countBackupAmmo(player) - data.virtualAmmo.get() + "";
     }
 
@@ -71,7 +94,7 @@ public class AmmoBarOverlay implements IGuiOverlay {
         if (player.isSpectator()) return;
 
         ItemStack stack = player.getMainHandItem();
-        if (stack.getItem() instanceof GunItem gunItem && !(player.getVehicle() instanceof ArmedVehicleEntity vehicle && vehicle.banHand(player))) {
+        if (stack.getItem() instanceof GunItem gunItem && !(player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player))) {
             int x = screenWidth + DisplayConfig.WEAPON_HUD_X_OFFSET.get();
             int y = screenHeight + DisplayConfig.WEAPON_HUD_Y_OFFSET.get();
 
@@ -79,7 +102,7 @@ public class AmmoBarOverlay implements IGuiOverlay {
             var data = GunData.from(stack);
 
             // 渲染图标
-            guiGraphics.blit(gunItem.getGunIcon(stack),
+            guiGraphics.blit(gunItem.getGunIcon(data),
                     x - 135,
                     y - 40,
                     0,
@@ -106,8 +129,18 @@ public class AmmoBarOverlay implements IGuiOverlay {
             // 渲染开火模式
             ResourceLocation fireMode = getFireMode(data);
 
-            if (stack.getItem() == ModItems.JAVELIN.get()) {
-                fireMode = stack.getOrCreateTag().getBoolean("TopMode") ? TOP : DIR;
+            var selectedFireMode = data.selectedFireMode.get();
+            var fireModes = data.get(GunProp.AVAILABLE_FIRE_MODES);
+
+            // 如果开火模式种类大于3，渲染开火模式信息
+            if (DisplayConfig.ADVANCED_AMMO_HUD.get() && fireModes.size() > 3) {
+                guiGraphics.drawCenteredString(
+                        font,
+                        (selectedFireMode + 1) + "/" + fireModes.size(),
+                        x - 75,
+                        y - 20,
+                        0xCCCCCC
+                );
             }
 
             if (stack.getItem() == ModItems.MINIGUN.get()) {
@@ -141,9 +174,6 @@ public class AmmoBarOverlay implements IGuiOverlay {
                         8,
                         8,
                         8);
-            }
-
-            if (stack.getItem() != ModItems.MINIGUN.get()) {
                 guiGraphics.blit(LINE,
                         x - 95,
                         y - 16,
@@ -156,7 +186,7 @@ public class AmmoBarOverlay implements IGuiOverlay {
             }
 
             // 如果弹药种类大于1，渲染弹种信息
-            int size = data.ammoConsumers.size();
+            int size = data.get(GunProp.AMMO_CONSUMER).size();
             if (DisplayConfig.ADVANCED_AMMO_HUD.get()
                     && (size > 1 || size == 1 && data.selectedAmmoConsumer().type != AmmoConsumer.AmmoConsumeType.PLAYER_AMMO)
             ) {
@@ -219,10 +249,21 @@ public class AmmoBarOverlay implements IGuiOverlay {
                     if (consumerType == AmmoConsumer.AmmoConsumeType.INVALID) {
                         RenderHelper.preciseBlit(guiGraphics, AMMO_STACK,
                                 x - 50,
-                                y - 20,
+                                y - 19.5f,
                                 12,
                                 8.5f,
-                                4,
+                                5,
+                                8,
+                                24,
+                                24
+                        );
+                    } else if (consumerType == AmmoConsumer.AmmoConsumeType.ENERGY) {
+                        RenderHelper.preciseBlit(guiGraphics, AMMO_STACK,
+                                x - 50,
+                                y - 19.5f,
+                                12,
+                                16.5f,
+                                5,
                                 8,
                                 24,
                                 24
@@ -261,7 +302,7 @@ public class AmmoBarOverlay implements IGuiOverlay {
             poseStack.scale(1.5f, 1.5f, 1f);
 
             // 渲染当前弹药量
-            var gunAmmoY = data.useBackpackAmmo() ? y - 35 : y + 5 - 48;
+            var gunAmmoY = data.useBackpackAmmo() ? y - 38 : y + 5 - 48;
 
             guiGraphics.drawString(
                     font,
@@ -342,6 +383,8 @@ public class AmmoBarOverlay implements IGuiOverlay {
             return "Infinity";
         } else if (data.meleeOnly()) {
             return "Melee";
+        } else if (consumer.type == AmmoConsumer.AmmoConsumeType.ENERGY) {
+            return "Energy";
         } else if (!consumer.stack().isEmpty()) {
             var nameComponent = consumer.stack().getHoverName();
             if (nameComponent.getContents() instanceof TranslatableContents translatableComponent) {

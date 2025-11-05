@@ -6,6 +6,7 @@ public class ExplosionConfig {
 
     public static ForgeConfigSpec.IntValue EXPLOSION_PENETRATION_RATIO;
     public static ForgeConfigSpec.BooleanValue EXPLOSION_DESTROY;
+    public static ForgeConfigSpec.BooleanValue EXTRA_EXPLOSION_EFFECT;
 
     public static ForgeConfigSpec.IntValue RGO_GRENADE_EXPLOSION_DAMAGE;
     public static ForgeConfigSpec.IntValue RGO_GRENADE_EXPLOSION_RADIUS;
@@ -23,12 +24,11 @@ public class ExplosionConfig {
     public static ForgeConfigSpec.IntValue C4_EXPLOSION_DAMAGE;
     public static ForgeConfigSpec.IntValue C4_EXPLOSION_RADIUS;
 
+    public static ForgeConfigSpec.IntValue CLAYMORE_EXPLOSION_DAMAGE;
+    public static ForgeConfigSpec.IntValue CLAYMORE_EXPLOSION_RADIUS;
+
     public static ForgeConfigSpec.IntValue RPG_EXPLOSION_DAMAGE;
     public static ForgeConfigSpec.IntValue RPG_EXPLOSION_RADIUS;
-
-    public static ForgeConfigSpec.IntValue WIRE_GUIDE_MISSILE_DAMAGE;
-    public static ForgeConfigSpec.IntValue WIRE_GUIDE_MISSILE_EXPLOSION_DAMAGE;
-    public static ForgeConfigSpec.IntValue WIRE_GUIDE_MISSILE_EXPLOSION_RADIUS;
 
     public static ForgeConfigSpec.IntValue AGM_65_DAMAGE;
     public static ForgeConfigSpec.IntValue AGM_65_EXPLOSION_DAMAGE;
@@ -45,6 +45,9 @@ public class ExplosionConfig {
 
         builder.comment("Set true to allow Explosion to destroy blocks");
         EXPLOSION_DESTROY = builder.define("explosion_destroy", true);
+
+        builder.comment("Set true to enable extra explosion effect. For example, C4 and RPG will destroy blocks before explosion");
+        EXTRA_EXPLOSION_EFFECT = builder.define("extra_explosion_effect", true);
 
         builder.push("RGO Grenade");
 
@@ -101,16 +104,13 @@ public class ExplosionConfig {
 
         builder.pop();
 
-        builder.push("Wire Guide Missile");
+        builder.push("Claymore");
 
-        builder.comment("The damage of wire guide missile");
-        WIRE_GUIDE_MISSILE_DAMAGE = builder.defineInRange("wire_guide_missile_damage", 700, 1, Integer.MAX_VALUE);
+        builder.comment("The explosion damage of Claymore");
+        CLAYMORE_EXPLOSION_DAMAGE = builder.defineInRange("claymore_explosion_damage", 140, 1, Integer.MAX_VALUE);
 
-        builder.comment("The explosion damage of wire guide missile");
-        WIRE_GUIDE_MISSILE_EXPLOSION_DAMAGE = builder.defineInRange("wire_guide_missile_explosion_damage", 60, 1, Integer.MAX_VALUE);
-
-        builder.comment("The explosion radius of wire guide missile");
-        WIRE_GUIDE_MISSILE_EXPLOSION_RADIUS = builder.defineInRange("wire_guide_missile_explosion_radius", 6, 1, Integer.MAX_VALUE);
+        builder.comment("The explosion radius of Claymore");
+        CLAYMORE_EXPLOSION_RADIUS = builder.defineInRange("claymore_explosion_radius", 4, 1, Integer.MAX_VALUE);
 
         builder.pop();
 

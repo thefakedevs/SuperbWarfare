@@ -6,27 +6,24 @@ import com.atsuishio.superbwarfare.capability.player.PlayerVariable;
 import com.atsuishio.superbwarfare.data.gun.AmmoConsumer;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.GunProp;
+import com.atsuishio.superbwarfare.data.gun.ReloadType;
 import com.atsuishio.superbwarfare.data.gun.value.ReloadState;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
-import com.atsuishio.superbwarfare.init.ModTags;
 import com.atsuishio.superbwarfare.perk.Perk;
 import com.atsuishio.superbwarfare.tools.InventoryTool;
 import com.atsuishio.superbwarfare.tools.SoundTool;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.MissingMappingsEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -38,20 +35,18 @@ public class GunEventHandler {
      * 拉大栓
      */
     private static void handleGunBolt(@NotNull GunData data) {
-        var stack = data.stack();
+        if (data.item.useSpecialFireProcedure(data)) return;
 
-        if (stack.is(ModTags.Items.NORMAL_GUN)) {
-            data.bolt.actionTimer.reduce();
+        data.bolt.actionTimer.reduce();
 
-            // 执行拉栓期间额外行为
-            var behavior = data.item.boltTimeBehaviors.get(data.bolt.actionTimer.get());
-            if (behavior != null) {
-                behavior.accept(data);
-            }
+        // 执行拉栓期间额外行为
+        var behavior = data.item.boltTimeBehaviors.get(data.bolt.actionTimer.get());
+        if (behavior != null) {
+            behavior.accept(data);
+        }
 
-            if (data.bolt.actionTimer.get() == 1) {
-                data.bolt.needed.set(false);
-            }
+        if (data.bolt.actionTimer.get() == 1) {
+            data.bolt.needed.set(false);
         }
     }
 
@@ -59,33 +54,32 @@ public class GunEventHandler {
      * 播放拉栓音效
      */
     public static void playGunBoltSounds(@Nullable Entity shooter, @NotNull GunData data) {
-        if (shooter != null && !shooter.level().isClientSide) {
-            String origin = data.stack.getItem().getDescriptionId();
-            String name = origin.substring(origin.lastIndexOf(".") + 1);
+        if (shooter instanceof ServerPlayer serverPlayer) {
+            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var sound = soundInfo.bolt;
 
-            SoundEvent sound1p = ForgeRegistries.SOUND_EVENTS.getValue(Mod.loc(name + "_bolt"));
-            if (sound1p != null && shooter instanceof ServerPlayer serverPlayer) {
-                SoundTool.playLocalSound(serverPlayer, sound1p, 2f, 1f);
-
-                double shooterHeight = shooter.getEyePosition().distanceTo((Vec3.atLowerCornerOf(shooter.level().clip(new ClipContext(shooter.getEyePosition(), shooter.getEyePosition().add(new Vec3(0, -1, 0).scale(10)),
-                        ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, shooter)).getBlockPos())));
-
-                Mod.queueServerWork((int) (data.bolt.actionTimer.get() / 2.0 + 1.5 * shooterHeight), () -> {
-                    if (data.selectedAmmoConsumer().type == AmmoConsumer.AmmoConsumeType.PLAYER_AMMO) {
-                        var ammoType = data.selectedAmmoConsumer().getPlayerAmmoType();
-                        switch (ammoType) {
-                            case SHOTGUN ->
-                                    SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_SHOTGUN.get(), (float) Math.max(0.75 - 0.12 * shooterHeight, 0), 1);
-                            case SNIPER, HEAVY ->
-                                    SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_50CAL.get(), (float) Math.max(1 - 0.15 * shooterHeight, 0), 1);
-                            default ->
-                                    SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1);
-                        }
-                    } else {
-                        SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1);
-                    }
-                });
+            if (sound != null) {
+                SoundTool.playLocalSound(serverPlayer, sound, 2f, 1f);
             }
+
+            double shooterHeight = shooter.getEyePosition().distanceTo((Vec3.atLowerCornerOf(shooter.level().clip(new ClipContext(shooter.getEyePosition(), shooter.getEyePosition().add(new Vec3(0, -1, 0).scale(10)),
+                    ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, shooter)).getBlockPos())));
+
+            Mod.queueServerWork((int) (data.bolt.actionTimer.get() / 2.0 + 1.5 * shooterHeight), () -> {
+                if (data.selectedAmmoConsumer().type == AmmoConsumer.AmmoConsumeType.PLAYER_AMMO) {
+                    var ammoType = data.selectedAmmoConsumer().getPlayerAmmoType();
+                    switch (ammoType) {
+                        case SHOTGUN ->
+                                SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_SHOTGUN.get(), (float) Math.max(0.75 - 0.12 * shooterHeight, 0), 1);
+                        case SNIPER, HEAVY ->
+                                SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_50CAL.get(), (float) Math.max(1 - 0.15 * shooterHeight, 0), 1);
+                        default ->
+                                SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1);
+                    }
+                } else {
+                    SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1);
+                }
+            });
         }
     }
 
@@ -93,7 +87,7 @@ public class GunEventHandler {
      * 完成换弹过程，装填弹药
      */
     private static void finishReload(@Nullable Entity shooter, @NotNull GunData data) {
-        if (data.item.isOpenBolt(data.stack)) {
+        if (data.item.isOpenBolt(data)) {
             if (!data.hasEnoughAmmoToShoot(shooter)) {
                 finishGunEmptyReload(shooter, data);
             } else {
@@ -132,22 +126,66 @@ public class GunEventHandler {
         }
     }
 
+    public static void autoReload(@Nullable Entity shooter, GunData data) {
+        if (data.get(GunProp.AUTO_RELOAD) && !data.hasEnoughAmmoToShoot(shooter)) {
+            tryStartReload(shooter, data);
+        }
+    }
+
+    public static void tryStartReload(@Nullable Entity shooter, GunData data) {
+        if (data.useBackpackAmmo() || data.meleeOnly()) return;
+
+        if ((shooter == null || !shooter.isSpectator())
+                && !data.charging()
+                && !data.reloading()
+                && data.reload.time() == 0
+                && data.bolt.actionTimer.get() == 0
+        ) {
+            // 检查备弹
+            if (!data.hasBackupAmmo(shooter)) return;
+
+            // Clip > Magazine > Iterative
+            var reloadTypes = data.get(GunProp.RELOAD_TYPES);
+            boolean canMagazineReload = reloadTypes.contains(ReloadType.MAGAZINE) && !reloadTypes.contains(ReloadType.CLIP);
+            boolean canClipLoad = !data.hasEnoughAmmoToShoot(shooter) && reloadTypes.contains(ReloadType.CLIP);
+            boolean canSingleReload = reloadTypes.contains(ReloadType.ITERATIVE);
+
+            if (canMagazineReload || canClipLoad) {
+                int magazine = data.get(GunProp.MAGAZINE);
+                var extra = (data.item.isOpenBolt(data) && data.item.hasBulletInBarrel(data)) ? 1 : 0;
+                var maxAmmo = magazine + extra;
+
+                if (data.ammo.get() < maxAmmo) {
+                    data.startReload();
+                }
+            } else if (canSingleReload && data.ammo.get() < data.get(GunProp.MAGAZINE)) {
+                data.reload.singleReloadStarter.markStart();
+            } else {
+                return;
+            }
+
+            data.burstAmount.reset();
+        }
+    }
+
     /**
      * 减少过热值
      */
     public static void handleCooldown(@Nullable Entity shooter, @NotNull GunData data) {
-        double extraCooldown = 0;
+        double rate = 1;
         if (shooter != null) {
             if (shooter.wasInPowderSnow) {
-                extraCooldown = 0.15;
+                rate = data.get(GunProp.IN_SNOW_COOLDOWN_RATE);
             } else if (shooter.isInWaterOrRain()) {
-                extraCooldown = 0.04;
-            } else if (shooter.isOnFire() || shooter.isInLava()) {
-                extraCooldown = -0.1;
+                rate = data.get(GunProp.IN_WATER_COOLDOWN_RATE);
+            } else if (shooter.isOnFire()) {
+                rate = data.get(GunProp.IN_FIRE_COOLDOWN_RATE);
+            } else if (shooter.isInLava()) {
+                rate = data.get(GunProp.IN_LAVA_COOLDOWN_RATE);
             }
         }
 
-        data.heat.set(Mth.clamp(data.heat.get() - 0.25 - extraCooldown, 0, 100));
+        data.heat.set(Mth.clamp(data.heat.get() - data.get(GunProp.NATURAL_COOLDOWN) * rate, 0, 100));
 
         if (data.heat.get() < 80 && data.overHeat.get()) {
             data.overHeat.set(false);
@@ -158,7 +196,7 @@ public class GunEventHandler {
      * 返还多余弹药
      */
     public static void redrawExtraAmmo(@Nullable Entity shooter, @NotNull GunData data) {
-        var hasBulletInBarrel = data.item.hasBulletInBarrel(data.stack);
+        var hasBulletInBarrel = data.item.hasBulletInBarrel(data);
         var ammoCount = data.ammo.get();
         var magazine = data.get(GunProp.MAGAZINE);
 
@@ -181,6 +219,7 @@ public class GunEventHandler {
 
     public static void gunTick(@Nullable Entity shooter, @NotNull GunData data, boolean inMainHand) {
         init(shooter, data);
+        autoReload(shooter, data);
         tickPerk(shooter, data);
         handleCooldown(shooter, data);
         redrawExtraAmmo(shooter, data);
@@ -213,20 +252,21 @@ public class GunEventHandler {
         }
 
         if (inMainHand && !data.reloading()) {
-            if (data.currentAvailableShots(shooter) <= 5) {
+            if (data.currentAvailableShots(shooter) <= data.item.hideBulletChainBelowShots()) {
                 data.hideBulletChain.set(true);
             }
             if (!data.hasEnoughAmmoToShoot(shooter)) {
-                data.holdOpen.set(true);
-                data.isEmpty.set(true);
+                data.item.whenNoAmmo(data);
             }
         }
+
+        data.update();
     }
 
     private static void startReload(@Nullable Entity shooter, @NotNull GunData data) {
         var reload = data.reload;
 
-        if (data.item.isOpenBolt(data.stack)) {
+        if (data.item.isOpenBolt(data)) {
             if (!data.hasEnoughAmmoToShoot(shooter)) {
                 reload.setTime(data.get(GunProp.EMPTY_RELOAD_TIME) + 1);
                 reload.setState(ReloadState.EMPTY_RELOADING);
@@ -244,10 +284,8 @@ public class GunEventHandler {
     }
 
     public static void finishGunNormalReload(@Nullable Entity shooter, @NotNull GunData data) {
-        var stack = data.stack();
         var gunItem = data.item();
-
-        data.reloadAmmo(shooter, gunItem.hasBulletInBarrel(stack));
+        data.reloadAmmo(shooter, gunItem.hasBulletInBarrel(data));
         MinecraftForge.EVENT_BUS.post(new ReloadEvent.Post(shooter, data));
     }
 
@@ -257,30 +295,23 @@ public class GunEventHandler {
     }
 
     public static void playGunEmptyReloadSounds(@Nullable Entity shooter, @NotNull GunData data) {
-        ItemStack stack = data.stack;
+        if (shooter instanceof ServerPlayer serverPlayer) {
+            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var sound = soundInfo.reloadEmpty;
 
-        if (shooter != null && !shooter.level().isClientSide) {
-            String origin = stack.getItem().getDescriptionId();
-            String name = origin.substring(origin.lastIndexOf(".") + 1);
-
-            SoundEvent sound1p = ForgeRegistries.SOUND_EVENTS.getValue(Mod.loc(name + "_reload_empty"));
-            if (sound1p != null && shooter instanceof ServerPlayer serverPlayer) {
-                SoundTool.playLocalSound(serverPlayer, sound1p, 10f, 1f);
+            if (sound != null) {
+                SoundTool.playLocalSound(serverPlayer, sound, 10f, 1f);
             }
         }
     }
 
     public static void playGunNormalReloadSounds(@Nullable Entity shooter, @NotNull GunData data) {
-        ItemStack stack = data.stack;
+        if (shooter instanceof ServerPlayer serverPlayer) {
+            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var sound = soundInfo.reloadNormal;
 
-        if (shooter != null && !shooter.level().isClientSide) {
-            String origin = stack.getItem().getDescriptionId();
-            String name = origin.substring(origin.lastIndexOf(".") + 1);
-
-            SoundEvent sound1p = ForgeRegistries.SOUND_EVENTS.getValue(Mod.loc(name + "_reload_normal"));
-
-            if (sound1p != null && shooter instanceof ServerPlayer serverPlayer) {
-                SoundTool.playLocalSound(serverPlayer, sound1p, 10f, 1f);
+            if (sound != null) {
+                SoundTool.playLocalSound(serverPlayer, sound, 10f, 1f);
             }
         }
     }
@@ -416,108 +447,102 @@ public class GunEventHandler {
     }
 
     public static void playGunPrepareReloadSounds(@Nullable Entity shooter, @NotNull GunData data) {
-        if (shooter != null && !shooter.level().isClientSide) {
-            String origin = data.stack.getItem().getDescriptionId();
-            String name = origin.substring(origin.lastIndexOf(".") + 1);
+        if (shooter instanceof ServerPlayer serverPlayer) {
+            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var sound = soundInfo.reloadPrepare;
 
-            SoundEvent sound1p = ForgeRegistries.SOUND_EVENTS.getValue(Mod.loc(name + "_prepare"));
-            if (sound1p != null && shooter instanceof ServerPlayer serverPlayer) {
-                SoundTool.playLocalSound(serverPlayer, sound1p, 10f, 1f);
+            if (sound != null) {
+                SoundTool.playLocalSound(serverPlayer, sound, 10f, 1f);
             }
         }
     }
 
     public static void playGunEmptyPrepareSounds(@Nullable Entity shooter, @NotNull GunData data) {
-        if (shooter != null && !shooter.level().isClientSide) {
-            String origin = data.stack.getItem().getDescriptionId();
-            String name = origin.substring(origin.lastIndexOf(".") + 1);
+        if (shooter instanceof ServerPlayer serverPlayer) {
+            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var sound = soundInfo.reloadPrepareEmpty;
 
-            SoundEvent sound1p = ForgeRegistries.SOUND_EVENTS.getValue(Mod.loc(name + "_prepare_empty"));
-            if (sound1p != null && shooter instanceof ServerPlayer serverPlayer) {
-                SoundTool.playLocalSound(serverPlayer, sound1p, 10f, 1f);
-
-                double shooterHeight = shooter.getEyePosition().distanceTo((Vec3.atLowerCornerOf(shooter.level().clip(new ClipContext(shooter.getEyePosition(), shooter.getEyePosition().add(new Vec3(0, -1, 0).scale(10)),
-                        ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, shooter)).getBlockPos())));
-
-                Mod.queueServerWork((int) (data.get(GunProp.PREPARE_EMPTY_TIME) / 2.0 + 3 + 1.5 * shooterHeight), () -> {
-                    if (data.selectedAmmoConsumer().type == AmmoConsumer.AmmoConsumeType.PLAYER_AMMO) {
-                        var ammoType = data.selectedAmmoConsumer().getPlayerAmmoType();
-                        switch (ammoType) {
-                            case SHOTGUN ->
-                                    SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_SHOTGUN.get(), (float) Math.max(0.75 - 0.12 * shooterHeight, 0), 1);
-                            case SNIPER, HEAVY ->
-                                    SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_50CAL.get(), (float) Math.max(1 - 0.15 * shooterHeight, 0), 1);
-                            default ->
-                                    SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1);
-                        }
-                    } else {
-                        SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1);
-                    }
-                });
+            if (sound != null) {
+                SoundTool.playLocalSound(serverPlayer, sound, 10f, 1f);
             }
+
+            double shooterHeight = shooter.getEyePosition().distanceTo((Vec3.atLowerCornerOf(shooter.level().clip(new ClipContext(shooter.getEyePosition(), shooter.getEyePosition().add(new Vec3(0, -1, 0).scale(10)),
+                    ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, shooter)).getBlockPos())));
+
+            Mod.queueServerWork((int) (data.get(GunProp.PREPARE_EMPTY_TIME) / 2.0 + 3 + 1.5 * shooterHeight), () -> {
+                if (data.selectedAmmoConsumer().type == AmmoConsumer.AmmoConsumeType.PLAYER_AMMO) {
+                    var ammoType = data.selectedAmmoConsumer().getPlayerAmmoType();
+                    switch (ammoType) {
+                        case SHOTGUN ->
+                                SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_SHOTGUN.get(), (float) Math.max(0.75 - 0.12 * shooterHeight, 0), 1);
+                        case SNIPER, HEAVY ->
+                                SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_50CAL.get(), (float) Math.max(1 - 0.15 * shooterHeight, 0), 1);
+                        default ->
+                                SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1);
+                    }
+                } else {
+                    SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1);
+                }
+            });
         }
     }
 
     public static void playGunPrepareLoadReloadSounds(@Nullable Entity shooter, @NotNull GunData data) {
-        ItemStack stack = data.stack;
+        if (shooter instanceof ServerPlayer serverPlayer) {
+            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var sound = soundInfo.reloadPrepareLoad;
 
-        if (shooter != null && !shooter.level().isClientSide) {
-            String origin = stack.getItem().getDescriptionId();
-            String name = origin.substring(origin.lastIndexOf(".") + 1);
-
-            SoundEvent sound1p = ForgeRegistries.SOUND_EVENTS.getValue(Mod.loc(name + "_prepare_load"));
-            if (sound1p != null && shooter instanceof ServerPlayer serverPlayer) {
-                SoundTool.playLocalSound(serverPlayer, sound1p, 10f, 1f);
-
-                double shooterHeight = shooter.getEyePosition().distanceTo((Vec3.atLowerCornerOf(shooter.level().clip(new ClipContext(shooter.getEyePosition(), shooter.getEyePosition().add(new Vec3(0, -1, 0).scale(10)),
-                        ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, shooter)).getBlockPos())));
-
-                Mod.queueServerWork((int) (8 + 1.5 * shooterHeight), () -> {
-                    if (data.selectedAmmoConsumer().type == AmmoConsumer.AmmoConsumeType.PLAYER_AMMO) {
-                        var ammoType = data.selectedAmmoConsumer().getPlayerAmmoType();
-                        switch (ammoType) {
-                            case SHOTGUN ->
-                                    SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_SHOTGUN.get(), (float) Math.max(0.75 - 0.12 * shooterHeight, 0), 1);
-                            case SNIPER, HEAVY ->
-                                    SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_50CAL.get(), (float) Math.max(1 - 0.15 * shooterHeight, 0), 1);
-                            default ->
-                                    SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1);
-                        }
-                    } else {
-                        SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1);
-                    }
-                });
+            if (sound != null) {
+                SoundTool.playLocalSound(serverPlayer, sound, 10f, 1f);
             }
+
+            double shooterHeight = shooter.getEyePosition().distanceTo((Vec3.atLowerCornerOf(shooter.level().clip(new ClipContext(shooter.getEyePosition(), shooter.getEyePosition().add(new Vec3(0, -1, 0).scale(10)),
+                    ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, shooter)).getBlockPos())));
+
+            Mod.queueServerWork((int) (8 + 1.5 * shooterHeight), () -> {
+                if (data.selectedAmmoConsumer().type == AmmoConsumer.AmmoConsumeType.PLAYER_AMMO) {
+                    var ammoType = data.selectedAmmoConsumer().getPlayerAmmoType();
+                    switch (ammoType) {
+                        case SHOTGUN ->
+                                SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_SHOTGUN.get(), (float) Math.max(0.75 - 0.12 * shooterHeight, 0), 1);
+                        case SNIPER, HEAVY ->
+                                SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_50CAL.get(), (float) Math.max(1 - 0.15 * shooterHeight, 0), 1);
+                        default ->
+                                SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1);
+                    }
+                } else {
+                    SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1);
+                }
+            });
         }
     }
 
     public static void playGunLoopReloadSounds(@Nullable Entity shooter, @NotNull GunData data) {
-        if (shooter != null && !shooter.level().isClientSide) {
-            String origin = data.stack.getItem().getDescriptionId();
-            String name = origin.substring(origin.lastIndexOf(".") + 1);
+        if (shooter instanceof ServerPlayer serverPlayer) {
+            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var sound = soundInfo.reloadLoop;
 
-            SoundEvent sound1p = ForgeRegistries.SOUND_EVENTS.getValue(Mod.loc(name + "_loop"));
-            if (sound1p != null && shooter instanceof ServerPlayer serverPlayer) {
-                SoundTool.playLocalSound(serverPlayer, sound1p, 10f, 1f);
+            if (sound != null) {
+                SoundTool.playLocalSound(serverPlayer, sound, 10f, 1f);
             }
         }
     }
 
     public static void playGunEndReloadSounds(@Nullable Entity shooter, @NotNull GunData data) {
-        if (shooter != null && !shooter.level().isClientSide) {
-            String origin = data.stack.getItem().getDescriptionId();
-            String name = origin.substring(origin.lastIndexOf(".") + 1);
+        if (shooter instanceof ServerPlayer serverPlayer) {
+            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var sound = soundInfo.reloadEnd;
 
-            SoundEvent sound1p = ForgeRegistries.SOUND_EVENTS.getValue(Mod.loc(name + "_end"));
-            if (sound1p != null && shooter instanceof ServerPlayer serverPlayer) {
-                SoundTool.playLocalSound(serverPlayer, sound1p, 10f, 1f);
+            if (sound != null) {
+                SoundTool.playLocalSound(serverPlayer, sound, 10f, 1f);
+            }
 
-                double shooterHeight = shooter.getEyePosition().distanceTo((Vec3.atLowerCornerOf(shooter.level().clip(new ClipContext(shooter.getEyePosition(), shooter.getEyePosition().add(new Vec3(0, -1, 0).scale(10)),
-                        ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, shooter)).getBlockPos())));
+            double shooterHeight = shooter.getEyePosition().distanceTo((Vec3.atLowerCornerOf(shooter.level().clip(new ClipContext(shooter.getEyePosition(), shooter.getEyePosition().add(new Vec3(0, -1, 0).scale(10)),
+                    ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, shooter)).getBlockPos())));
 
-                if (data.stack.is(ModItems.MARLIN.get())) {
-                    Mod.queueServerWork((int) (5 + 1.5 * shooterHeight), () -> SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1));
-                }
+            // TODO 为什么要特判这个
+            if (data.stack.is(ModItems.MARLIN.get())) {
+                Mod.queueServerWork((int) (5 + 1.5 * shooterHeight), () -> SoundTool.playLocalSound(serverPlayer, ModSounds.SHELL_CASING_NORMAL.get(), (float) Math.max(1.5 - 0.2 * shooterHeight, 0), 1));
             }
         }
     }
@@ -530,9 +555,8 @@ public class GunEventHandler {
         if (data.charge.starter.start()) {
             data.charge.timer.set(127);
 
-            SoundEvent sound1p = ForgeRegistries.SOUND_EVENTS.getValue(Mod.loc("sentinel_charge"));
-            if (sound1p != null && entity instanceof ServerPlayer serverPlayer) {
-                SoundTool.playLocalSound(serverPlayer, sound1p, 2f, 1f);
+            if (entity instanceof ServerPlayer serverPlayer) {
+                SoundTool.playLocalSound(serverPlayer, ModSounds.SENTINEL_CHARGE.get(), 2f, 1f);
             }
         }
 
@@ -585,6 +609,9 @@ public class GunEventHandler {
                 }
                 if (item.equals("rocket_70")) {
                     mapping.remap(ModItems.SMALL_ROCKET.get());
+                }
+                if (item.equals("us_helmet_pastg")) {
+                    mapping.remap(ModItems.US_HELMET_PASGT.get());
                 }
             }
         }

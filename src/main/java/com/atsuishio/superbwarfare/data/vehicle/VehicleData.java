@@ -1,24 +1,20 @@
 package com.atsuishio.superbwarfare.data.vehicle;
 
-import com.atsuishio.superbwarfare.Mod;
+import com.atsuishio.superbwarfare.data.CustomData;
+import com.atsuishio.superbwarfare.data.DataLoader;
 import com.atsuishio.superbwarfare.data.DefaultDataSupplier;
-import com.atsuishio.superbwarfare.data.StringPropModifier;
+import com.atsuishio.superbwarfare.data.JsonPropModifier;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModifier;
+import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModify;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.List;
 
 public class VehicleData implements DefaultDataSupplier<DefaultVehicleData> {
 
@@ -30,37 +26,37 @@ public class VehicleData implements DefaultDataSupplier<DefaultVehicleData> {
         this.vehicle = entity;
     }
 
-    private final Set<VehicleProp<?>> operatingProps = new HashSet<>();
+    private final JsonPropModifier<VehicleData, DefaultVehicleData> jsonPropModifier = new JsonPropModifier<>();
 
-    private final StringPropModifier<VehicleData, DefaultVehicleData> stringPropModifier = new StringPropModifier<>();
+    public static DefaultVehicleData compute(VehicleEntity vehicle) {
+        return from(vehicle).compute();
+    }
 
-    public <T> T get(VehicleProp<T> prop) {
-        var modifier = prop.asModifier(this);
+    private DefaultVehicleData cache = null;
 
-        if (operatingProps.contains(prop)) {
-            Mod.LOGGER.warn("recursive computation for property {}", prop.name);
-            return modifier.compute();
+    public DefaultVehicleData compute() {
+        if (cache != null) return cache;
+
+        var raw = getDefault().copy();
+
+        if (vehicle.isInitialized()) {
+            jsonPropModifier.update(this.vehicle.getEntityData().get(VehicleEntity.OVERRIDE));
+            raw = jsonPropModifier.compute(this, raw);
         }
 
-        operatingProps.add(prop);
+        raw.limit();
+        cache = raw;
 
-        if (this.vehicle.isInitialized()) {
-            // vehicle modifiers
-            modifier.apply(this.vehicle.getModifier(prop));
+        return raw;
+    }
 
-            // property override tag
-            var propertyOverrideString = this.vehicle.getEntityData().get(VehicleEntity.OVERRIDE);
-            stringPropModifier.modifyPropertyByString(propertyOverrideString, prop);
-            modifier.apply(stringPropModifier.getModifier(prop));
-        }
-
-        operatingProps.remove(prop);
-        return modifier.compute();
+    public void update() {
+        this.cache = null;
     }
 
     public static DefaultVehicleData getDefault(String id) {
-        var isDefault = !VehicleDataTool.vehicleData.containsKey(id);
-        var data = VehicleDataTool.vehicleData.getOrDefault(id, new DefaultVehicleData());
+        var isDefault = !CustomData.VEHICLE_DATA.containsKey(id);
+        var data = CustomData.VEHICLE_DATA.getOrElseGet(id, DefaultVehicleData::new);
         data.isDefaultData = isDefault;
         return data;
     }
@@ -93,41 +89,16 @@ public class VehicleData implements DefaultDataSupplier<DefaultVehicleData> {
         return dataCache.getUnchecked(entity);
     }
 
-    public boolean canRepairManually() {
-        var material = get(VehicleProp.REPAIR_MATERIAL);
-        if (material == null) return false;
-
-        if (material.startsWith("#")) {
-            material = material.substring(1);
-        }
-        return ResourceLocation.tryParse(material) != null;
-    }
-
-    public boolean isRepairMaterial(ItemStack stack) {
-        var material = get(VehicleProp.REPAIR_MATERIAL);
-        var useTag = false;
-
-        if (material.startsWith("#")) {
-            material = material.substring(1);
-            useTag = true;
-        }
-
-        var location = Objects.requireNonNull(ResourceLocation.tryParse(material));
-        if (!useTag) {
-            return stack.getItem() == ForgeRegistries.ITEMS.getValue(location);
-        } else {
-            return stack.is(ItemTags.create(location));
-        }
-    }
-
+    @SuppressWarnings("unchecked")
     public DamageModifier damageModifier() {
         var modifier = new DamageModifier();
+        var data = compute();
 
-        if (get(VehicleProp.APPLY_DEFAULT_DAMAGE_MODIFIERS)) {
+        if (data.applyDefaultDamageModifiers) {
             modifier.addAll(DamageModifier.createDefaultModifier().toList());
             modifier.reduce(5, ModDamageTypes.VEHICLE_STRIKE);
         }
 
-        return modifier.addAll(get(VehicleProp.DAMAGE_MODIFIERS));
+        return modifier.addAll((List<DamageModify>) DataLoader.processValue(data.damageModifiers));
     }
 }

@@ -3,7 +3,7 @@ package com.atsuishio.superbwarfare.client.overlay;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.data.gun.GunData;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ArmedVehicleEntity;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.init.ModPerks;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
@@ -33,10 +33,10 @@ public class HandsomeFrameOverlay implements IGuiOverlay {
 
     public static final String ID = Mod.MODID + "_handsome_frame";
 
-    private static final ResourceLocation FRAME = Mod.loc("textures/screens/frame/frame.png");
-    private static final ResourceLocation FRAME_WEAK = Mod.loc("textures/screens/frame/frame_weak.png");
-    private static final ResourceLocation FRAME_TARGET = Mod.loc("textures/screens/frame/frame_target.png");
-    private static final ResourceLocation FRAME_LOCK = Mod.loc("textures/screens/frame/frame_lock.png");
+    private static final ResourceLocation FRAME = Mod.loc("textures/overlay/frame/frame.png");
+    private static final ResourceLocation FRAME_WEAK = Mod.loc("textures/overlay/frame/frame_weak.png");
+    private static final ResourceLocation FRAME_TARGET = Mod.loc("textures/overlay/frame/frame_target_triangle.png");
+    private static final ResourceLocation FRAME_LOCK = Mod.loc("textures/overlay/frame/frame_lock.png");
 
     @Override
     public void render(ForgeGui gui, GuiGraphics guiGraphics, float partialTick, int screenWidth, int screenHeight) {
@@ -50,7 +50,7 @@ public class HandsomeFrameOverlay implements IGuiOverlay {
 
         if (ClientEventHandler.isEditing)
             return;
-        if (player.getVehicle() instanceof ArmedVehicleEntity iArmedVehicle && iArmedVehicle.banHand(player))
+        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player))
             return;
 
         if (stack.getItem() instanceof GunItem && Minecraft.getInstance().options.getCameraType().isFirstPerson()) {
@@ -64,12 +64,11 @@ public class HandsomeFrameOverlay implements IGuiOverlay {
             RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
             RenderSystem.setShaderColor(1, 1, 1, 1);
 
-            List<Entity> allEntities = SeekTool.seekLivingEntitiesThroughWall(player, player.level(), 32 + 8 * (level - 1), 30);
-            List<Entity> visibleEntities = SeekTool.seekLivingEntities(player, player.level(), 32 + 8 * (level - 1), 30);
+            List<Entity> allEntities = SeekTool.seekLivingEntitiesThroughWall(player, 32 + 8 * (level - 1), 30);
+            List<Entity> visibleEntities = SeekTool.seekLivingEntities(player, 32 + 8 * (level - 1), 30);
 
-            Entity naerestEntity = SeekTool.seekLivingEntity(player, player.level(), 32 + 8 * (level - 1), 30);
-            Entity targetEntity = ClientEventHandler.entity;
-
+            Entity naerestEntity = SeekTool.seekLivingEntity(player, 32 + 8 * (level - 1), 30);
+            Entity targetEntity = ClientEventHandler.lockedEntity;
 
             for (var e : allEntities) {
                 Vec3 pos = new Vec3(Mth.lerp(partialTick, e.xo, e.getX()), Mth.lerp(partialTick, e.yo + e.getEyeHeight(), e.getEyeY()), Mth.lerp(partialTick, e.zo, e.getZ()));

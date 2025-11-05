@@ -7,14 +7,10 @@ import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
 import com.atsuishio.superbwarfare.tools.CustomExplosion;
 import com.atsuishio.superbwarfare.tools.DamageHandler;
-import com.atsuishio.superbwarfare.tools.ParticleTool;
 import com.google.common.collect.Sets;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -33,7 +29,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.network.PlayMessages;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
@@ -48,44 +43,37 @@ import java.util.Set;
 
 public class MortarShellEntity extends FastThrowableProjectile implements GeoEntity, ExplosiveProjectile {
 
-    private float damage = 50;
-    private float explosionDamage = ExplosionConfig.MORTAR_SHELL_EXPLOSION_DAMAGE.get();
-    private int life = 600;
-    private float radius = ExplosionConfig.MORTAR_SHELL_EXPLOSION_RADIUS.get();
-    private float gravity = 0.13f;
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
+    private int life = 600;
     private Potion potion = Potions.EMPTY;
     private final Set<MobEffectInstance> effects = Sets.newHashSet();
 
-    public MortarShellEntity(EntityType<? extends MortarShellEntity> type, Level world) {
-        super(type, world);
+    public MortarShellEntity(EntityType<? extends MortarShellEntity> type, Level level) {
+        super(type, level);
         this.noCulling = true;
+        this.damage = 50;
+        this.explosionDamage = ExplosionConfig.MORTAR_SHELL_EXPLOSION_DAMAGE.get();
+        this.explosionRadius = ExplosionConfig.MORTAR_SHELL_EXPLOSION_RADIUS.get();
+        this.gravity = 0.13f;
     }
 
-    public MortarShellEntity(EntityType<? extends MortarShellEntity> type, double x, double y, double z, Level world) {
-        super(type, x, y, z, world);
+    public MortarShellEntity(EntityType<? extends MortarShellEntity> type, double x, double y, double z, Level level) {
+        super(type, x, y, z, level);
         this.noCulling = true;
+        this.damage = 50;
+        this.explosionDamage = ExplosionConfig.MORTAR_SHELL_EXPLOSION_DAMAGE.get();
+        this.explosionRadius = ExplosionConfig.MORTAR_SHELL_EXPLOSION_RADIUS.get();
+        this.gravity = 0.13f;
     }
 
     public MortarShellEntity(LivingEntity entity, Level level) {
         super(ModEntities.MORTAR_SHELL.get(), entity, level);
         this.noCulling = true;
-    }
-
-    public MortarShellEntity(LivingEntity entity, Level world, float explosionDamage) {
-        super(ModEntities.MORTAR_SHELL.get(), entity, world);
-        this.noCulling = true;
-
-        this.explosionDamage = explosionDamage;
-    }
-
-    public MortarShellEntity(LivingEntity entity, Level world, float explosionDamage, float radius) {
-        super(ModEntities.MORTAR_SHELL.get(), entity, world);
-        this.noCulling = true;
-
-        this.explosionDamage = explosionDamage;
-        this.radius = radius;
+        this.damage = 50;
+        this.explosionDamage = ExplosionConfig.MORTAR_SHELL_EXPLOSION_DAMAGE.get();
+        this.explosionRadius = ExplosionConfig.MORTAR_SHELL_EXPLOSION_RADIUS.get();
+        this.gravity = 0.13f;
     }
 
     public MortarShellEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
@@ -110,10 +98,7 @@ public class MortarShellEntity extends FastThrowableProjectile implements GeoEnt
     @Override
     public void addAdditionalSaveData(@NotNull CompoundTag pCompound) {
         super.addAdditionalSaveData(pCompound);
-        pCompound.putFloat("Damage", this.damage);
-        pCompound.putFloat("ExplosionDamage", this.explosionDamage);
         pCompound.putInt("Life", this.life);
-        pCompound.putFloat("Radius", this.radius);
 
         if (this.potion != Potions.EMPTY) {
             pCompound.putString("Potion", Objects.requireNonNullElse(ForgeRegistries.POTIONS.getKey(this.potion), "empty").toString());
@@ -132,28 +117,10 @@ public class MortarShellEntity extends FastThrowableProjectile implements GeoEnt
     public void readAdditionalSaveData(@NotNull CompoundTag pCompound) {
         super.readAdditionalSaveData(pCompound);
 
-        if (pCompound.contains("Damage")) {
-            this.damage = pCompound.getFloat("Damage");
-        } else {
-            this.damage = 50f;
-        }
-
-        if (pCompound.contains("ExplosionDamage")) {
-            this.explosionDamage = pCompound.getFloat("ExplosionDamage");
-        } else {
-            this.explosionDamage = ExplosionConfig.MORTAR_SHELL_EXPLOSION_DAMAGE.get();
-        }
-
         if (pCompound.contains("Life")) {
             this.life = pCompound.getInt("Life");
         } else {
             this.life = 600;
-        }
-
-        if (pCompound.contains("Radius")) {
-            this.radius = pCompound.getFloat("Radius");
-        } else {
-            this.radius = ExplosionConfig.MORTAR_SHELL_EXPLOSION_RADIUS.get();
         }
 
         if (pCompound.contains("Potion", 8)) {
@@ -164,22 +131,13 @@ public class MortarShellEntity extends FastThrowableProjectile implements GeoEnt
     }
 
     @Override
-    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
-    }
-
-    @Override
     protected @NotNull Item getDefaultItem() {
         return ModItems.MORTAR_SHELL.get();
     }
 
     @Override
-    public boolean shouldRenderAtSqrDistance(double pDistance) {
-        return true;
-    }
-
-    @Override
     public void onHitEntity(@NotNull EntityHitResult entityHitResult) {
+        super.onHitEntity(entityHitResult);
         if (this.tickCount > 1) {
             Entity entity = entityHitResult.getEntity();
             DamageHandler.doDamage(entity, ModDamageTypes.causeProjectileHitDamage(this.level().registryAccess(), this, this.getOwner()), this.damage);
@@ -193,15 +151,14 @@ public class MortarShellEntity extends FastThrowableProjectile implements GeoEnt
 
     @Override
     public void onHitBlock(BlockHitResult blockHitResult) {
+        super.onHitBlock(blockHitResult);
         BlockPos resultPos = blockHitResult.getBlockPos();
         BlockState state = this.level().getBlockState(resultPos);
 
-        if (this.level() instanceof ServerLevel) {
+        if (this.level() instanceof ServerLevel && ExplosionConfig.EXPLOSION_DESTROY.get() && ExplosionConfig.EXTRA_EXPLOSION_EFFECT.get()) {
             float hardness = this.level().getBlockState(resultPos).getBlock().defaultDestroyTime();
             if (hardness != -1) {
-                if (ExplosionConfig.EXPLOSION_DESTROY.get()) {
-                    this.level().destroyBlock(resultPos, true);
-                }
+                this.level().destroyBlock(resultPos, true);
             }
         }
 
@@ -220,15 +177,9 @@ public class MortarShellEntity extends FastThrowableProjectile implements GeoEnt
     @Override
     public void tick() {
         super.tick();
-        if (this.level() instanceof ServerLevel serverLevel && tickCount > 1) {
-            double l = getDeltaMovement().length();
-            for (double i = 0; i < l; i++) {
-                Vec3 startPos = new Vec3(this.xo, this.yo, this.zo);
-                Vec3 pos = startPos.add(getDeltaMovement().normalize().scale(i));
-                ParticleTool.sendParticle(serverLevel, ParticleTypes.CAMPFIRE_COSY_SMOKE, pos.x, pos.y, pos.z,
-                        1, 0, 0, 0, 0.001, true);
-            }
-        }
+
+        mediumTrail();
+
         if (this.tickCount > this.life || this.isInWater()) {
             if (this.level() instanceof ServerLevel) {
                 causeExplode(position());
@@ -239,17 +190,8 @@ public class MortarShellEntity extends FastThrowableProjectile implements GeoEnt
     }
 
     @Override
-    public void causeExplode(Vec3 vec3) {
-        new CustomExplosion.Builder(this)
-                .attacker(this.getOwner())
-                .damage(explosionDamage)
-                .radius(radius)
-                .position(vec3)
-                .causeVanillaExplosion()
-                .withParticleType(ParticleTool.ParticleType.MEDIUM)
-                .damageMultiplier(1.25F)
-                .explode();
-
+    public CustomExplosion.Builder buildExplosion(Vec3 vec3) {
+        return super.buildExplosion(vec3).damageMultiplier(1.25F);
     }
 
     @Override
@@ -267,7 +209,7 @@ public class MortarShellEntity extends FastThrowableProjectile implements GeoEnt
         AreaEffectCloud cloud = new AreaEffectCloud(level, pos.x, pos.y, pos.z);
         cloud.setPotion(this.potion);
         cloud.setDuration((int) this.explosionDamage);
-        cloud.setRadius(this.radius);
+        cloud.setRadius(this.explosionRadius);
         if (this.getOwner() instanceof LivingEntity living) {
             cloud.setOwner(living);
         }
@@ -285,27 +227,7 @@ public class MortarShellEntity extends FastThrowableProjectile implements GeoEnt
     }
 
     @Override
-    public void setDamage(float damage) {
-        this.damage = damage;
-    }
-
-    @Override
-    public void setExplosionDamage(float explosionDamage) {
-        this.explosionDamage = explosionDamage;
-    }
-
-    @Override
-    public void setExplosionRadius(float radius) {
-        this.radius = radius;
-    }
-
-    @Override
-    public float getGravity() {
-        return this.gravity;
-    }
-
-    @Override
-    public void setGravity(float gravity) {
-        this.gravity = gravity;
+    public boolean forceLoadChunk() {
+        return true;
     }
 }

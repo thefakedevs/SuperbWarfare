@@ -48,6 +48,7 @@ public class ModPerks {
     public static final RegistryObject<Perk> CUPID_ARROW = AMMO_PERKS.register("cupid_arrow", CupidArrow::new);
     public static final RegistryObject<Perk> RIOT_BULLET = AMMO_PERKS.register("riot_bullet", RiotBullet::new);
     public static final RegistryObject<Perk> PHASE_PENETRATING_BULLET = AMMO_PERKS.register("phase_penetrating_bullet", PhasePenetratingBullet::new);
+    public static final RegistryObject<Perk> BLADE_BULLET = AMMO_PERKS.register("blade_bullet", BladeBullet::new);
 
     /**
      * Functional Perks
@@ -62,6 +63,8 @@ public class ModPerks {
     public static final RegistryObject<Perk> TURBO_CHARGER = FUNC_PERKS.register("turbo_charger", TurboCharger::new);
     public static final RegistryObject<Perk> POWERFUL_ATTRACTION = FUNC_PERKS.register("powerful_attraction", PowerfulAttraction::new);
     public static final RegistryObject<Perk> INTELLIGENT_CHIP = FUNC_PERKS.register("intelligent_chip", () -> new Perk("intelligent_chip", Perk.Type.FUNCTIONAL));
+    public static final RegistryObject<Perk> BACKPACK_LINKED_MAGAZINE = FUNC_PERKS.register("backpack_linked_magazine", BackpackLinkedMagazine::new);
+    public static final RegistryObject<Perk> POWERFUL_COOLER = FUNC_PERKS.register("powerful_cooler", PowerfulCooler::new);
 
     /**
      * Damage Perks
@@ -79,10 +82,11 @@ public class ModPerks {
     public static final RegistryObject<Perk> MAGNIFICENT_HOWL = DAMAGE_PERKS.register("magnificent_howl", MagnificentHowl::new);
     public static final RegistryObject<Perk> FIREFLY = DAMAGE_PERKS.register("firefly", Firefly::new);
     public static final RegistryObject<Perk> FAIR_MEANS = DAMAGE_PERKS.register("fair_means", FairMeans::new);
+    public static final RegistryObject<Perk> HIGH_IMPACT_RESERVES = DAMAGE_PERKS.register("high_impact_reserves", HighImpactReserves::new);
+    public static final RegistryObject<Perk> ONE_TWO_PUNCH = DAMAGE_PERKS.register("one_two_punch", OneTwoPunch::new);
 
     public static void registerCompatPerks() {
         if (ModList.get().isLoaded(CompatHolder.DMV)) {
-            AMMO_PERKS.register("blade_bullet", BladeBullet::new);
             AMMO_PERKS.register("bread_bullet", BreadBullet::new);
         }
         if (ModList.get().isLoaded(CompatHolder.VRC)) {

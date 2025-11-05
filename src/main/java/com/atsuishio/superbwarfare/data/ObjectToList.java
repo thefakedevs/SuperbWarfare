@@ -42,7 +42,12 @@ public class ObjectToList<T> {
         }
 
         @Override
-        public void write(JsonWriter jsonWriter, ObjectToList<T> objectToList) {
+        public void write(JsonWriter jsonWriter, ObjectToList<T> objectToList) throws IOException {
+            if (objectToList == null || objectToList.list == null) {
+                jsonWriter.beginArray().endArray();
+                return;
+            }
+
             if (objectToList.list.size() == 1) {
                 gson.toJson(objectToList.list.get(0), type, jsonWriter);
             } else {
@@ -56,6 +61,7 @@ public class ObjectToList<T> {
             if (token != JsonToken.BEGIN_ARRAY) {
                 // 单元素
                 if (token == JsonToken.NULL) {
+                    jsonReader.nextNull();
                     return new ObjectToList<>();
                 }
                 return new ObjectToList<>(gson.<T>fromJson(jsonReader, type));

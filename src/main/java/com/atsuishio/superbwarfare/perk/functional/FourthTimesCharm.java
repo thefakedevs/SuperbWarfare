@@ -17,7 +17,7 @@ public class FourthTimesCharm extends Perk {
     }
 
     @Override
-    public void tick(GunData data, PerkInstance instance, @Nullable Entity living) {
+    public void tick(GunData data, PerkInstance instance, @Nullable Entity entity) {
         data.perk.reduceCooldown(this, "FourthTimesCharmTick");
 
         var tag = data.perk.getTag(this);
@@ -37,8 +37,8 @@ public class FourthTimesCharm extends Perk {
     }
 
     @Override
-    public void onHit(float damage, GunData data, PerkInstance instance, Entity target, DamageSource source) {
-        super.onHit(damage, data, instance, target, source);
+    public void onHurtEntity(float damage, GunData data, PerkInstance instance, Entity target, DamageSource source) {
+        super.onHurtEntity(damage, data, instance, target, source);
         if (source.getDirectEntity() instanceof ProjectileEntity projectile) {
             float bypassArmorRate = projectile.getBypassArmorRate();
             if (bypassArmorRate >= 1.0f && source.is(ModDamageTypes.GUN_FIRE_HEADSHOT_ABSOLUTE)) {

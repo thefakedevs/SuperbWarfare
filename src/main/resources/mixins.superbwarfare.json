@@ -12,10 +12,13 @@
     "ExplosionMixin",
     "FishingHookMixin",
     "GeoModelAccessor",
+    "HolderMixin",
     "LevelMixin",
     "LivingEntityMixin",
+    "MobMixin",
     "PlayerMixin",
     "ProjectileUtilMixin",
+    "ReloadableServerResourcesMixin",
     "SteelPipeFallMixin",
     "VillagerMixin",
     "tacz.EntityUtilMixin"
@@ -33,6 +36,7 @@
     "LivingEntityRendererMixin",
     "MinecraftMixin",
     "MouseHandlerMixin",
+    "MultiPlayerGameModeMixin",
     "PlayerItemInHandLayerMixin",
     "PlayerModelMixin"
   ],

@@ -3,9 +3,11 @@ package com.atsuishio.superbwarfare.client.screens;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.data.gun.GunData;
+import com.atsuishio.superbwarfare.data.gun.GunProp;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.init.ModKeyMappings;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.send.EditMessage;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -20,6 +22,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.NotNull;
 
 @OnlyIn(Dist.CLIENT)
 public class WeaponEditScreen extends Screen {
@@ -58,7 +61,7 @@ public class WeaponEditScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
+    public void render(@NotNull GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
         this.renderEdit(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
         super.render(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
     }
@@ -92,37 +95,39 @@ public class WeaponEditScreen extends Screen {
         RenderSystem.setShader(GameRenderer::getPositionTexShader);
         RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
 
+        var data = GunData.from(stack);
+
         RenderHelper.preciseBlit(pGuiGraphics, BARREL, posX1, posY1, 0, 0, 24, 24, 24, 24);
-        if (!gunItem.hasCustomBarrel(stack)) {
+        if (!gunItem.hasCustomBarrel(data)) {
             RenderHelper.preciseBlit(pGuiGraphics, INVALID, posX1, posY1, 0, 0, 24, 24, 24, 24);
         }
 
         RenderHelper.preciseBlit(pGuiGraphics, SCOPE, posX2, posY1, 0, 0, 24, 24, 24, 24);
-        if (!gunItem.hasCustomScope(stack)) {
+        if (!gunItem.hasCustomScope(data)) {
             RenderHelper.preciseBlit(pGuiGraphics, INVALID, posX2, posY1, 0, 0, 24, 24, 24, 24);
         }
 
         RenderHelper.preciseBlit(pGuiGraphics, GRIP, posX1, posY2, 0, 0, 24, 24, 24, 24);
-        if (!gunItem.hasCustomGrip(stack)) {
+        if (!gunItem.hasCustomGrip(data)) {
             RenderHelper.preciseBlit(pGuiGraphics, INVALID, posX1, posY2, 0, 0, 24, 24, 24, 24);
         }
 
         RenderHelper.preciseBlit(pGuiGraphics, STOCK, posX2, posY2, 0, 0, 24, 24, 24, 24);
-        if (!gunItem.hasCustomStock(stack)) {
+        if (!gunItem.hasCustomStock(data)) {
             RenderHelper.preciseBlit(pGuiGraphics, INVALID, posX2, posY2, 0, 0, 24, 24, 24, 24);
         }
 
         RenderHelper.preciseBlit(pGuiGraphics, MAGAZINE, posX1, posY3, 0, 0, 24, 24, 24, 24);
-        if (!gunItem.hasCustomMagazine(stack)) {
+        if (!gunItem.hasCustomMagazine(data)) {
             RenderHelper.preciseBlit(pGuiGraphics, INVALID, posX1, posY3, 0, 0, 24, 24, 24, 24);
         }
 
         var currentData = GunData.from(itemStack);
         RenderHelper.preciseBlit(pGuiGraphics, AMMO_TYPE, posX2, posY3, 0, 0, 24, 24, 24, 24);
-        if (currentData.ammoConsumers.size() <= 1) {
+        if (currentData.get(GunProp.AMMO_CONSUMER).size() <= 1) {
             RenderHelper.preciseBlit(pGuiGraphics, INVALID, posX2, posY3, 0, 0, 24, 24, 24, 24);
         } else {
-            int size = currentData.ammoConsumers.size();
+            int size = currentData.get(GunProp.AMMO_CONSUMER).size();
             float offset = 35f;
             int count = size / 2;
 
@@ -240,7 +245,7 @@ public class WeaponEditScreen extends Screen {
         @Override
         public void onPress() {
             if (!this.isActive()) return;
-            Mod.PACKET_HANDLER.sendToServer(new EditMessage(this.type, !this.left));
+            NetworkRegistry.PACKET_HANDLER.sendToServer(new EditMessage(this.type, !this.left));
             ClientEventHandler.editModelShake();
         }
 
@@ -251,18 +256,18 @@ public class WeaponEditScreen extends Screen {
             var data = GunData.from(stack);
 
             return switch (this.type) {
-                case 0 -> gunItem.hasCustomBarrel(stack);
-                case 1 -> gunItem.hasCustomScope(stack);
-                case 2 -> gunItem.hasCustomGrip(stack);
-                case 3 -> gunItem.hasCustomStock(stack);
-                case 4 -> gunItem.hasCustomMagazine(stack);
-                case 5 -> data.ammoConsumers.size() > 1;
+                case 0 -> gunItem.hasCustomBarrel(data);
+                case 1 -> gunItem.hasCustomScope(data);
+                case 2 -> gunItem.hasCustomGrip(data);
+                case 3 -> gunItem.hasCustomStock(data);
+                case 4 -> gunItem.hasCustomMagazine(data);
+                case 5 -> data.get(GunProp.AMMO_CONSUMER).size() > 1;
                 default -> false;
             };
         }
 
         @Override
-        protected void updateWidgetNarration(NarrationElementOutput pNarrationElementOutput) {
+        protected void updateWidgetNarration(@NotNull NarrationElementOutput pNarrationElementOutput) {
         }
     }
 }

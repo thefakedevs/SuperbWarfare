@@ -1,18 +1,15 @@
 package com.atsuishio.superbwarfare.item.gun.rifle;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.renderer.gun.Qbz191ItemRenderer;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.value.AttachmentType;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
-import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.item.gun.GunGeoItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.tools.GunsTool;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -29,11 +26,10 @@ import software.bernie.geckolib.renderer.GeoItemRenderer;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class Qbz191Item extends GunItem {
+public class Qbz191Item extends GunGeoItem {
 
     public Qbz191Item() {
         super(new Properties().rarity(Rarity.EPIC));
@@ -52,10 +48,11 @@ public class Qbz191Item extends GunItem {
         if (event.getData(DataTickets.ITEM_RENDER_PERSPECTIVE) != ItemDisplayContext.FIRST_PERSON_RIGHT_HAND)
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.qbz_191.idle"));
 
-        boolean drum = GunData.from(stack).attachment.get(AttachmentType.MAGAZINE) == 2;
-        boolean grip = GunData.from(stack).attachment.get(AttachmentType.GRIP) == 1;
+        var data = GunData.from(stack);
+        boolean drum = data.attachment.get(AttachmentType.MAGAZINE) == 2;
+        boolean grip = data.attachment.get(AttachmentType.GRIP) == 1;
 
-        if (GunData.from(stack).reload.empty()) {
+        if (data.reload.empty()) {
             if (drum) {
                 if (grip) {
                     return event.setAndContinue(RawAnimation.begin().thenPlay("animation.qbz_191.reload_empty_drum_grip"));
@@ -71,7 +68,7 @@ public class Qbz191Item extends GunItem {
             }
         }
 
-        if (GunData.from(stack).reload.normal()) {
+        if (data.reload.normal()) {
             if (drum) {
                 if (grip) {
                     return event.setAndContinue(RawAnimation.begin().thenPlay("animation.qbz_191.reload_normal_drum_grip"));
@@ -83,18 +80,6 @@ public class Qbz191Item extends GunItem {
                     return event.setAndContinue(RawAnimation.begin().thenPlay("animation.qbz_191.reload_normal_grip"));
                 } else {
                     return event.setAndContinue(RawAnimation.begin().thenPlay("animation.qbz_191.reload_normal"));
-                }
-            }
-        }
-
-        if (player.isSprinting() && player.onGround() && ClientEventHandler.cantSprint == 0 && ClientEventHandler.drawTime < 0.01) {
-            if (ClientEventHandler.tacticalSprint) {
-                return event.setAndContinue(RawAnimation.begin().thenLoop("animation.qbz_191.run_fast"));
-            } else {
-                if (grip) {
-                    return event.setAndContinue(RawAnimation.begin().thenPlay("animation.qbz_191.run_grip"));
-                } else {
-                    return event.setAndContinue(RawAnimation.begin().thenLoop("animation.qbz_191.run"));
                 }
             }
         }
@@ -134,15 +119,16 @@ public class Qbz191Item extends GunItem {
     public void inventoryTick(ItemStack stack, Level world, Entity entity, int slot, boolean selected) {
         super.inventoryTick(stack, world, entity, slot, selected);
 
-        int magType = GunData.from(stack).attachment.get(AttachmentType.MAGAZINE);
+        var data = GunData.from(stack);
+        int magType = data.attachment.get(AttachmentType.MAGAZINE);
         if (magType == 1) {
-            CompoundTag tag = GunData.from(stack).attachment();
+            CompoundTag tag = data.attachment();
             tag.putInt("Magazine", 2);
         }
 
-        int gripType = GunData.from(stack).attachment.get(AttachmentType.GRIP);
+        int gripType = data.attachment.get(AttachmentType.GRIP);
         if (gripType == 3) {
-            CompoundTag tag = GunData.from(stack).attachment();
+            CompoundTag tag = data.attachment();
             tag.putInt("Grip", 0);
         }
     }
@@ -158,79 +144,69 @@ public class Qbz191Item extends GunItem {
     }
 
     @Override
-    public int getCustomMagazine(ItemStack stack) {
-        int magType = GunData.from(stack).attachment.get(AttachmentType.MAGAZINE);
+    public int getCustomMagazine(GunData data) {
+        int magType = data.attachment.get(AttachmentType.MAGAZINE);
         return magType == 2 ? 45 : 0;
     }
 
     @Override
-    public double getCustomZoom(ItemStack stack) {
-        int scopeType = GunData.from(stack).attachment.get(AttachmentType.SCOPE);
+    public double getCustomZoom(GunData data) {
+        int scopeType = data.attachment.get(AttachmentType.SCOPE);
         return switch (scopeType) {
             case 2 -> 1.75;
-            case 3 -> GunsTool.getGunDoubleTag(stack, "CustomZoom");
+            case 3 -> GunsTool.getGunDoubleTag(data.stack, "CustomZoom");
             default -> 0;
         };
     }
 
     @Override
-    public boolean canAdjustZoom(ItemStack stack) {
-        return GunData.from(stack).attachment.get(AttachmentType.SCOPE) == 3;
+    public boolean canAdjustZoom(GunData data) {
+        return data.attachment.get(AttachmentType.SCOPE) == 3;
     }
 
     @Override
-    public Set<SoundEvent> getReloadSound() {
-        return Set.of(ModSounds.QBZ_191_RELOAD_EMPTY.get(), ModSounds.QBZ_191_RELOAD_NORMAL.get());
-    }
-
-    @Override
-    public ResourceLocation getGunIcon(ItemStack stack) {
-        return Mod.loc("textures/gun_icon/qbz_191_icon.png");
-    }
-
-    @Override
-    public boolean isOpenBolt(ItemStack stack) {
+    public boolean isOpenBolt(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasBulletInBarrel(ItemStack stack) {
+    public boolean hasBulletInBarrel(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasCustomBarrel(ItemStack stack) {
+    public boolean hasCustomBarrel(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasCustomGrip(ItemStack stack) {
+    public boolean hasCustomGrip(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasCustomMagazine(ItemStack stack) {
+    public boolean hasCustomMagazine(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasCustomScope(ItemStack stack) {
+    public boolean hasCustomScope(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasCustomStock(ItemStack stack) {
+    public boolean hasCustomStock(GunData data) {
         return true;
     }
 
     @Override
-    public boolean canEjectShell(ItemStack stack) {
-        return true;
+    public boolean hasBipod(GunData data) {
+        return data.attachment.get(AttachmentType.GRIP) == 1;
     }
 
     @Override
-    public boolean hasBipod(ItemStack stack) {
-        return GunData.from(stack).attachment.get(AttachmentType.GRIP) == 1;
+    public void whenNoAmmo(GunData data) {
+        data.holdOpen.set(true);
     }
 
     @Override
@@ -240,7 +216,7 @@ public class Qbz191Item extends GunItem {
     }
 
     @Override
-    public boolean canEditAttachments(ItemStack stack) {
+    public boolean canEditAttachments(GunData data) {
         return true;
     }
 }

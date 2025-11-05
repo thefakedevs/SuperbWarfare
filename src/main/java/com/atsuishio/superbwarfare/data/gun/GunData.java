@@ -3,6 +3,7 @@ package com.atsuishio.superbwarfare.data.gun;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.data.DefaultDataSupplier;
 import com.atsuishio.superbwarfare.data.Prop;
+import com.atsuishio.superbwarfare.data.PropModifier;
 import com.atsuishio.superbwarfare.data.StringPropModifier;
 import com.atsuishio.superbwarfare.data.gun.subdata.*;
 import com.atsuishio.superbwarfare.data.gun.value.*;
@@ -10,7 +11,6 @@ import com.atsuishio.superbwarfare.event.GunEventHandler;
 import com.atsuishio.superbwarfare.init.ModPerks;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.perk.Perk;
-import com.atsuishio.superbwarfare.tools.GunsTool;
 import com.atsuishio.superbwarfare.tools.InventoryTool;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -29,8 +29,17 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.Nullable;
 import java.util.*;
+import java.util.function.Supplier;
 
 public class GunData implements DefaultDataSupplier<DefaultGunData> {
+
+    public static final LoadingCache<ItemStack, GunData> DATA_CACHE = CacheBuilder.newBuilder()
+            .weakKeys()
+            .build(new CacheLoader<>() {
+                public @NotNull GunData load(@NotNull ItemStack stack) {
+                    return new GunData(stack);
+                }
+            });
 
     public final ItemStack stack;
     public final GunItem item;
@@ -40,15 +49,9 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
     public final CompoundTag attachmentTag;
     public final StringValue propertyOverrideString;
     public final String id;
-    public final List<AmmoConsumer> ammoConsumers;
 
-    public static final LoadingCache<ItemStack, GunData> dataCache = CacheBuilder.newBuilder()
-            .weakKeys()
-            .build(new CacheLoader<>() {
-                public @NotNull GunData load(@NotNull ItemStack stack) {
-                    return new GunData(stack);
-                }
-            });
+    @NotNull
+    public Supplier<DefaultGunData> defaultDataSupplier;
 
     private GunData(ItemStack stack) {
         if (!(stack.getItem() instanceof GunItem gunItem)) {
@@ -59,6 +62,8 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
         this.stack = stack;
         this.id = getRegistryId(stack.getItem());
 
+        this.defaultDataSupplier = () -> gunItem.getDefaultData(this);
+
         this.tag = stack.getOrCreateTag();
 
         data = getOrPut("GunData");
@@ -67,7 +72,7 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
         propertyOverrideString = new StringValue(this.data, "Override");
 
         selectedAmmoType = new IntValue(data, "SelectedAmmoType");
-        ammoConsumers = get(GunProp.AMMO_CONSUMER);
+        selectedFireMode = new IntValue(data, "SelectedFireMode", 0);
 
         // 可持久化属性
         reload = new Reload(this);
@@ -76,18 +81,12 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
         attachment = new Attachment(this);
         perk = new Perks(this);
 
-
         ammo = new IntValue(data, "Ammo");
         virtualAmmo = new IntValue(data, "VirtualAmmo");
+        backupAmmoCount = new IntValue(data, "BackupAmmoCount");
         ammoSlot = new AmmoSlot(data);
         burstAmount = new IntValue(data, "BurstAmount");
 
-        var defaultFireMode = get(GunProp.DEFAULT_FIRE_MODE);
-        if (defaultFireMode == null) {
-            defaultFireMode = FireMode.SEMI;
-        }
-
-        fireMode = new StringEnumValue<>(data, "FireMode", defaultFireMode, FireMode::fromValue);
         level = new IntValue(data, "Level");
         exp = new DoubleValue(data, "Exp");
         upgradePoint = new DoubleValue(data, "UpgradePoint");
@@ -103,6 +102,20 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
         sensitivity = new IntValue(data, "Sensitivity");
         heat = new DoubleValue(data, "Heat");
         overHeat = new BooleanValue(data, "OverHeat");
+        zooming = new BooleanValue(data, "Zooming");
+
+        var defaultFireMode = get(GunProp.DEFAULT_FIRE_MODE);
+        if (defaultFireMode == null) {
+            defaultFireMode = FireMode.SEMI.name;
+        }
+
+        var fireModes = get(GunProp.AVAILABLE_FIRE_MODES);
+        for (int i = 0; i < fireModes.size(); i++) {
+            if (fireModes.get(i).name.equals(defaultFireMode)) {
+                selectedFireMode.defaultValue = i;
+                break;
+            }
+        }
     }
 
     private CompoundTag getOrPut(String name) {
@@ -117,21 +130,19 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
     }
 
     public boolean initialized() {
-        return data.hasUUID("UUID");
+        return item.isInitialized(this);
     }
 
     public void initialize() {
-        if (initialized()) return;
-
-        data.putUUID("UUID", UUID.randomUUID());
+        item.init(this);
     }
 
-    public static GunData from(Item item) {
+    public static GunData create(Item item) {
         return from(new ItemStack(item));
     }
 
     public static GunData from(ItemStack stack) {
-        return dataCache.getUnchecked(stack);
+        return DATA_CACHE.getUnchecked(stack);
     }
 
     public GunItem item() {
@@ -159,14 +170,15 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
     }
 
     public static DefaultGunData getDefault(String id) {
-        var isDefault = !GunsTool.gunsData.containsKey(id);
-        var data = GunsTool.gunsData.getOrDefault(id, new DefaultGunData());
+        var isDefault = !com.atsuishio.superbwarfare.data.CustomData.GUN_DATA.containsKey(id);
+        var data = com.atsuishio.superbwarfare.data.CustomData.GUN_DATA.getOrElseGet(id, DefaultGunData::new);
         data.isDefaultData = isDefault;
         return data;
     }
 
+    @Override
     public DefaultGunData getDefault() {
-        return getDefault(this.id);
+        return this.defaultDataSupplier.get();
     }
 
     public static DefaultGunData getDefault(ItemStack stack) {
@@ -183,25 +195,25 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
         return id;
     }
 
-    private final Map<GunProp<?>, Prop.PropModifyContext<GunData, ?>> tempModifications = new HashMap<>();
+    private final Map<GunProp<?>, Prop.PropModifyContext<GunData, DefaultGunData, ?>> tempModifications = new HashMap<>();
 
     @SuppressWarnings("unchecked")
-    public <T> void appendTempModification(GunProp<T> prop, @Nullable Prop.PropModifyContext<GunData, T> modifier) {
+    public <T> void appendTempModification(GunProp<T> prop, @Nullable Prop.PropModifyContext<GunData, DefaultGunData, T> modifier) {
         if (modifier == null) return;
 
-        var current = (Prop.PropModifyContext<GunData, T>) tempModifications.get(prop);
+        var current = (Prop.PropModifyContext<GunData, DefaultGunData, T>) tempModifications.get(prop);
 
         if (current == null) {
             setTempProperty(prop, modifier);
         } else {
-            tempModifications.put(prop, (data, v) -> {
-                var value = current.apply(data, (T) v);
-                return modifier.apply(data, value);
+            tempModifications.put(prop, (p, data, v) -> {
+                var value = current.apply((PropModifier<GunData, DefaultGunData, T>) p, data, (T) v);
+                return modifier.apply((PropModifier<GunData, DefaultGunData, T>) p, data, value);
             });
         }
     }
 
-    public <T> void setTempProperty(GunProp<T> prop, @Nullable Prop.PropModifyContext<GunData, T> modifier) {
+    public <T> void setTempProperty(GunProp<T> prop, @Nullable Prop.PropModifyContext<GunData, DefaultGunData, T> modifier) {
         if (modifier == null) return;
 
         tempModifications.put(prop, modifier);
@@ -215,6 +227,25 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
 
     private final StringPropModifier<GunData, DefaultGunData> stringPropModifier = new StringPropModifier<>();
 
+    private DefaultGunData cache = null;
+
+    public DefaultGunData compute() {
+        if (cache != null) return cache;
+
+        var defaultData = getDefault().copy();
+        // TODO 正确实现计算
+
+        defaultData.limit();
+        cache = defaultData;
+
+        return defaultData;
+    }
+
+    public void update() {
+        this.cache = null;
+    }
+
+    // TODO 替换get
     @SuppressWarnings("unchecked")
     public <T> T get(GunProp<T> prop) {
         var modifier = prop.asModifier(this);
@@ -223,28 +254,20 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
             Mod.LOGGER.warn("recursive computation for property {}", prop.name);
             return modifier.compute();
         }
-
         operatingProps.add(prop);
-
-        // gun modifiers
-        modifier.apply(this.item.getModifier(prop));
 
         // property override tag
         stringPropModifier.modifyPropertyByString(propertyOverrideString.get(), prop);
-        modifier.apply(stringPropModifier.getModifier(prop));
+        modifier.apply(stringPropModifier);
+
+        // gun modifiers
+        modifier.apply(this.item);
+
+        // FireMode
+        modifier.apply(selectedFireModeInfo(modifier.get(GunProp.AVAILABLE_FIRE_MODES)));
 
         // AmmoConsumer
-        if (prop == GunProp.AMMO_CONSUMER) {
-            var consumers = (List<AmmoConsumer>) modifier.compute();
-            consumers.forEach(c -> {
-                if (!c.initialized()) {
-                    c.init();
-                }
-            });
-            modifier.apply(selectedAmmoConsumer(consumers).getModifier(prop));
-        } else {
-            modifier.apply(selectedAmmoConsumer().getModifier(prop));
-        }
+        modifier.apply(selectedAmmoConsumer(modifier.get(GunProp.AMMO_CONSUMER)));
 
         // perk
         if (perk != null) {
@@ -252,12 +275,13 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
                 var instance = perk.get(type);
                 if (instance == null) continue;
 
-                modifier.apply(instance.getModifier(prop));
+                modifier.apply(instance);
             }
         }
 
         // 临时属性修改
-        modifier.apply((Prop.PropModifyContext<GunData, T>) tempModifications.get(prop));
+        // md什么傻逼类型😅
+        modifier.applyMap((Map<Prop<GunData, DefaultGunData, ?>, Prop.PropModifyContext<GunData, DefaultGunData, ?>>) (Object) tempModifications);
 
         operatingProps.remove(prop);
         return modifier.compute();
@@ -275,12 +299,6 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
      */
     public boolean useBackpackAmmo() {
         return get(GunProp.MAGAZINE) <= 0;
-    }
-
-    public Set<ReloadType> reloadTypes() {
-        if (getDefault().reloadTypes == null) return Set.of();
-
-        return getDefault().reloadTypes;
     }
 
     public double minZoom() {
@@ -306,11 +324,56 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
     }
 
     public AmmoConsumer selectedAmmoConsumer() {
-        return selectedAmmoConsumer(this.ammoConsumers);
+        return selectedAmmoConsumer(get(GunProp.AMMO_CONSUMER));
     }
 
-    public void changeAmmoConsumer(int index) {
-        this.selectedAmmoType.set(Mth.clamp(index, 0, this.ammoConsumers.size() - 1));
+    public void changeAmmoConsumer(int index, @Nullable Entity ammoSupplier) {
+        var consumers = this.get(GunProp.AMMO_CONSUMER);
+        var targetIndex = Mth.clamp(index, 0, consumers.size() - 1);
+        if (targetIndex == selectedAmmoType.get()) return;
+
+        if (!(ammoSupplier instanceof Player player && player.isCreative())) {
+            var currentConsumer = selectedAmmoConsumer();
+            var targetConsumer = consumers.get(selectedAmmoType.get());
+
+            var currentSlot = currentConsumer.ammoSlot;
+            var targetSlot = targetConsumer.ammoSlot;
+
+            if (currentSlot == null) currentSlot = "Default";
+            if (targetSlot == null) targetSlot = "Default";
+
+            if (currentSlot.equals(targetSlot) && ammoSupplier != null) {
+                this.withdrawAmmo(ammoSupplier);
+            } else {
+                var ammo = this.ammo.get();
+                var virtualAmmo = this.virtualAmmo.get();
+                this.ammoSlot.set(currentSlot, ammo, virtualAmmo);
+
+                this.ammo.set(this.ammoSlot.getAmmo(targetSlot));
+                this.virtualAmmo.set(this.ammoSlot.getVirtualAmmo(targetSlot));
+                this.ammoSlot.reset(targetSlot);
+            }
+        }
+
+        this.selectedAmmoType.set(targetIndex);
+
+        if (ammoSupplier instanceof Player player && player.isCreative()) {
+            this.ammo.set(this.get(GunProp.MAGAZINE));
+        }
+
+        this.item.whenNoAmmo(this);
+        this.closeHammer.set(false);
+    }
+
+    public FireModeInfo selectedFireModeInfo(List<FireModeInfo> fireModes) {
+        if (fireModes == null || fireModes.isEmpty()) {
+            return new FireModeInfo();
+        }
+        return fireModes.get(Mth.clamp(this.selectedFireMode.get(), 0, fireModes.size() - 1));
+    }
+
+    public FireModeInfo selectedFireModeInfo() {
+        return selectedFireModeInfo(get(GunProp.AVAILABLE_FIRE_MODES));
     }
 
     // 开火相关流程开始
@@ -373,7 +436,7 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
         if (entity instanceof Player player && player.isCreative() || InventoryTool.hasCreativeAmmoBox(entity))
             return Integer.MAX_VALUE;
 
-        return countBackupAmmoItem(entity) * this.selectedAmmoConsumer().loadAmount + this.virtualAmmo.get();
+        return Math.toIntExact(Math.min((long) countBackupAmmoItem(entity) * this.selectedAmmoConsumer().loadAmount + this.virtualAmmo.get(), Integer.MAX_VALUE));
     }
 
     /**
@@ -383,15 +446,15 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
         if (handler == null) return virtualAmmo.get();
         if (InventoryTool.hasCreativeAmmoBox(handler)) return Integer.MAX_VALUE;
 
-        return countBackupAmmoItem(handler) * this.selectedAmmoConsumer().loadAmount + this.virtualAmmo.get();
+        return Math.toIntExact(Math.min((long) countBackupAmmoItem(handler) * this.selectedAmmoConsumer().loadAmount + this.virtualAmmo.get(), Integer.MAX_VALUE));
     }
 
     public int countBackupAmmoItem(@Nullable Entity entity) {
-        return this.selectedAmmoConsumer().count(entity);
+        return this.selectedAmmoConsumer().count(this, entity);
     }
 
     public int countBackupAmmoItem(@Nullable IItemHandler handler) {
-        return this.selectedAmmoConsumer().count(handler);
+        return this.selectedAmmoConsumer().count(this, handler);
     }
 
     /**
@@ -412,7 +475,7 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
         var loadAmount = consumer.loadAmount;
         if (count % loadAmount != 0) {
             var required = (count / loadAmount) + 1;
-            var consumed = consumer.consume(entity, required);
+            var consumed = consumer.consume(this, entity, required);
             count -= consumed * loadAmount;
 
             // 迫真过载装填
@@ -420,7 +483,7 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
                 this.virtualAmmo.add(-count);
             }
         } else {
-            consumer.consume(entity, count / loadAmount);
+            consumer.consume(this, entity, count / loadAmount);
         }
     }
 
@@ -442,7 +505,7 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
 
         if (count % loadAmount != 0) {
             var required = (count / loadAmount) + 1;
-            var consumed = consumer.consume(handler, required);
+            var consumed = consumer.consume(this, handler, required);
             count -= consumed * loadAmount;
 
             // 迫真过载装填
@@ -450,7 +513,7 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
                 this.virtualAmmo.add(-count);
             }
         } else {
-            consumer.consume(handler, count / loadAmount);
+            consumer.consume(this, handler, count / loadAmount);
         }
     }
 
@@ -458,7 +521,10 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
      * 当前状态在换弹前的可用射击次数
      */
     public int currentAvailableShots(@Nullable Entity entity) {
-        return currentAvailableAmmo(entity) / get(GunProp.AMMO_COST_PER_SHOOT);
+        var ammoCost = get(GunProp.AMMO_COST_PER_SHOOT);
+        if (ammoCost <= 0) return Integer.MAX_VALUE;
+
+        return currentAvailableAmmo(entity) / ammoCost;
     }
 
     /**
@@ -525,6 +591,14 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
      */
     public void shoot(@NotNull Entity entity, double spread, boolean zoom, @Nullable UUID uuid) {
         this.item.shoot(this, entity, spread, zoom, uuid);
+    }
+
+    public void shoot(@NotNull Entity entity, double spread, boolean zoom, @Nullable UUID uuid, @Nullable Vec3 targetPos) {
+        this.item.shoot(this, entity, spread, zoom, uuid, targetPos);
+    }
+
+    public void shoot(@NotNull ShootParameters parameters) {
+        this.item.shoot(parameters);
     }
 
     /**
@@ -661,29 +735,39 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
         return get(GunProp.PROJECTILE_AMOUNT) <= 0 && get(GunProp.MELEE_DAMAGE) > 0;
     }
 
+    public boolean isShotgun() {
+        return get(GunProp.PROJECTILE_AMOUNT) > 1;
+    }
+
     // 可持久化属性开始
 
     public final IntValue selectedAmmoType;
 
     public final IntValue ammo;
     public final IntValue virtualAmmo;
+
+    // backup ammo count override
+    public final IntValue backupAmmoCount;
+
     public final AmmoSlot ammoSlot;
 
     public final IntValue burstAmount;
-    public final StringEnumValue<FireMode> fireMode;
+    public final IntValue selectedFireMode;
     public final IntValue level;
     public final DoubleValue exp;
     public final DoubleValue upgradePoint;
+
+    // Max: 100
     public final DoubleValue heat;
 
     public final BooleanValue overHeat;
 
     public boolean canAdjustZoom() {
-        return item.canAdjustZoom(stack);
+        return item.canAdjustZoom(this);
     }
 
     public boolean canSwitchScope() {
-        return item.canSwitchScope(stack);
+        return item.canSwitchScope(this);
     }
 
     public final Reload reload;
@@ -712,8 +796,23 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
     public final BooleanValue hideBulletChain;
     public final IntValue sensitivity;
 
+    public final BooleanValue zooming;
+
     // 其他子级属性
     public final Bolt bolt;
     public final Attachment attachment;
     public final Perks perk;
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof GunData otherData)) return false;
+
+        return ItemStack.isSameItemSameTags(otherData.stack, this.stack);
+    }
+
+    public GunData copy() {
+        var data = GunData.from(this.stack.copy());
+        data.defaultDataSupplier = this.defaultDataSupplier;
+        return data;
+    }
 }

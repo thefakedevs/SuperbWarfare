@@ -3,7 +3,10 @@ package com.atsuishio.superbwarfare.entity.vehicle;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.VehicleConfig;
 import com.atsuishio.superbwarfare.entity.projectile.CannonShellEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.*;
+import com.atsuishio.superbwarfare.entity.vehicle.base.CannonEntity;
+import com.atsuishio.superbwarfare.entity.vehicle.base.RemoteControllableTurret;
+import com.atsuishio.superbwarfare.entity.vehicle.base.ThirdPersonCameraPosition;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModifier;
 import com.atsuishio.superbwarfare.entity.vehicle.weapon.CannonShellWeapon;
 import com.atsuishio.superbwarfare.entity.vehicle.weapon.VehicleWeapon;
@@ -15,27 +18,19 @@ import com.atsuishio.superbwarfare.init.ModTags;
 import com.atsuishio.superbwarfare.item.ArtilleryIndicator;
 import com.atsuishio.superbwarfare.item.common.ammo.CannonShellItem;
 import com.atsuishio.superbwarfare.network.message.receive.ShakeClientMessage;
-import com.atsuishio.superbwarfare.tools.FormatTool;
-import com.atsuishio.superbwarfare.tools.InventoryTool;
-import com.atsuishio.superbwarfare.tools.SoundTool;
-import com.atsuishio.superbwarfare.tools.VectorTool;
+import com.atsuishio.superbwarfare.tools.*;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -44,6 +39,7 @@ import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -62,7 +58,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import static com.atsuishio.superbwarfare.tools.RangeTool.calculateLaunchVector;
 
-public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEntity, RemoteControllableTurret, ArtilleryEntity {
+public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEntity, RemoteControllableTurret {
 
     public static final EntityDataAccessor<Integer> COOL_DOWN = SynchedEntityData.defineId(Mle1934Entity.class, EntityDataSerializers.INT);
     public static final EntityDataAccessor<Integer> RIGHT_BARREL_ANIM = SynchedEntityData.defineId(Mle1934Entity.class, EntityDataSerializers.INT);
@@ -103,6 +99,10 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
                                 .durability(70)
                                 .gravity(projectileGravity())
                                 .type(CannonShellEntity.Type.AP)
+                                .sound1p(ModSounds.MK_42_FIRE_1P.get())
+                                .sound3p(ModSounds.MK_42_FIRE_3P.get())
+                                .sound3pFar(ModSounds.MK_42_FAR.get())
+                                .sound3pVeryFar(ModSounds.MK_42_VERYFAR.get())
                                 .sound(ModSounds.CANNON_RELOAD.get())
                                 .icon(Mod.loc("textures/screens/vehicle_weapon/ap_shell.png")),
                         new CannonShellWeapon()
@@ -114,6 +114,10 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
                                 .fireTime(5)
                                 .gravity(projectileGravity())
                                 .type(CannonShellEntity.Type.HE)
+                                .sound1p(ModSounds.MK_42_FIRE_1P.get())
+                                .sound3p(ModSounds.MK_42_FIRE_3P.get())
+                                .sound3pFar(ModSounds.MK_42_FAR.get())
+                                .sound3pVeryFar(ModSounds.MK_42_VERYFAR.get())
                                 .sound(ModSounds.CANNON_RELOAD.get())
                                 .icon(Mod.loc("textures/screens/vehicle_weapon/he_shell.png")),
                         new CannonShellWeapon()
@@ -126,8 +130,28 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
                                 .spreadAmount(30)
                                 .spreadTime(7)
                                 .spreadAngle(15)
+                                .sound1p(ModSounds.MK_42_FIRE_1P.get())
+                                .sound3p(ModSounds.MK_42_FIRE_3P.get())
+                                .sound3pFar(ModSounds.MK_42_FAR.get())
+                                .sound3pVeryFar(ModSounds.MK_42_VERYFAR.get())
                                 .sound(ModSounds.CANNON_RELOAD.get())
                                 .icon(Mod.loc("textures/screens/vehicle_weapon/cm_shell.png")),
+                        // GRAPESHOT
+                        new CannonShellWeapon()
+                                .hitDamage(800)
+                                .explosionDamage(VehicleConfig.MLE1934_AP_EXPLOSION_DAMAGE.get())
+                                .explosionRadius(VehicleConfig.MLE1934_AP_EXPLOSION_RADIUS.get().floatValue())
+                                .velocity(30)
+                                .type(CannonShellEntity.Type.GRAPE)
+                                .spreadAmount(30)
+                                .spreadAngle(3)
+                                .sound1p(ModSounds.MK_42_FIRE_1P.get())
+                                .sound3p(ModSounds.MK_42_FIRE_3P.get())
+                                .sound3pFar(ModSounds.MK_42_FAR.get())
+                                .sound3pVeryFar(ModSounds.MK_42_VERYFAR.get())
+                                .sound(ModSounds.INTO_CANNON.get())
+                                .ammo(ModItems.GS_5_INCHES.get())
+                                .icon(Mod.loc("textures/screens/vehicle_weapon/grape_shell.png"))
                 }
         };
     }
@@ -197,6 +221,8 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
             type = 1;
         } else if (stack.is(ModItems.CM_5_INCHES.get())) {
             type = 2;
+        } else if (stack.is(ModItems.GS_5_INCHES.get())) {
+            type = 3;
         }
 
         this.setWeaponIndex(0, type);
@@ -211,7 +237,7 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
             return indicator.bind(stack, player, this);
         }
 
-        if (stack.is(ModTags.Items.CROWBAR) && !player.isShiftKeyDown()) {
+        if (stack.is(ModTags.Items.TOOLS_CROWBAR) && !player.isShiftKeyDown()) {
             if (this.items.get(0).getItem() instanceof CannonShellItem) {
                 ItemStack item = this.getItem(0);
 
@@ -220,9 +246,11 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
                     type = 1;
                 } else if (item.is(ModItems.CM_5_INCHES.get())) {
                     type = 2;
+                } else if (item.is(ModItems.GS_5_INCHES.get())) {
+                    type = 3;
                 }
                 setWeaponIndex(0, type);
-                vehicleShoot(player, 0);
+                vehicleShoot(player);
             }
             return InteractionResult.SUCCESS;
         }
@@ -344,23 +372,6 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
     }
 
     @Override
-    public void positionRider(@NotNull Entity passenger, @NotNull MoveFunction callback) {
-        if (!this.hasPassenger(passenger)) {
-            return;
-        }
-
-        Matrix4f transform = getVehicleFlatTransform(1);
-
-        float x = 0f;
-        float y = 2.0f;
-        float z = 0.5f;
-
-        Vector4f worldPosition = transformPosition(transform, x, y, z);
-        passenger.setPos(worldPosition.x, worldPosition.y, worldPosition.z);
-        callback.accept(passenger, worldPosition.x, worldPosition.y, worldPosition.z);
-    }
-
-    @Override
     public DamageModifier getDamageModifier() {
         return super.getDamageModifier()
                 .custom((source, damage) -> getSourceAngle(source, 1f) * damage);
@@ -390,6 +401,34 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
             this.setDeltaMovement(this.getDeltaMovement().add(0.0, -0.04, 0.0));
         }
 
+        if (getFirstPassenger() instanceof Mob mob) {
+            Entity target = EntityFindUtil.findEntity(level(), entityData.get(AI_TURRET_TARGET_UUID));
+            if (target != null) {
+                if (target.getVehicle() != null) {
+                    target = target.getVehicle();
+                }
+                Vec3 targetVel = target.getDeltaMovement();
+
+                if (target instanceof LivingEntity living) {
+                    double gravity = living.getAttributeValue(ForgeMod.ENTITY_GRAVITY.get());
+                    targetVel = targetVel.add(0, gravity, 0);
+                }
+
+                if (target instanceof Player) {
+                    targetVel = targetVel.multiply(2, 1, 2);
+                }
+
+                Vec3 launchVector = RangeTool.calculateFiringSolution(getEyePosition(), target.getBoundingBox().getCenter(), targetVel, 15, projectileGravity());
+
+                entityData.set(PITCH, (float) -getXRotFromVector(launchVector));
+                entityData.set(YAW, (float) -getYRotFromVector(launchVector));
+
+                if (VectorTool.calculateAngle(launchVector, getLookAngle()) < 5) {
+                    shoot(mob, false);
+                }
+            }
+        }
+
         countAmmo();
         lowHealthWarning();
     }
@@ -399,6 +438,7 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
             int ammoCount = switch (getWeaponIndex(0)) {
                 case 1 -> countItem(ModItems.HE_5_INCHES.get());
                 case 2 -> countItem(ModItems.CM_5_INCHES.get());
+                case 3 -> countItem(ModItems.GS_5_INCHES.get());
                 default -> countItem(ModItems.AP_5_INCHES.get());
             };
 
@@ -430,54 +470,48 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
     }
 
     @Override
-    public Vec3 driverZoomPos(float ticks) {
+    public Vec3 zoomPos(Entity entity, float ticks) {
         Matrix4f transform = getVehicleFlatTransform(1);
         Vector4f worldPosition = transformPosition(transform, 0, 1.4992625f + 1.4f, 1.52065f);
         return new Vec3(worldPosition.x, worldPosition.y, worldPosition.z);
     }
 
     @Override
-    public void vehicleShoot(Player player, int type) {
-        shoot(player, false);
+    public void vehicleShoot(LivingEntity living) {
+        shoot(living, false);
     }
 
-    public void shoot(Player player, boolean reset) {
+    public void shoot(LivingEntity living, boolean reset) {
         if (this.entityData.get(COOL_DOWN) > 0) return;
-        if (getFirstPassenger() != null && getFirstPassenger() != player) return;
+        if (getFirstPassenger() != null && getFirstPassenger() != living) return;
 
-        if (player.level() instanceof ServerLevel serverLevel) {
-            if (getAmmoCount(player) == 0 && !InventoryTool.hasCreativeAmmoBox(getFirstPassenger())) return;
+        if (living.level() instanceof ServerLevel serverLevel) {
+            if (getAmmoCount(living) == 0 && !InventoryTool.hasCreativeAmmoBox(getFirstPassenger())) return;
             Matrix4f transform = getVehicleFlatTransform(1);
 
             // 左炮管
 
-            if (!(getAmmoCount(player) == 0 && !InventoryTool.hasCreativeAmmoBox(getFirstPassenger()))) {
+            if (!(getAmmoCount(living) == 0 && !InventoryTool.hasCreativeAmmoBox(getFirstPassenger()))) {
                 Vector4f worldPositionL = transformPosition(transform, 0.486775f, 1.4992625f, 1.52065f);
-                summonShell(new Vec3(worldPositionL.x, worldPositionL.y, worldPositionL.z), player);
+                summonShell(new Vec3(worldPositionL.x, worldPositionL.y, worldPositionL.z), living);
             }
 
             // 右炮管
             Mod.queueServerWork(3, () -> {
-                if (getAmmoCount(player) == 0 && !InventoryTool.hasCreativeAmmoBox(getFirstPassenger())) return;
+                if (getAmmoCount(living) == 0 && !InventoryTool.hasCreativeAmmoBox(getFirstPassenger())) return;
                 Vector4f worldPositionR = transformPosition(transform, -0.486775f, 1.4992625f, 1.52065f);
-                summonShell(new Vec3(worldPositionR.x, worldPositionR.y, worldPositionR.z), player);
+                summonShell(new Vec3(worldPositionR.x, worldPositionR.y, worldPositionR.z), living);
                 this.entityData.set(RIGHT_BARREL_ANIM, 20);
             });
 
 
-            if (player instanceof ServerPlayer serverPlayer) {
-                if (player == getFirstPassenger()) {
+            if (living instanceof ServerPlayer serverPlayer) {
+                if (serverPlayer == getFirstPassenger()) {
                     Mod.queueServerWork(44, () -> SoundTool.playLocalSound(serverPlayer, ModSounds.CANNON_RELOAD.get(), 2, 1));
                 }
             }
 
             this.entityData.set(COOL_DOWN, 74);
-
-            serverLevel.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
-                    this.getX() + 5 * this.getLookAngle().x,
-                    this.getY(),
-                    this.getZ() + 5 * this.getLookAngle().z,
-                    100, 7, 0.02, 7, 0.005);
 
             ShakeClientMessage.sendToNearbyPlayers(this, 20, 15, 15, 45);
 
@@ -487,56 +521,27 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
         }
     }
 
-    public void summonShell(Vec3 pos, Player player) {
-        if (player.level() instanceof ServerLevel level) {
-            var entityToSpawnLeft = ((CannonShellWeapon) getWeapon(0)).create(player);
+    public void summonShell(Vec3 pos, LivingEntity living) {
+        if (living.level() instanceof ServerLevel level) {
+            var entityToSpawnLeft = ((CannonShellWeapon) getWeapon(0)).create(living);
 
             entityToSpawnLeft.setPos(pos.x, pos.y, pos.z);
             entityToSpawnLeft.shoot(this.getLookAngle().x, this.getLookAngle().y, this.getLookAngle().z, 15, 0.05f);
             level.addFreshEntity(entityToSpawnLeft);
 
-            level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
-                    this.getX() + 5 * this.getLookAngle().x,
-                    this.getY(),
-                    this.getZ() + 5 * this.getLookAngle().z,
-                    100, 7, 0.02, 7, 0.005);
+            ParticleTool.spawnBigCannonMuzzleParticles(getLookAngle(), new Vec3(pos.x, pos.y, pos.z).add(getLookAngle().scale(6.4)), level, this);
 
-            double x = pos.x + 9 * this.getLookAngle().x;
-            double y = pos.y + 9 * this.getLookAngle().y;
-            double z = pos.z + 9 * this.getLookAngle().z;
-
-            level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, x, y, z, 10, 0.4, 0.4, 0.4, 0.0075);
-            level.sendParticles(ParticleTypes.CLOUD, x, y, z, 10, 0.4, 0.4, 0.4, 0.0075);
-
-            int count = 6;
-
-            for (float i = 9.5f; i < 16; i += .5f) {
-                level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE,
-                        pos.x + i * this.getLookAngle().x,
-                        pos.y + i * this.getLookAngle().y,
-                        pos.z + i * this.getLookAngle().z,
-                        Mth.clamp(count--, 1, 5), 0.15, 0.15, 0.15, 0.0025);
+            for (int i = 0; i < 40; i += 4) {
+                Mod.queueServerWork(i, () -> ParticleTool.spawnBarrelSmoke(1, level, getLookAngle(), new Vec3(pos.x, pos.y, pos.z).add(getLookAngle().scale(6.4))));
             }
 
-            if (player instanceof ServerPlayer serverPlayer) {
-                if (player == getFirstPassenger()) {
-                    SoundTool.playLocalSound(serverPlayer, ModSounds.MK_42_FIRE_1P.get(), 2, 1);
-                }
-            }
-
-            if (!this.level().isClientSide()) {
-                this.level().playSound(null, this.getX(), this.getY(), this.getZ(), ModSounds.MK_42_FIRE_3P.get(), SoundSource.PLAYERS, 24f, 1f);
-                this.level().playSound(null, this.getX(), this.getY(), this.getZ(), ModSounds.MK_42_FAR.get(), SoundSource.PLAYERS, 48f, 1f);
-                this.level().playSound(null, this.getX(), this.getY(), this.getZ(), ModSounds.MK_42_VERYFAR.get(), SoundSource.PLAYERS, 96f, 1f);
-            }
-
-            consumeAmmo(player);
+            consumeAmmo(living);
         }
     }
 
-    public void consumeAmmo(Player player) {
-        if (player == getFirstPassenger()) {
-            if (InventoryTool.hasCreativeAmmoBox(player)) return;
+    public void consumeAmmo(LivingEntity living) {
+        if (living == getFirstPassenger()) {
+            if (InventoryTool.hasCreativeAmmoBox(living)) return;
 
             if (entityData.get(AMMO_COUNT) > 0) {
                 this.items.get(0).shrink(1);
@@ -545,12 +550,13 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
                 {
                     case 1 -> ModItems.HE_5_INCHES.get();
                     case 2 -> ModItems.CM_5_INCHES.get();
+                    case 3 -> ModItems.GS_5_INCHES.get();
                     default -> ModItems.AP_5_INCHES.get();
                 };
-                var ammoCount = InventoryTool.countItem(player.getInventory().items, ammo);
+                var ammoCount = InventoryTool.countItem(living, ammo);
 
                 if (ammoCount <= 0) return;
-                InventoryTool.consumeItem(player.getInventory().items, ammo, 1);
+                InventoryTool.consumeItem(living, ammo, 1);
             }
         } else {
             this.items.get(0).shrink(1);
@@ -560,7 +566,7 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
     @Override
     public void travel() {
         Entity passenger = this.getFirstPassenger();
-        if (passenger != null) {
+        if (passenger instanceof Player) {
             entityData.set(YAW, passenger.getYHeadRot());
             entityData.set(PITCH, passenger.getXRot() - 2f);
         }
@@ -574,30 +580,18 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
         this.setXRot(Mth.clamp(this.getXRot() + Mth.clamp(0.5f * diffX, -2f, 2f), -30, 5f));
     }
 
-    protected void clampRotation(Entity entity) {
-        float f = Mth.wrapDegrees(entity.getXRot());
-        float f1 = Mth.clamp(f, -30.0F, 7.0F);
-        entity.xRotO += f1 - f;
-        entity.setXRot(entity.getXRot() + f1 - f);
-    }
-
-    @Override
-    public void onPassengerTurned(@NotNull Entity entity) {
-        this.clampRotation(entity);
-    }
-
     private PlayState fireLeftPredicate(AnimationState<Mle1934Entity> event) {
         if (this.entityData.get(COOL_DOWN) > 54) {
-            return event.setAndContinue(RawAnimation.begin().thenPlay("animation.mle1934.fire_left"));
+            return event.setAndContinue(RawAnimation.begin().thenPlay("animation.mle_1934.fire_left"));
         }
-        return event.setAndContinue(RawAnimation.begin().thenLoop("animation.mle1934.idle"));
+        return event.setAndContinue(RawAnimation.begin().thenLoop("animation.mle_1934.idle"));
     }
 
     private PlayState fireRightPredicate(AnimationState<Mle1934Entity> event) {
         if (this.entityData.get(RIGHT_BARREL_ANIM) > 0) {
-            return event.setAndContinue(RawAnimation.begin().thenPlay("animation.mle1934.fire_right"));
+            return event.setAndContinue(RawAnimation.begin().thenPlay("animation.mle_1934.fire_right"));
         }
-        return event.setAndContinue(RawAnimation.begin().thenLoop("animation.mle1934.idle"));
+        return event.setAndContinue(RawAnimation.begin().thenLoop("animation.mle_1934.idle"));
     }
 
     @Override
@@ -612,39 +606,30 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
     }
 
     @Override
-    public int mainGunRpm(Player player) {
+    public int mainGunRpm(LivingEntity living) {
         return 0;
     }
 
     @Override
-    public boolean canShoot(Player player) {
+    public boolean canShoot(LivingEntity living) {
         return true;
     }
 
     @Override
-    public int getAmmoCount(Player player) {
+    public int getAmmoCount(LivingEntity living) {
         int playerAmmo = 0;
-        if (player == getFirstPassenger()) {
+        if (living == getFirstPassenger()) {
             Item ammo = switch (getWeaponIndex(0))
             {
                 case 1 -> ModItems.HE_5_INCHES.get();
                 case 2 -> ModItems.CM_5_INCHES.get();
+                case 3 -> ModItems.GS_5_INCHES.get();
                 default -> ModItems.AP_5_INCHES.get();
             };
-            playerAmmo = InventoryTool.countItem(player.getInventory().items, ammo);
+            playerAmmo = InventoryTool.countItem(living, ammo);
         }
 
         return playerAmmo + entityData.get(AMMO_COUNT);
-    }
-
-    @Override
-    public boolean banHand(Player player) {
-        return true;
-    }
-
-    @Override
-    public boolean hidePassenger(int index) {
-        return true;
     }
 
     @Override
@@ -653,7 +638,7 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
     }
 
     @Override
-    public int getWeaponHeat(Player player) {
+    public int getWeaponHeat(LivingEntity living) {
         return 0;
     }
 
@@ -666,18 +651,8 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
     }
 
     @Override
-    public ResourceLocation getVehicleIcon() {
-        return Mod.loc("textures/vehicle_icon/mle1934_icon.png");
-    }
-
-    @Override
     public double getSensitivity(double original, boolean zoom, int seatIndex, boolean isOnGround) {
         return zoom ? 0.15 : 0.3;
-    }
-
-    @Override
-    public boolean isEnclosed(int index) {
-        return true;
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -694,7 +669,7 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
     public Vec3 getCameraPosition(float partialTicks, Player player, boolean zoom, boolean isFirstPerson) {
         if (zoom || isFirstPerson) {
             if (zoom) {
-                return new Vec3(this.driverZoomPos(partialTicks).x, this.driverZoomPos(partialTicks).y, this.driverZoomPos(partialTicks).z);
+                return new Vec3(this.zoomPos(player, partialTicks).x, this.zoomPos(player, partialTicks).y, this.zoomPos(player, partialTicks).z);
             } else {
                 return new Vec3(Mth.lerp(partialTicks, player.xo, player.getX()), Mth.lerp(partialTicks, player.yo + player.getEyeHeight(), player.getEyeY()), Mth.lerp(partialTicks, player.zo, player.getZ()));
             }
@@ -705,16 +680,6 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
     @OnlyIn(Dist.CLIENT)
     public boolean useFixedCameraPos(Entity entity) {
         return true;
-    }
-
-    @Override
-    public @Nullable ResourceLocation getVehicleItemIcon() {
-        return Mod.loc("textures/gui/vehicle/type/defense.png");
-    }
-
-    @Override
-    public int getContainerSize() {
-        return 1;
     }
 
     @Override
@@ -735,5 +700,10 @@ public class Mle1934Entity extends VehicleEntity implements GeoEntity, CannonEnt
     @Override
     public boolean canPlaceItem(int slot, @NotNull ItemStack stack) {
         return super.canPlaceItem(slot, stack) && this.entityData.get(COOL_DOWN) == 0 && stack.getItem() instanceof CannonShellItem;
+    }
+
+    @Override
+    public boolean hasEnergyStorage() {
+        return false;
     }
 }

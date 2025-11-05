@@ -1,5 +1,6 @@
 package com.atsuishio.superbwarfare.network;
 
+import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.overlay.CrossHairOverlay;
 import com.atsuishio.superbwarfare.client.screens.FuMO25ScreenHelper;
 import com.atsuishio.superbwarfare.client.screens.VehicleAssemblingScreen;
@@ -9,38 +10,45 @@ import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.event.KillMessageHandler;
 import com.atsuishio.superbwarfare.menu.EnergyMenu;
 import com.atsuishio.superbwarfare.network.message.receive.*;
-import com.atsuishio.superbwarfare.tools.PlayerKillRecord;
+import com.atsuishio.superbwarfare.tools.LivingKillRecord;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
+import static com.atsuishio.superbwarfare.event.ClientEventHandler.zoomVehicle;
+
 public class ClientPacketHandler {
 
-    public static void handlePlayerKillMessage(Player attacker, Entity target, boolean headshot, ResourceKey<DamageType> damageType, Supplier<NetworkEvent.Context> ctx) {
+    public static void handleLivingKillMessage(LivingEntity attacker, Entity target, boolean headshot, ResourceKey<DamageType> damageType, Supplier<NetworkEvent.Context> ctx) {
         if (ctx.get().getDirection().getReceptionSide() == LogicalSide.CLIENT) {
             if (KillMessageHandler.QUEUE.size() >= KillMessageConfig.KILL_MESSAGE_COUNT.get()) {
                 KillMessageHandler.QUEUE.poll();
             }
-            KillMessageHandler.QUEUE.offer(new PlayerKillRecord(attacker, target, attacker.getMainHandItem(), headshot, damageType));
+            KillMessageHandler.QUEUE.offer(new LivingKillRecord(attacker, target, attacker.getMainHandItem(), headshot, damageType));
         }
     }
 
     public static void handleClientIndicatorMessage(ClientIndicatorMessage message, Supplier<NetworkEvent.Context> ctx) {
         if (ctx.get().getDirection().getReceptionSide() == LogicalSide.CLIENT) {
             switch (message.type) {
-                case 1 -> CrossHairOverlay.HEAD_INDICATOR = message.value;
-                case 2 -> CrossHairOverlay.KILL_INDICATOR = message.value;
-                case 3 -> CrossHairOverlay.VEHICLE_INDICATOR = message.value;
-                default -> CrossHairOverlay.HIT_INDICATOR = message.value;
+                case 1 -> CrossHairOverlay.headIndicator = message.value;
+                case 2 -> CrossHairOverlay.killIndicator = message.value;
+                case 3 -> CrossHairOverlay.vehicleIndicator = message.value;
+                default -> CrossHairOverlay.hitIndicator = message.value;
             }
         }
     }
@@ -110,6 +118,35 @@ public class ClientPacketHandler {
             if (player.containerMenu.containerId != message.containerId()) return;
             if (minecraft.screen instanceof VehicleAssemblingScreen screen) {
                 screen.finishAssembling();
+            }
+        }
+    }
+
+    public static void handleTDMSyncMessage(TDMSyncMessage message, Supplier<NetworkEvent.Context> ctx) {
+        if (ctx.get().getDirection().getReceptionSide() == LogicalSide.CLIENT) {
+            ClientEventHandler.tdmSavedData = message.data();
+        }
+    }
+
+    public static void handleSoundClient(SoundClientMessage message, Supplier<NetworkEvent.Context> ctx) {
+        if (ctx.get().getDirection().getReceptionSide() == LogicalSide.CLIENT) {
+            Player player = Minecraft.getInstance().player;
+            if (player == null) return;
+            if (player.getUUID().equals(message.sender())
+                    && (Minecraft.getInstance().options.getCameraType() == CameraType.FIRST_PERSON || zoomVehicle)
+            ) return;
+
+            SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(message.location());
+            if (sound == null) return;
+
+            double distance = player.position().distanceTo(new Vec3(message.x(), message.y(), message.z()));
+            int time = (int) (distance / 17);
+
+            if (time == 0) {
+                player.level().playSound(player, message.x(), message.y(), message.z(), sound, SoundSource.BLOCKS, message.radius(), message.pitch());
+            } else {
+                Mod.queueClientWork(time,
+                        () -> player.level().playSound(player, message.x(), message.y(), message.z(), sound, SoundSource.BLOCKS, message.radius(), message.pitch()));
             }
         }
     }

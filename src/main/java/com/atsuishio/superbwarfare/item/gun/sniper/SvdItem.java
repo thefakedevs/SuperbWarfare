@@ -1,17 +1,14 @@
 package com.atsuishio.superbwarfare.item.gun.sniper;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.renderer.gun.SvdItemRenderer;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.value.AttachmentType;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
-import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.item.gun.GunGeoItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.tools.GunsTool;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
@@ -25,11 +22,10 @@ import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.renderer.GeoItemRenderer;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class SvdItem extends GunItem {
+public class SvdItem extends GunGeoItem {
 
     public SvdItem() {
         super(new Item.Properties().rarity(Rarity.EPIC));
@@ -48,20 +44,14 @@ public class SvdItem extends GunItem {
         if (event.getData(DataTickets.ITEM_RENDER_PERSPECTIVE) != ItemDisplayContext.FIRST_PERSON_RIGHT_HAND)
             return event.setAndContinue(RawAnimation.begin().thenLoop("animation.svd.idle"));
 
-        if (GunData.from(stack).reload.empty()) {
+        var data = GunData.from(stack);
+
+        if (data.reload.empty()) {
             return event.setAndContinue(RawAnimation.begin().thenPlay("animation.svd.reload_empty"));
         }
 
-        if (GunData.from(stack).reload.normal()) {
+        if (data.reload.normal()) {
             return event.setAndContinue(RawAnimation.begin().thenPlay("animation.svd.reload_normal"));
-        }
-
-        if (player.isSprinting() && player.onGround() && ClientEventHandler.cantSprint == 0 && ClientEventHandler.drawTime < 0.01) {
-            if (ClientEventHandler.tacticalSprint) {
-                return event.setAndContinue(RawAnimation.begin().thenLoop("animation.svd.run_fast"));
-            } else {
-                return event.setAndContinue(RawAnimation.begin().thenLoop("animation.svd.run"));
-            }
         }
 
         return event.setAndContinue(RawAnimation.begin().thenLoop("animation.svd.idle"));
@@ -91,13 +81,8 @@ public class SvdItem extends GunItem {
     }
 
     @Override
-    public Set<SoundEvent> getReloadSound() {
-        return Set.of(ModSounds.SVD_RELOAD_EMPTY.get(), ModSounds.SVD_RELOAD_NORMAL.get());
-    }
-
-    @Override
-    public int getCustomMagazine(ItemStack stack) {
-        int magType = GunData.from(stack).attachment.get(AttachmentType.MAGAZINE);
+    public int getCustomMagazine(GunData data) {
+        int magType = data.attachment.get(AttachmentType.MAGAZINE);
         return switch (magType) {
             case 1 -> 10;
             case 2 -> 20;
@@ -106,58 +91,53 @@ public class SvdItem extends GunItem {
     }
 
     @Override
-    public double getCustomZoom(ItemStack stack) {
-        int scopeType = GunData.from(stack).attachment.get(AttachmentType.SCOPE);
+    public double getCustomZoom(GunData data) {
+        int scopeType = data.attachment.get(AttachmentType.SCOPE);
         return switch (scopeType) {
             case 2 -> 2.75;
-            case 3 -> GunsTool.getGunDoubleTag(stack, "CustomZoom");
+            case 3 -> GunsTool.getGunDoubleTag(data.stack, "CustomZoom");
             default -> 0;
         };
     }
 
     @Override
-    public boolean canAdjustZoom(ItemStack stack) {
-        return GunData.from(stack).attachment.get(AttachmentType.SCOPE) == 3;
+    public boolean canAdjustZoom(GunData data) {
+        return data.attachment.get(AttachmentType.SCOPE) == 3;
     }
 
     @Override
-    public ResourceLocation getGunIcon(ItemStack stack) {
-        return Mod.loc("textures/gun_icon/svd_icon.png");
-    }
-
-    @Override
-    public boolean hasCustomBarrel(ItemStack stack) {
+    public boolean hasCustomBarrel(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasCustomScope(ItemStack stack) {
+    public boolean hasCustomScope(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasCustomMagazine(ItemStack stack) {
+    public boolean hasCustomMagazine(GunData data) {
         return true;
     }
 
     @Override
-    public boolean isOpenBolt(ItemStack stack) {
+    public boolean isOpenBolt(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasBulletInBarrel(ItemStack stack) {
+    public boolean hasBulletInBarrel(GunData data) {
         return true;
     }
 
     @Override
-    public boolean canEjectShell(ItemStack stack) {
+    public boolean hasBipod(GunData data) {
         return true;
     }
 
     @Override
-    public boolean hasBipod(ItemStack stack) {
-        return true;
+    public void whenNoAmmo(GunData data) {
+        data.holdOpen.set(true);
     }
 
     @Override
@@ -168,7 +148,7 @@ public class SvdItem extends GunItem {
     }
 
     @Override
-    public boolean canEditAttachments(ItemStack stack) {
+    public boolean canEditAttachments(GunData data) {
         return true;
     }
 }

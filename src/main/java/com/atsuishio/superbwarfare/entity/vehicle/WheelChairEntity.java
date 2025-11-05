@@ -1,19 +1,15 @@
 package com.atsuishio.superbwarfare.entity.vehicle;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.advancement.CriteriaRegister;
 import com.atsuishio.superbwarfare.config.server.VehicleConfig;
-import com.atsuishio.superbwarfare.entity.vehicle.base.MobileVehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.ThirdPersonCameraPosition;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientMouseHandler;
 import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
-import com.mojang.math.Axis;
-import it.unimi.dsi.fastutil.Pair;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
@@ -27,15 +23,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.joml.Math;
-import org.joml.Matrix4f;
-import org.joml.Quaternionf;
-import org.joml.Vector4f;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -44,9 +34,10 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.List;
 
-public class WheelChairEntity extends MobileVehicleEntity implements GeoEntity {
+public class WheelChairEntity extends VehicleEntity implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+
     public int jumpCoolDown;
     public int handBusyTime;
 
@@ -61,7 +52,10 @@ public class WheelChairEntity extends MobileVehicleEntity implements GeoEntity {
     @Override
     public void playerTouch(Player pPlayer) {
         if (this.position().distanceTo(pPlayer.position()) > 1.4 || pPlayer == this.getFirstPassenger()) return;
-        if (!this.level().isClientSide) {
+        if (!this.level().isClientSide
+                && pPlayer.getY() < this.getY() + this.getBbHeight()
+                && pPlayer.getY() + pPlayer.getBbHeight() > this.getY()
+        ) {
             double entitySize = pPlayer.getBbWidth() * pPlayer.getBbHeight();
             double thisSize = this.getBbWidth() * this.getBbHeight();
             double f = Math.min(entitySize / thisSize, 2);
@@ -152,10 +146,10 @@ public class WheelChairEntity extends MobileVehicleEntity implements GeoEntity {
         float diffY = 0;
 
         if (passenger == null) {
-            this.leftInputDown = false;
-            this.rightInputDown = false;
-            this.forwardInputDown = false;
-            this.backInputDown = false;
+            setLeftInputDown(false);
+            setRightInputDown(false);
+            setForwardInputDown(false);
+            setBackInputDown(false);
         } else if (passenger instanceof Player) {
             diffY = Math.clamp(-90f, 90f, Mth.wrapDegrees(passenger.getYHeadRot() - this.getYRot()));
             this.setYRot(this.getYRot() + Mth.clamp(0.4f * diffY, -5f, 5f));
@@ -164,21 +158,21 @@ public class WheelChairEntity extends MobileVehicleEntity implements GeoEntity {
             this.setZRot((float) (this.getRoll() + direct * diffY * 0.2 * this.getDeltaMovement().length()));
         }
 
-        if (this.forwardInputDown) {
-            this.entityData.set(POWER, this.entityData.get(POWER) + (sprintInputDown ? 0.02f : 0.01f));
+        if (this.forwardInputDown()) {
+            this.entityData.set(POWER, this.entityData.get(POWER) + (sprintInputDown() ? 0.02f : 0.01f));
             if (this.getEnergy() <= 0 && passenger instanceof Player player) {
                 moveWithOutPower(player, true);
             }
         }
 
-        if (this.backInputDown) {
+        if (this.backInputDown()) {
             this.entityData.set(POWER, this.entityData.get(POWER) - 0.01f);
             if (this.getEnergy() <= 0 && passenger instanceof Player player) {
                 moveWithOutPower(player, false);
             }
         }
 
-        if (this.upInputDown && this.onGround() && this.getEnergy() > 400 && jumpCoolDown == 0) {
+        if (this.upInputDown() && this.onGround() && this.getEnergy() > 400 && jumpCoolDown == 0) {
             if (passenger instanceof ServerPlayer serverPlayer) {
                 serverPlayer.level().playSound(null, serverPlayer.getOnPos(), ModSounds.WHEEL_CHAIR_JUMP.get(), SoundSource.PLAYERS, 1, 1);
             }
@@ -187,9 +181,7 @@ public class WheelChairEntity extends MobileVehicleEntity implements GeoEntity {
             jumpCoolDown = 3;
         }
 
-        if (this.forwardInputDown || this.backInputDown) {
-            this.consumeEnergy(VehicleConfig.WHEELCHAIR_MOVE_ENERGY_COST.get());
-        }
+        this.consumeEnergy((int) (Mth.abs(this.entityData.get(POWER))));
 
         if (passenger instanceof Player player && player.level().isClientSide && this.handBusyTime > 0) {
             var localPlayer = Minecraft.getInstance().player;
@@ -217,8 +209,8 @@ public class WheelChairEntity extends MobileVehicleEntity implements GeoEntity {
         player.causeFoodExhaustion(0.03F);
 
         this.handBusyTime = 4;
-        this.forwardInputDown = false;
-        this.backInputDown = false;
+        setForwardInputDown(false);
+        setBackInputDown(false);
     }
 
     @Override
@@ -231,57 +223,6 @@ public class WheelChairEntity extends MobileVehicleEntity implements GeoEntity {
         return getEnergy() > 0 ? entityData.get(POWER) : 0;
     }
 
-    protected void clampRotation(Entity entity) {
-        entity.setYBodyRot(this.getYRot());
-        float f2 = Mth.wrapDegrees(entity.getYRot() - this.getYRot());
-        float f3 = Mth.clamp(f2, -90F, 90.0F);
-        entity.yRotO += f3 - f2;
-        entity.setYRot(entity.getYRot() + f3 - f2);
-        entity.setYBodyRot(this.getYRot());
-    }
-
-    @Override
-    public void onPassengerTurned(@NotNull Entity entity) {
-        this.clampRotation(entity);
-    }
-
-    @Override
-    public void positionRider(@NotNull Entity passenger, @NotNull MoveFunction callback) {
-        // From Immersive_Aircraft
-        if (!this.hasPassenger(passenger)) {
-            return;
-        }
-
-        Matrix4f transform = getVehicleTransform(1);
-
-        float x = 0f;
-        float y = 0.3f;
-        float z = 0f;
-        y += (float) passenger.getMyRidingOffset();
-
-        int i = this.getSeatIndex(passenger);
-
-        if (i == 0) {
-            Vector4f worldPosition = transformPosition(transform, x, y, z);
-            passenger.setPos(worldPosition.x, worldPosition.y, worldPosition.z);
-            callback.accept(passenger, worldPosition.x, worldPosition.y, worldPosition.z);
-        }
-
-        if (passenger != this.getFirstPassenger()) {
-            passenger.setXRot(passenger.getXRot() + (getXRot() - xRotO));
-        }
-    }
-
-    @Override
-    public Matrix4f getVehicleTransform(float ticks) {
-        Matrix4f transform = new Matrix4f();
-        transform.translate((float) Mth.lerp(ticks, xo, getX()), (float) Mth.lerp(ticks, yo + 0.4f, getY() + 0.4f), (float) Mth.lerp(ticks, zo, getZ()));
-        transform.rotate(Axis.YP.rotationDegrees(-Mth.lerp(ticks, yRotO, getYRot())));
-        transform.rotate(Axis.XP.rotationDegrees(Mth.lerp(ticks, xRotO, getXRot())));
-        transform.rotate(Axis.ZP.rotationDegrees(Mth.lerp(ticks, prevRoll, getRoll())));
-        return transform;
-    }
-
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar data) {
     }
@@ -289,21 +230,5 @@ public class WheelChairEntity extends MobileVehicleEntity implements GeoEntity {
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return this.cache;
-    }
-
-    @Override
-    public ResourceLocation getVehicleIcon() {
-        return Mod.loc("textures/vehicle_icon/wheel_chair_icon.png");
-    }
-
-    @OnlyIn(Dist.CLIENT)
-    @Nullable
-    public Pair<Quaternionf, Quaternionf> getPassengerRotation(Entity entity, float tickDelta) {
-        return Pair.of(Axis.XP.rotationDegrees(-this.getViewXRot(tickDelta)), Axis.ZP.rotationDegrees(-this.getRoll(tickDelta)));
-    }
-
-    @Override
-    public @Nullable ResourceLocation getVehicleItemIcon() {
-        return Mod.loc("textures/gui/vehicle/type/otto.png");
     }
 }

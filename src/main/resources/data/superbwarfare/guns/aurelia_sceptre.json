@@ -16,6 +16,7 @@
   "RPM": 1100,
   "ShootDelay": 5,
   "HeatPerShoot": 1,
+  "GunType": "Handgun",
   "AvailableFireModes": [
     "Auto"
   ],
@@ -33,20 +34,27 @@
       }
     }
   ],
+  "Icon": "superbwarfare:textures/gun_icon/aurelia_sceptre_icon.png",
   "AvailablePerks": [
     "@Ammo",
     "superbwarfare:field_doctor",
     "superbwarfare:fourth_times_charm",
     "superbwarfare:powerful_attraction",
     "superbwarfare:intelligent_chip",
+    "superbwarfare:powerful_cooler",
     "superbwarfare:killing_tally",
     "superbwarfare:gutshot_straight",
     "superbwarfare:monster_hunter",
     "superbwarfare:vorpal_weapon",
     "superbwarfare:firefly",
+    "superbwarfare:one_two_punch",
     "!superbwarfare:micro_missile",
     "!superbwarfare:longer_wire",
     "!superbwarfare:butterfly_bullet",
     "!superbwarfare:cupid_arrow"
-  ]
+  ],
+  "SoundInfo": {
+    "Fire1P": "superbwarfare:aurelia_sceptre_fire_1p",
+    "Fire3P": "superbwarfare:aurelia_sceptre_fire_3p"
+  }
 }

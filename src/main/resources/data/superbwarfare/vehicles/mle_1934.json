@@ -1,6 +1,13 @@
 {
   "ID": "superbwarfare:mle_1934",
   "MaxHealth": 350,
+  "Seats": {
+    "HidePassenger": true,
+    "Transform": "VehicleFlat",
+    "Position": [0, 2, 0.5],
+    "MinPitch": -2.7,
+    "MaxPitch": 30
+  },
   "Mass": 100,
   "DamageModifiers": [
     "All * 0.2",
@@ -23,7 +30,13 @@
     "@superbwarfare:gun_grenade * 1.5",
     "All - 8"
   ],
-  "ExplosionDamage": 160,
-  "ExplosionRadius": 9,
-  "ExplosionParticleType": "Medium"
+  "VehicleContainerType": "One",
+  "DestroyInfo": {
+    "ParticleType": "Medium",
+    "ExplosionDamage": 160,
+    "ExplosionRadius": 9
+  },
+  "VehicleIcon": "superbwarfare:textures/vehicle_icon/mle1934_icon.png",
+  "ContainerIcon": "superbwarfare:textures/gui/vehicle/type/defense.png",
+  "Type": "Artillery"
 }

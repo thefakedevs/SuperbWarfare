@@ -1,15 +1,15 @@
 package com.atsuishio.superbwarfare.item;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.MiscConfig;
 import com.atsuishio.superbwarfare.entity.DPSGeneratorEntity;
 import com.atsuishio.superbwarfare.entity.TargetEntity;
 import com.atsuishio.superbwarfare.entity.mixin.BeastEntityKiller;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
+import com.atsuishio.superbwarfare.init.ModRarities;
 import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
-import com.atsuishio.superbwarfare.network.message.receive.PlayerGunKillMessage;
-import com.atsuishio.superbwarfare.tools.RarityTool;
+import com.atsuishio.superbwarfare.network.message.receive.LivingGunKillMessage;
 import com.atsuishio.superbwarfare.tools.TraceTool;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -43,7 +43,7 @@ public class Beast extends SwordItem {
     public Beast() {
         super(Tiers.NETHERITE, 0, 0, new Properties()
                 .stacksTo(1)
-                .rarity(RarityTool.LEGENDARY)
+                .rarity(ModRarities.LEGENDARY)
                 .setNoRepair()
                 .durability(114514)
         );
@@ -62,9 +62,7 @@ public class Beast extends SwordItem {
     }
 
     public static void beastKill(@Nullable Entity attacker, @NotNull Entity target) {
-        if (target.level().isClientSide ||
-                (target instanceof LivingEntity living && living.isDeadOrDying())
-        ) return;
+        if (target.level().isClientSide) return;
 
         if (target instanceof TargetEntity) {
             target.hurt(ModDamageTypes.causeBeastDamage(target.level().registryAccess(), attacker, attacker), 114514.1919810F);
@@ -78,7 +76,7 @@ public class Beast extends SwordItem {
         }
 
         if (attacker instanceof ServerPlayer player) {
-            Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(1, 5));
+            NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(1, 5));
             var holder = Holder.direct(ModSounds.INDICATION.get());
             player.connection.send(new ClientboundSoundPacket(holder, SoundSource.PLAYERS, player.getX(), player.getY(), player.getZ(), 1f, 1f, player.level().random.nextLong()));
 
@@ -91,7 +89,7 @@ public class Beast extends SwordItem {
             );
 
             if (MiscConfig.SEND_KILL_FEEDBACK.get()) {
-                Mod.PACKET_HANDLER.send(PacketDistributor.ALL.noArg(), new PlayerGunKillMessage(player.getId(), target.getId(), false, ModDamageTypes.BEAST));
+                NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.ALL.noArg(), new LivingGunKillMessage(player.getId(), target.getId(), false, ModDamageTypes.BEAST));
             }
         }
 

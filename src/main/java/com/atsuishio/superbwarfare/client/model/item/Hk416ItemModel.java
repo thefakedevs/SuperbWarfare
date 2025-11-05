@@ -1,7 +1,6 @@
 package com.atsuishio.superbwarfare.client.model.item;
 
-import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.client.AnimationHelper;
+import com.atsuishio.superbwarfare.client.animation.AnimationHelper;
 import com.atsuishio.superbwarfare.client.overlay.CrossHairOverlay;
 import com.atsuishio.superbwarfare.data.gun.FireMode;
 import com.atsuishio.superbwarfare.data.gun.GunData;
@@ -9,7 +8,6 @@ import com.atsuishio.superbwarfare.data.gun.value.AttachmentType;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.item.gun.rifle.Hk416Item;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -19,35 +17,7 @@ import software.bernie.geckolib.core.animation.AnimationState;
 import static com.atsuishio.superbwarfare.event.ClientEventHandler.isProne;
 
 public class Hk416ItemModel extends CustomGunModel<Hk416Item> {
-
-    public static float fireRotY = 0f;
-    public static float fireRotZ = 0f;
     public static float rotXBipod = 0f;
-
-    @Override
-    public ResourceLocation getAnimationResource(Hk416Item animatable) {
-        return Mod.loc("animations/m_4.animation.json");
-    }
-
-    @Override
-    public ResourceLocation getModelResource(Hk416Item animatable) {
-        return Mod.loc("geo/hk_416.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(Hk416Item animatable) {
-        return Mod.loc("textures/item/hk_416.png");
-    }
-
-    @Override
-    public ResourceLocation getLODModelResource(Hk416Item animatable) {
-        return Mod.loc("geo/lod/hk_416.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getLODTextureResource(Hk416Item animatable) {
-        return Mod.loc("textures/item/lod/hk_416.png");
-    }
 
     @Override
     public void setCustomAnimations(Hk416Item animatable, long instanceId, AnimationState<Hk416Item> animationState) {
@@ -67,10 +37,6 @@ public class Hk416ItemModel extends CustomGunModel<Hk416Item> {
         double zt = ClientEventHandler.zoomTime;
         double zp = ClientEventHandler.zoomPos;
         double zpz = ClientEventHandler.zoomPosZ;
-
-        double fpz = ClientEventHandler.firePosZ * 17 * times;
-        double fp = ClientEventHandler.firePos;
-        double fr = ClientEventHandler.fireRot;
 
         int type = GunData.from(stack).attachment.get(AttachmentType.SCOPE);
 
@@ -118,22 +84,7 @@ public class Hk416ItemModel extends CustomGunModel<Hk416Item> {
             };
         }
 
-        fireRotY = (float) Mth.lerp(0.5f * times, fireRotY, 0.2f * ClientEventHandler.recoilHorizon * fpz);
-        fireRotZ = (float) Mth.lerp(2f * times, fireRotZ, (0.2f + 0.3 * fpz) * ClientEventHandler.recoilHorizon);
-
-        shen.setPosX(-0.4f * (float) (ClientEventHandler.recoilHorizon * (0.5 + 0.4 * ClientEventHandler.fireSpread)));
-        shen.setPosY((float) (0.15f * fp + 0.18f * fr));
-        shen.setPosZ((float) (0.375 * fp + 0.44f * fr + 0.75 * fpz));
-        shen.setRotX((float) (0.01f * fp + 0.05f * fr + 0.01f * fpz));
-        shen.setRotY(fireRotY);
-        shen.setRotZ(fireRotZ);
-
-        shen.setPosX((float) (shen.getPosX() * (1 - 0.1 * zt)));
-        shen.setPosY((float) (shen.getPosY() * (-1 + 0.8 * zt)));
-        shen.setPosZ((float) (shen.getPosZ() * (1 - 0.1 * zt)));
-        shen.setRotX((float) (shen.getRotX() * (1 - (type == 3 ? 0.96 : type == 1 ? 0.8 : 0.9) * zt)));
-        shen.setRotY((float) (shen.getRotY() * (1 - (type == 3 ? 0.95 : 0.9) * zt)));
-        shen.setRotZ((float) (shen.getRotZ() * (1 - 0.4 * zt)));
+        ClientEventHandler.handleShootAnimation(shen, 0.95f, -0.95f, 0.85f, 0.8f, 0.9f, 1, 0.5f, 0.75f);
 
         CrossHairOverlay.gunRot = shen.getRotZ();
 
@@ -143,11 +94,11 @@ public class Hk416ItemModel extends CustomGunModel<Hk416Item> {
         l.setRotX(rotXBipod * Mth.DEG_TO_RAD);
         r.setRotX(rotXBipod * Mth.DEG_TO_RAD);
 
-        var mode = GunData.from(stack).fireMode.get();
+        var mode = GunData.from(stack).selectedFireModeInfo().mode;
 
         kuaimanji.setRotX(mode == FireMode.AUTO ? 90 * Mth.DEG_TO_RAD : 0);
 
-        ClientEventHandler.gunRootMove(getAnimationProcessor());
+        ClientEventHandler.gunRootMove(getAnimationProcessor(), 2, 0, 0, false);
 
         CoreGeoBone camera = getAnimationProcessor().getBone("camera");
         CoreGeoBone main = getAnimationProcessor().getBone("0");

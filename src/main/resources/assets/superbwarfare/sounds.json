@@ -1823,7 +1823,7 @@
       }
     ]
   },
-  "triggerclick": {
+  "trigger_click": {
     "sounds": [
       {
         "name": "superbwarfare:trigger_click",
@@ -3615,6 +3615,321 @@
     "sounds": [
       {
         "name": "superbwarfare:ptkm_1r_deploy",
+        "stream": false
+      }
+    ]
+  },
+  "waveforce_tower_fire": {
+    "sounds": [
+      {
+        "name": "superbwarfare:waveforce_tower/waveforce_tower_fire_1",
+        "stream": false
+      },      {
+        "name": "superbwarfare:waveforce_tower/waveforce_tower_fire_2",
+        "stream": false
+      },      {
+        "name": "superbwarfare:waveforce_tower/waveforce_tower_fire_3",
+        "stream": false
+      },      {
+        "name": "superbwarfare:waveforce_tower/waveforce_tower_fire_4",
+        "stream": false
+      }
+    ]
+  },
+  "igla_9k38_fire_1p": {
+    "sounds": [
+      {
+        "name": "superbwarfare:igla_9k38/igla_9k38_fire_1p",
+        "stream": false
+      }
+    ]
+  },
+  "igla_9k38_fire_3p": {
+    "sounds": [
+      {
+        "name": "superbwarfare:igla_9k38/igla_9k38_fire_3p",
+        "stream": false
+      }
+    ]
+  },
+  "igla_9k38_far": {
+    "sounds": [
+      {
+        "name": "superbwarfare:igla_9k38/igla_9k38_far",
+        "stream": false
+      }
+    ]
+  },
+  "igla_9k38_reload_empty": {
+    "sounds": [
+      {
+        "name": "superbwarfare:igla_9k38/igla_9k38_reload",
+        "stream": false
+      }
+    ]
+  },
+  "igla_9k38_lock": {
+    "sounds": [
+      {
+        "name": "superbwarfare:igla_9k38/igla_9k38_lock",
+        "stream": false
+      }
+    ]
+  },
+  "igla_9k38_lockon": {
+    "sounds": [
+      {
+        "name": "superbwarfare:igla_9k38/igla_9k38_lockon",
+        "stream": false
+      }
+    ]
+  },
+  "repair_tool_fire_1p": {
+    "sounds": [
+      {
+        "name": "superbwarfare:repair_tool/repair_tool_fire_1p",
+        "stream": false
+      }
+    ]
+  },
+  "repair_tool_fire_3p": {
+    "sounds": [
+      {
+        "name": "superbwarfare:repair_tool/repair_tool_fire_3p",
+        "stream": false
+      }
+    ]
+  },
+  "repairing": {
+    "sounds": [
+      {
+        "name": "superbwarfare:repair_tool/repairing",
+        "stream": false
+      }
+    ]
+  },
+  "truck_engine": {
+    "sounds": [
+      {
+        "attenuation_distance": 64,
+        "stream": true,
+        "name": "superbwarfare:truck/truck_engine"
+      }
+    ]
+  },
+  "truck_horn": {
+    "sounds": [
+      {
+        "attenuation_distance": 128,
+        "stream": true,
+        "name": "superbwarfare:truck/truck_horn"
+      }
+    ]
+  },
+  "ql_1031_fire_1p_hold": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/hold/ql_1031_fire_1p",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_fire_3p_hold": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/hold/ql_1031_fire_3p",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_fire_1p_s_hold": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/hold/ql_1031_fire_1p_s",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_fire_3p_s_hold": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/hold/ql_1031_fire_3p_s",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_far_hold": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/hold/ql_1031_far",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_veryfar_hold": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/hold/ql_1031_veryfar",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_far_s_hold": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/hold/ql_1031_far_s",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_veryfar_s_hold": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/hold/ql_1031_veryfar_s",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_charge": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/hold/ql_1031_charge",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_discharge": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/hold/ql_1031_discharge",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_fire_1p_semi": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/semi/ql_1031_fire_1p",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_fire_3p_semi": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/semi/ql_1031_fire_3p",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_fire_1p_s_semi": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/semi/ql_1031_fire_1p_s",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_fire_3p_s_semi": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/semi/ql_1031_fire_3p_s",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_far_semi": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/semi/ql_1031_far",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_veryfar_semi": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/semi/ql_1031_veryfar",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_far_s_semi": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/semi/ql_1031_far_s",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_veryfar_s_semi": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/semi/ql_1031_veryfar_s",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_fire_1p_auto": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/auto/ql_1031_fire_1p",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_fire_3p_auto": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/auto/ql_1031_fire_3p",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_fire_1p_s_auto": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/auto/ql_1031_fire_1p_s",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_fire_3p_s_auto": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/auto/ql_1031_fire_3p_s",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_far_auto": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/auto/ql_1031_far",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_veryfar_auto": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/auto/ql_1031_veryfar",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_far_s_auto": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/auto/ql_1031_far_s",
+        "stream": false
+      }
+    ]
+  },
+  "ql_1031_veryfar_s_auto": {
+    "sounds": [
+      {
+        "name": "superbwarfare:ql_1031/auto/ql_1031_veryfar_s",
         "stream": false
       }
     ]

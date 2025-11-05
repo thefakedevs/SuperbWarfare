@@ -37,12 +37,16 @@ public class ModTabs {
                     .title(Component.translatable("item_group.superbwarfare.guns"))
                     .icon(() -> new ItemStack(ModItems.TASER.get()))
                     .displayItems((param, output) -> ModItems.GUNS.getEntries().forEach(registryObject -> {
+                        if (registryObject == ModItems.VEHICLE_GUN) return;
+
                         output.accept(registryObject.get());
 
                         var stack = new ItemStack(registryObject.get());
                         stack.getCapability(ForgeCapabilities.ENERGY).ifPresent(energy -> {
-                            energy.receiveEnergy(Integer.MAX_VALUE, false);
-                            output.accept(stack);
+                            if (energy.getMaxEnergyStored() > 0) {
+                                energy.receiveEnergy(Integer.MAX_VALUE, false);
+                                output.accept(stack);
+                            }
                         });
                     }))
                     .build());
@@ -52,7 +56,10 @@ public class ModTabs {
                     .title(Component.translatable("item_group.superbwarfare.perk"))
                     .icon(() -> new ItemStack(ModItems.AP_BULLET.get()))
                     .withTabsBefore(GUN_TAB.getKey())
-                    .displayItems((param, output) -> ModItems.PERKS.getEntries().forEach(registryObject -> output.accept(registryObject.get())))
+                    .displayItems((param, output) -> {
+                        output.accept(ModItems.REFORGING_TABLE.get());
+                        ModItems.PERKS.getEntries().forEach(registryObject -> output.accept(registryObject.get()));
+                    })
                     .build());
 
     public static final RegistryObject<CreativeModeTab> AMMO_TAB = TABS.register("ammo",

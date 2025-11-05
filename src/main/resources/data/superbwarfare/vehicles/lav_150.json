@@ -2,7 +2,142 @@
   "ID": "superbwarfare:lav_150",
   "MaxHealth": 270,
   "MaxEnergy": 5000000,
+  "Seats": [
+    {
+      "HidePassenger": true,
+      "CameraPos": {
+        "Transform": "Barrel",
+        "ZoomPosition": [0.1, 0.0517, 0],
+        "Direction": "Barrel"
+      },
+      "Weapons": ["Cannon", "MachineGun"],
+      "Transform": "Turret",
+      "Position": [0.36, -0.65, 0.56],
+      "CanRotateHead": false,
+      "MinPitch": -15,
+      "MaxPitch": 32.5
+    },
+    {
+      "HidePassenger": true,
+      "BanHand": true,
+      "Transform": "Vehicle",
+      "Position": [0, 1, 0],
+      "CameraPos": {
+        "UseSimulate3P": true,
+        "Simulate3PPos": [6, 1]
+      }
+    },
+    {
+      "HidePassenger": true,
+      "BanHand": true,
+      "Transform": "Vehicle",
+      "Position": [0, 1, 0],
+      "CameraPos": {
+        "UseSimulate3P": true,
+        "Simulate3PPos": [6, 1]
+      }
+    },
+    {
+      "HidePassenger": true,
+      "BanHand": true,
+      "Transform": "Vehicle",
+      "Position": [0, 1, 0],
+      "CameraPos": {
+        "UseSimulate3P": true,
+        "Simulate3PPos": [6, 1]
+      }
+    },
+    {
+      "HidePassenger": true,
+      "BanHand": true,
+      "Transform": "Vehicle",
+      "Position": [0, 1, 0],
+      "CameraPos": {
+        "UseSimulate3P": true,
+        "Simulate3PPos": [6, 1]
+      }
+    }
+  ],
+  "Weapons": {
+    "Cannon": {
+      "Icon": "superbwarfare:textures/screens/vehicle_weapon/cannon_20mm.png",
+      "DefaultFireMode": "Auto",
+      "AvailableFireModes": "Auto",
+      "Projectile": "superbwarfare:small_cannon_shell",
+      "RPM": 300,
+      "Velocity": 20,
+      "Damage": 45,
+      "HeatPerShoot": 0.5,
+      "RecoilTime": 40,
+      "RecoilForce": 0.2,
+      "Spread": 0.5,
+      "Crosshair": "@VehicleUsAp",
+      "CrosshairColor": "0x66FF00",
+      "Name": "superbwarfare.lav_150.cannon",
+      "SoundInfo": {
+        "Fire1P": "superbwarfare:lav_cannon_fire_1p",
+        "Fire3P": "superbwarfare:lav_cannon_fire_3p",
+        "Fire3PFar": "superbwarfare:lav_cannon_far",
+        "Fire3PVeryFar": "superbwarfare:lav_cannon_veryfar",
+        "Change": "superbwarfare:into_missile"
+      },
+      "SoundRadius": 24,
+      "AmmoType": "Infinity",
+      "ShootPos": {
+        "Transform": "Barrel",
+        "Positions": [[0.0609375, 0.0517, 3.2]],
+        "Directions": ["Barrel"]
+      },
+      "ExplosionDamage": 12,
+      "ExplosionRadius": 4
+    },
+    "MachineGun": {
+      "Icon": "superbwarfare:textures/screens/vehicle_weapon/gun_7_62mm.png",
+      "DefaultFireMode": "Auto",
+      "AvailableFireModes": "Auto",
+      "HeatPerShoot": 0.5,
+      "Spread": 0.5,
+      "CrosshairColor": "0x66FF00",
+      "Projectile": "superbwarfare:projectile",
+      "RPM": 600,
+      "Damage": 9.5,
+      "BypassesArmor": 0.3,
+      "Velocity": 30,
+      "RecoilTime": 0,
+      "RecoilForce": 0,
+      "AmmoType": "Infinity",
+      "ShootPos": {
+        "Transform": "Barrel",
+        "Positions": [[0.3, 0.0517, 0.5]],
+        "Directions": ["Barrel"]
+      },
+      "Crosshair": "@VehicleCommonGun",
+      "Name": "superbwarfare.lav_150.gun",
+      "SoundInfo": {
+        "Fire1P": "superbwarfare:coax_fire_1p",
+        "Fire3P": "superbwarfare:m_60_fire_3p",
+        "Fire3PFar": "superbwarfare:m_60_far",
+        "Fire3PVeryFar": "superbwarfare:m_60_veryfar",
+        "Change": "superbwarfare:into_cannon"
+      },
+      "SoundRadius": 12
+    }
+  },
+  "EngineType": "Wheel",
+  "EngineInfo": {
+    "Buoyancy": 0.052,
+    "EnergyCostRate": 64,
+    "WheelRotSpeed": 1.25,
+    "WheelDifferential": 0.3,
+    "MaxForwardSpeedRate": 1,
+    "MaxBackwardSpeedRate": 0.5,
+    "Increment": 0.03,
+    "Decrement": 0.02,
+    "SteeringSpeed": 0.07
+  },
+  "HasDecoy": true,
   "UpStep": 1.5,
+  "RotateOffsetHeight": 2.2,
   "Mass": 13.6,
   "DamageModifiers": [
     "All * 0.2",
@@ -27,9 +162,16 @@
     "@superbwarfare:mortar_shell * 1.25",
     "@superbwarfare:gun_grenade * 1.5",
     "@superbwarfare:javelin_missile * 0.8",
+    "@superbwarfare:igla_9k38_missile * 0.75",
     "All - 7"
   ],
-  "ExplosionDamage": 120,
-  "ExplosionRadius": 7,
-  "ExplosionParticleType": "Huge"
+  "VehicleContainerType": "Medium",
+  "DestroyInfo": {
+    "ParticleType": "Huge",
+    "ExplosionDamage": 120,
+    "ExplosionRadius": 7
+  },
+  "VehicleIcon": "superbwarfare:textures/vehicle_icon/lav150_icon.png",
+  "ContainerIcon": "superbwarfare:textures/gui/vehicle/type/land.png",
+  "Type": "APC"
 }

@@ -14,6 +14,8 @@ public abstract class VehicleWeapon {
     public Component name;
     // 武器使用的弹药类型
     public Item ammo;
+    // 是否是对空炮弹类武器
+    public boolean aaProjectileWeapon;
     // 是否是主炮
     public boolean mainGun;
     // 装弹类型
@@ -33,7 +35,6 @@ public abstract class VehicleWeapon {
     public SoundEvent sound3pFar;
     // 第一人称射击音效
     public SoundEvent sound3pVeryFar;
-
 
     public VehicleWeapon icon(ResourceLocation icon) {
         this.icon = icon;
@@ -57,6 +58,11 @@ public abstract class VehicleWeapon {
 
     public VehicleWeapon mainGun(boolean mainGun) {
         this.mainGun = mainGun;
+        return this;
+    }
+
+    public VehicleWeapon aaProjectileWeapon(boolean aaProjectileWeapon) {
+        this.aaProjectileWeapon = aaProjectileWeapon;
         return this;
     }
 

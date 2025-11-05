@@ -18,10 +18,12 @@
   "BypassesArmor": 0.3,
   "SoundRadius": 15,
   "BoltActionTime": 12,
+  "GunType": "Rifle",
   "DamageReduce": {
     "Type": "Rifle"
   },
   "AmmoType": "@RifleAmmo",
+  "Icon": "superbwarfare:textures/gun_icon/marlin_icon.png",
   "AvailablePerks": [
     "@Ammo",
     "superbwarfare:heal_clip",
@@ -30,6 +32,7 @@
     "superbwarfare:subsistence",
     "superbwarfare:powerful_attraction",
     "superbwarfare:intelligent_chip",
+    "superbwarfare:backpack_linked_magazine",
     "superbwarfare:kill_clip",
     "superbwarfare:gutshot_straight",
     "superbwarfare:monster_hunter",
@@ -39,8 +42,25 @@
     "superbwarfare:magnificent_howl",
     "superbwarfare:firefly",
     "superbwarfare:fair_means",
+    "superbwarfare:high_impact_reserves",
     "!superbwarfare:micro_missile",
     "!superbwarfare:longer_wire",
     "!superbwarfare:cupid_arrow"
-  ]
+  ],
+  "SoundInfo": {
+    "Fire1P": "superbwarfare:marlin_fire_1p",
+    "Fire3P": "superbwarfare:marlin_fire_3p",
+    "Fire3PFar": "superbwarfare:marlin_far",
+    "Fire3PVeryFar": "superbwarfare:marlin_veryfar",
+    "ReloadPrepare": "superbwarfare:marlin_prepare",
+    "ReloadLoop": "superbwarfare:marlin_loop",
+    "ReloadEnd": "superbwarfare:marlin_end",
+    "Bolt": "superbwarfare:marlin_bolt",
+    "CancellableSounds": [
+      "superbwarfare:marlin_prepare",
+      "superbwarfare:marlin_loop",
+      "superbwarfare:marlin_end",
+      "superbwarfare:marlin_bolt"
+    ]
+  }
 }

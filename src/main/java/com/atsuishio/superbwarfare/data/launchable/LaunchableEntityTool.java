@@ -11,17 +11,15 @@ import net.minecraft.nbt.StringTag;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
-import java.util.Map;
 
 public class LaunchableEntityTool {
-    public static Map<String, ProjectileInfo> launchableEntitiesData = CustomData.LAUNCHABLE_ENTITY;
 
     public static @Nullable CompoundTag getModifiedTag(ProjectileInfo projectileInfo, ShootData data) {
         JsonObject launchableData;
         if (projectileInfo.data != null) {
             launchableData = projectileInfo.data;
-        } else if (launchableEntitiesData.containsKey(projectileInfo.type)) {
-            launchableData = launchableEntitiesData.get(projectileInfo.type).data;
+        } else if (CustomData.LAUNCHABLE_ENTITY.containsKey(projectileInfo.type)) {
+            launchableData = CustomData.LAUNCHABLE_ENTITY.get(projectileInfo.type).data;
         } else {
             return null;
         }
@@ -30,10 +28,10 @@ public class LaunchableEntityTool {
             case "@sbw:damage" -> DoubleTag.valueOf(data.damage());
             case "@sbw:owner" -> data.shooter() != null ? NbtUtils.createUUID(data.shooter()) : null;
             case "@sbw:owner_string_lower" -> data.shooter() != null
-                    ? StringTag.valueOf(data.shooter().toString().replace("-", "").toLowerCase(Locale.ENGLISH))
+                    ? StringTag.valueOf(data.shooter().toString().replace("-", "").toLowerCase(Locale.ROOT))
                     : null;
             case "@sbw:owner_string_upper" -> data.shooter() != null
-                    ? StringTag.valueOf(data.shooter().toString().replace("-", "").toUpperCase(Locale.ENGLISH))
+                    ? StringTag.valueOf(data.shooter().toString().replace("-", "").toUpperCase(Locale.ROOT))
                     : null;
             case "@sbw:explosion_damage" -> DoubleTag.valueOf(data.explosionDamage());
             case "@sbw:explosion_radius" -> DoubleTag.valueOf(data.explosionRadius());

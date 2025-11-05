@@ -1,14 +1,12 @@
 package com.atsuishio.superbwarfare.client.model.item;
 
-import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.client.AnimationHelper;
+import com.atsuishio.superbwarfare.client.animation.AnimationHelper;
 import com.atsuishio.superbwarfare.client.overlay.CrossHairOverlay;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.value.AttachmentType;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.item.gun.rifle.AK12Item;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -19,34 +17,7 @@ import static com.atsuishio.superbwarfare.event.ClientEventHandler.isProne;
 
 public class AK12ItemModel extends CustomGunModel<AK12Item> {
 
-    public static float fireRotY = 0f;
-    public static float fireRotZ = 0f;
     public static float rotXBipod = 0f;
-
-    @Override
-    public ResourceLocation getAnimationResource(AK12Item animatable) {
-        return Mod.loc("animations/ak_12.animation.json");
-    }
-
-    @Override
-    public ResourceLocation getModelResource(AK12Item animatable) {
-        return Mod.loc("geo/ak_12.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(AK12Item animatable) {
-        return Mod.loc("textures/item/ak_12.png");
-    }
-
-    @Override
-    public ResourceLocation getLODModelResource(AK12Item animatable) {
-        return Mod.loc("geo/lod/ak_12.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getLODTextureResource(AK12Item animatable) {
-        return Mod.loc("textures/item/lod/ak_12.png");
-    }
 
     @Override
     public void setCustomAnimations(AK12Item animatable, long instanceId, AnimationState<AK12Item> animationState) {
@@ -60,15 +31,11 @@ public class AK12ItemModel extends CustomGunModel<AK12Item> {
         CoreGeoBone scope2 = getAnimationProcessor().getBone("Scope2");
         CoreGeoBone scope3 = getAnimationProcessor().getBone("Scope3");
         CoreGeoBone frontSight = getAnimationProcessor().getBone("qianjimiao");
-        CoreGeoBone shuan = getAnimationProcessor().getBone("shuan");
 
         float times = 0.6f * (float) Math.min(Minecraft.getInstance().getDeltaFrameTime(), 0.8);
         double zt = ClientEventHandler.zoomTime;
         double zp = ClientEventHandler.zoomPos;
         double zpz = ClientEventHandler.zoomPosZ;
-        double fpz = ClientEventHandler.firePosZ * 13 * times;
-        double fp = ClientEventHandler.firePos;
-        double fr = ClientEventHandler.fireRot;
         int type = GunData.from(stack).attachment.get(AttachmentType.SCOPE);
 
         float posY = switch (type) {
@@ -119,25 +86,11 @@ public class AK12ItemModel extends CustomGunModel<AK12Item> {
             };
         }
 
-        fireRotY = (float) Mth.lerp(0.3f * times, fireRotY, 0.2f * ClientEventHandler.recoilHorizon * fpz);
-        fireRotZ = (float) Mth.lerp(2f * times, fireRotZ, (0.3f + 0.38 * fpz) * ClientEventHandler.recoilHorizon);
-
-        shen.setPosX(-0.4f * (float) (ClientEventHandler.recoilHorizon * (0.5 + 0.4 * ClientEventHandler.fireSpread)));
-        shen.setPosY((float) (0.15f * fp + 0.18f * fr));
-        shen.setPosZ((float) (0.245 * fp + 0.29f * fr + 0.55 * fpz));
-        shen.setRotX((float) (0.01f * fp + 0.08f * fr + 0.01f * fpz));
-        shen.setRotY(fireRotY);
-        shen.setRotZ(fireRotZ);
-
-        shen.setPosX((float) (shen.getPosX() * (1 - 0.4 * zt)));
-        shen.setPosY((float) (shen.getPosY() * (-1 + 0.8 * zt)));
-        shen.setPosZ((float) (shen.getPosZ() * (1 - 0.6 * zt)));
-        shen.setRotX((float) (shen.getRotX() * (1 - 0.9 * zt)));
-        shen.setRotY((float) (shen.getRotY() * (1 - 0.85 * zt)));
-        shen.setRotZ((float) (shen.getRotZ() * (1 - 0.4 * zt)));
+        ClientEventHandler.handleShootAnimation(shen, 0.95f, -0.95f, 0.85f, 0.8f, 0.9f, 1, 0.5f, 0.8f);
+        CoreGeoBone shuan = getAnimationProcessor().getBone("shuan");
+        shuan.setPosZ(2.4f * (float) ClientEventHandler.firePos);
 
         CrossHairOverlay.gunRot = shen.getRotZ();
-        shuan.setPosZ(2.4f * (float) fp);
 
         CoreGeoBone l = getAnimationProcessor().getBone("l");
         CoreGeoBone r = getAnimationProcessor().getBone("r");
@@ -145,7 +98,7 @@ public class AK12ItemModel extends CustomGunModel<AK12Item> {
         l.setRotX(rotXBipod * Mth.DEG_TO_RAD);
         r.setRotX(rotXBipod * Mth.DEG_TO_RAD);
 
-        ClientEventHandler.gunRootMove(getAnimationProcessor());
+        ClientEventHandler.gunRootMove(getAnimationProcessor(), 0, 0, 0, false);
 
         CoreGeoBone camera = getAnimationProcessor().getBone("camera");
         CoreGeoBone main = getAnimationProcessor().getBone("0");

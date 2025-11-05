@@ -1,55 +1,39 @@
 package com.atsuishio.superbwarfare.client.model.entity;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.entity.vehicle.LaserTowerEntity;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import software.bernie.geckolib.core.animatable.model.CoreGeoBone;
-import software.bernie.geckolib.core.animation.AnimationState;
-import software.bernie.geckolib.model.GeoModel;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.AABB;
+import org.jetbrains.annotations.Nullable;
 
 import static com.atsuishio.superbwarfare.entity.vehicle.LaserTowerEntity.LASER_LENGTH;
 
-public class LaserTowerModel extends GeoModel<LaserTowerEntity> {
+public class LaserTowerModel extends VehicleModel<LaserTowerEntity> {
 
     @Override
-    public ResourceLocation getAnimationResource(LaserTowerEntity entity) {
-        return Mod.loc("animations/laser_tower.animation.json");
-    }
+    public @Nullable TransformContext<LaserTowerEntity> collectTransform(String boneName) {
+        return switch (boneName) {
+            case "laser" -> (bone, vehicle, state) -> bone.setScaleZ(10 * vehicle.getEntityData().get(LASER_LENGTH));
+            case "root" -> (bone, vehicle, state) -> {
+                var minecraft = Minecraft.getInstance();
+                var pCamera = minecraft.levelRenderer.getFrustum();
 
-    @Override
-    public ResourceLocation getModelResource(LaserTowerEntity entity) {
-        if (RenderHelper.isInGui()) {
-            return Mod.loc("geo/laser_tower.geo.json");
-        }
+                var aabb = vehicle.getBoundingBoxForCulling().inflate(0.5);
+                if (aabb.hasNaN() || aabb.getSize() == 0.0) {
+                    aabb = new AABB(vehicle.getX() - 2.0, vehicle.getY() - 2.0, vehicle.getZ() - 2.0, vehicle.getX() + 2.0, vehicle.getY() + 2.0, vehicle.getZ() + 2.0);
+                }
 
-        Player player = Minecraft.getInstance().player;
+                bone.setHidden(!pCamera.isVisible(aabb) && !RenderHelper.isInGui());
 
-        int distance = 0;
+                super.collectTransform(boneName);
+            };
+            case "turret", "turret2" ->
+                    (bone, vehicle, state) -> bone.setRotY(-Mth.lerp(state.getPartialTick(), vehicle.yRotO, vehicle.getYRot()) * Mth.DEG_TO_RAD);
+            case "barrel", "barrel2" ->
+                    (bone, vehicle, state) -> bone.setRotX(-Mth.lerp(state.getPartialTick(), vehicle.xRotO, vehicle.getXRot()) * Mth.DEG_TO_RAD);
 
-        if (player != null) {
-            distance = (int) player.position().distanceTo(entity.position());
-        }
-
-        if (distance < 24 || player.isScoping()) {
-            return Mod.loc("geo/laser_tower.geo.json");
-        } else if (distance < 48) {
-            return Mod.loc("geo/vehicle_lod/laser_tower.lod1.geo.json");
-        } else {
-            return Mod.loc("geo/vehicle_lod/laser_tower.lod2.geo.json");
-        }
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(LaserTowerEntity entity) {
-        return Mod.loc("textures/entity/laser_tower.png");
-    }
-
-    @Override
-    public void setCustomAnimations(LaserTowerEntity animatable, long instanceId, AnimationState<LaserTowerEntity> animationState) {
-        CoreGeoBone laser = getAnimationProcessor().getBone("laser");
-        laser.setScaleZ(10 * animatable.getEntityData().get(LASER_LENGTH));
+            default -> super.collectTransform(boneName);
+        };
     }
 }

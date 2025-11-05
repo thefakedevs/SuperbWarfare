@@ -1,49 +1,27 @@
 package com.atsuishio.superbwarfare.entity.vehicle;
 
-import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.config.server.VehicleConfig;
+import com.atsuishio.superbwarfare.data.gun.GunProp;
 import com.atsuishio.superbwarfare.entity.OBBEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ContainerMobileVehicleEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.LandArmorEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.ThirdPersonCameraPosition;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.WeaponVehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModifier;
-import com.atsuishio.superbwarfare.entity.vehicle.weapon.ProjectileWeapon;
-import com.atsuishio.superbwarfare.entity.vehicle.weapon.SmallCannonShellWeapon;
 import com.atsuishio.superbwarfare.entity.vehicle.weapon.VehicleWeapon;
 import com.atsuishio.superbwarfare.event.ClientMouseHandler;
 import com.atsuishio.superbwarfare.init.ModEntities;
-import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
-import com.atsuishio.superbwarfare.network.message.receive.ShakeClientMessage;
-import com.atsuishio.superbwarfare.tools.Ammo;
-import com.atsuishio.superbwarfare.tools.InventoryTool;
 import com.atsuishio.superbwarfare.tools.OBB;
 import com.atsuishio.superbwarfare.tools.VectorTool;
-import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.PlayMessages;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -60,11 +38,10 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.List;
 
-import static com.atsuishio.superbwarfare.tools.ParticleTool.sendParticle;
-
-public class Lav150Entity extends ContainerMobileVehicleEntity implements GeoEntity, LandArmorEntity, WeaponVehicleEntity, OBBEntity {
+public class Lav150Entity extends VehicleEntity implements GeoEntity, WeaponVehicleEntity, OBBEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+
     public OBB obb;
     public OBB obb2;
     public OBB obb3;
@@ -93,31 +70,17 @@ public class Lav150Entity extends ContainerMobileVehicleEntity implements GeoEnt
     }
 
     @Override
+    public int getAmmoCount(LivingEntity passenger, int weaponIndex) {
+        var gunData = getGunData(getSeatIndex(passenger));
+        if (gunData == null || gunData.selectedAmmoType.get() != weaponIndex) return 0;
+
+        return gunData.backupAmmoCount.get();
+    }
+
+    // TODO 移除这个
+    @Override
     public VehicleWeapon[][] initWeapons() {
-        return new VehicleWeapon[][]{
-                new VehicleWeapon[]{
-                        new SmallCannonShellWeapon()
-                                .damage(VehicleConfig.LAV_150_CANNON_DAMAGE.get())
-                                .explosionDamage(VehicleConfig.LAV_150_CANNON_EXPLOSION_DAMAGE.get())
-                                .explosionRadius(VehicleConfig.LAV_150_CANNON_EXPLOSION_RADIUS.get().floatValue())
-                                .sound(ModSounds.INTO_MISSILE.get())
-                                .icon(Mod.loc("textures/screens/vehicle_weapon/cannon_20mm.png"))
-                                .sound1p(ModSounds.LAV_CANNON_FIRE_1P.get())
-                                .sound3p(ModSounds.LAV_CANNON_FIRE_3P.get())
-                                .sound3pFar(ModSounds.LAV_CANNON_FAR.get())
-                                .sound3pVeryFar(ModSounds.LAV_CANNON_VERYFAR.get()),
-                        new ProjectileWeapon()
-                                .damage(VehicleConfig.LAV_150_MACHINE_GUN_DAMAGE.get())
-                                .headShot(2)
-                                .zoom(false)
-                                .sound(ModSounds.INTO_CANNON.get())
-                                .icon(Mod.loc("textures/screens/vehicle_weapon/gun_7_62mm.png"))
-                                .sound1p(ModSounds.COAX_FIRE_1P.get())
-                                .sound3p(ModSounds.RPK_FIRE_3P.get())
-                                .sound3pFar(ModSounds.RPK_FAR.get())
-                                .sound3pVeryFar(ModSounds.RPK_VERYFAR.get()),
-                }
-        };
+        return null;
     }
 
     @Override
@@ -128,7 +91,7 @@ public class Lav150Entity extends ContainerMobileVehicleEntity implements GeoEnt
     @Override
     @ParametersAreNonnullByDefault
     protected void playStepSound(BlockPos pPos, BlockState pState) {
-        this.playSound(ModSounds.WHEEL_STEP.get(), (float) (getDeltaMovement().length() * 0.3), random.nextFloat() * 0.15f + 1.05f);
+        this.playSound(ModSounds.WHEEL_STEP.get(), (float) (getDeltaMovement().length() * 0.1), random.nextFloat() * 0.15f + 1.05f);
     }
 
     @Override
@@ -139,146 +102,42 @@ public class Lav150Entity extends ContainerMobileVehicleEntity implements GeoEnt
 
     @Override
     public void baseTick() {
-        turretYRotO = this.getTurretYRot();
-        turretXRotO = this.getTurretXRot();
-        rudderRotO = this.getRudderRot();
-        leftWheelRotO = this.getLeftWheelRot();
-        rightWheelRotO = this.getRightWheelRot();
-
         super.baseTick();
         updateOBB();
-
-        if (this.level() instanceof ServerLevel) {
-            this.handleAmmo();
-        }
-
-        turretAngle(10, 12.5f);
         lowHealthWarning();
         this.terrainCompact(2.7f, 3.61f);
         inertiaRotate(1.25f);
-
-        releaseSmokeDecoy(getTurretVector(1));
-
         this.refreshDimensions();
     }
+
+    // 炮塔最大水平旋转速度
+    @Override
+    public float turretYSpeed() {
+        return 10;
+    }
+
+    // 炮塔最大俯仰旋转速度
+    @Override
+    public float turretXSpeed() {
+        return 12.5F;
+    }
+
+    // 炮塔最小俯角
+    @Override
+    public float turretMinPitch() {
+        return -15f;
+    }
+
+    // 炮塔最大仰角
+    @Override
+    public float turretMaxPitch() {
+        return 32.5f;
+    }
+
 
     @Override
     public boolean canCollideHardBlock() {
         return getDeltaMovement().horizontalDistance() > 0.09 || Mth.abs(this.entityData.get(POWER)) > 0.15;
-    }
-
-    private void handleAmmo() {
-        if (!(this.getFirstPassenger() instanceof Player)) return;
-
-        int ammoCount = this.getItemStacks().stream().filter(stack -> {
-            if (stack.is(ModItems.AMMO_BOX.get())) {
-                return Ammo.RIFLE.get(stack) > 0;
-            }
-            return false;
-        }).mapToInt(Ammo.RIFLE::get).sum() + countItem(ModItems.RIFLE_AMMO.get());
-
-        if (getWeaponIndex(0) == 0) {
-            this.entityData.set(AMMO, countItem(ModItems.SMALL_SHELL.get()));
-        } else if (getWeaponIndex(0) == 1) {
-            this.entityData.set(AMMO, ammoCount);
-        }
-    }
-
-    @Override
-    public Vec3 getBarrelVector(float pPartialTicks) {
-        Matrix4f transform = getBarrelTransform(pPartialTicks);
-        Vector4f rootPosition = transformPosition(transform, 0, 0, 0);
-        Vector4f targetPosition = transformPosition(transform, 0, 0, 1);
-        return new Vec3(rootPosition.x, rootPosition.y, rootPosition.z).vectorTo(new Vec3(targetPosition.x, targetPosition.y, targetPosition.z));
-    }
-
-    @Override
-    public void vehicleShoot(Player player, int type) {
-        boolean hasCreativeAmmo = false;
-        for (int i = 0; i < getMaxPassengers() - 1; i++) {
-            if (getNthEntity(i) instanceof Player pPlayer && InventoryTool.hasCreativeAmmoBox(pPlayer)) {
-                hasCreativeAmmo = true;
-            }
-        }
-
-        Matrix4f transform = getBarrelTransform(1);
-        if (getWeaponIndex(0) == 0) {
-            if (this.cannotFire) return;
-            float x = 0.0609375f;
-            float y = 0.0517f;
-            float z = 3.0927625f;
-
-            Vector4f worldPosition = transformPosition(transform, x, y, z);
-            var smallCannonShell = ((SmallCannonShellWeapon) getWeapon(0)).create(player);
-
-            smallCannonShell.setPos(worldPosition.x - 1.1 * this.getDeltaMovement().x, worldPosition.y, worldPosition.z - 1.1 * this.getDeltaMovement().z);
-            smallCannonShell.shoot(getBarrelVector(1).x, getBarrelVector(1).y + 0.005f, getBarrelVector(1).z, 35,
-                    0.25f);
-            this.level().addFreshEntity(smallCannonShell);
-
-            sendParticle((ServerLevel) this.level(), ParticleTypes.LARGE_SMOKE, worldPosition.x - 1.1 * this.getDeltaMovement().x, worldPosition.y, worldPosition.z - 1.1 * this.getDeltaMovement().z, 1, 0.02, 0.02, 0.02, 0, false);
-
-            if (!player.level().isClientSide) {
-                playShootSound3p(player, 0, 4, 12, 24);
-            }
-
-            ShakeClientMessage.sendToNearbyPlayers(this, 5, 6, 5, 9);
-
-            this.entityData.set(CANNON_RECOIL_TIME, 40);
-            this.entityData.set(YAW, getTurretYRot());
-
-            this.entityData.set(HEAT, this.entityData.get(HEAT) + 7);
-            this.entityData.set(FIRE_ANIM, 3);
-
-            if (hasCreativeAmmo) return;
-
-            this.getItemStacks().stream().filter(stack -> stack.is(ModItems.SMALL_SHELL.get())).findFirst().ifPresent(stack -> stack.shrink(1));
-
-        } else if (getWeaponIndex(0) == 1) {
-            if (this.cannotFireCoax) return;
-            float x = 0.3f;
-            float y = 0.08f;
-            float z = 0.7f;
-
-            Vector4f worldPosition = transformPosition(transform, x, y, z);
-
-            if (this.entityData.get(AMMO) > 0 || hasCreativeAmmo) {
-                var projectile = ((ProjectileWeapon) getWeapon(0)).create(player).setGunItemId(this.getType().getDescriptionId());
-
-                projectile.bypassArmorRate(0.2f);
-                projectile.setPos(worldPosition.x - 1.1 * this.getDeltaMovement().x, worldPosition.y, worldPosition.z - 1.1 * this.getDeltaMovement().z);
-                projectile.shoot(player, getBarrelVector(1).x, getBarrelVector(1).y + 0.002f, getBarrelVector(1).z, 36,
-                        0.25f);
-                this.level().addFreshEntity(projectile);
-
-                if (!hasCreativeAmmo) {
-                    ItemStack ammoBox = this.getItemStacks().stream().filter(stack -> {
-                        if (stack.is(ModItems.AMMO_BOX.get())) {
-                            return Ammo.RIFLE.get(stack) > 0;
-                        }
-                        return false;
-                    }).findFirst().orElse(ItemStack.EMPTY);
-
-                    if (!ammoBox.isEmpty()) {
-                        Ammo.RIFLE.add(ammoBox, -1);
-                    } else {
-                        this.getItemStacks().stream().filter(stack -> stack.is(ModItems.RIFLE_AMMO.get())).findFirst().ifPresent(stack -> stack.shrink(1));
-                    }
-                }
-            }
-
-            this.entityData.set(COAX_HEAT, this.entityData.get(COAX_HEAT) + 3);
-            this.entityData.set(FIRE_ANIM, 2);
-
-            if (!player.level().isClientSide) {
-                playShootSound3p(player, 0, 3, 6, 12);
-            }
-        }
-    }
-
-    @Override
-    public void travel() {
-        wheelEngine(true, 0.052, VehicleConfig.LAV_150_ENERGY_COST.get(), 1.25, 1.5, 0.18f, -0.13f, 0.0024f, 0.0024f, 0.1f);
     }
 
     @Override
@@ -288,149 +147,30 @@ public class Lav150Entity extends ContainerMobileVehicleEntity implements GeoEnt
 
     @Override
     public float getEngineSoundVolume() {
-        return Mth.abs(entityData.get(POWER)) * 2f;
+        return Mth.abs(entityData.get(POWER)) * 0.4f;
     }
 
     @Override
-    public void positionRider(@NotNull Entity passenger, @NotNull MoveFunction callback) {
-        // From Immersive_Aircraft
-        if (!this.hasPassenger(passenger)) {
-            return;
-        }
-
-        Matrix4f transform = getTurretTransform(1);
-        Matrix4f transformV = getVehicleTransform(1);
-
-        int i = this.getSeatIndex(passenger);
-
-        Vector4f worldPosition;
-        if (i == 0) {
-            worldPosition = transformPosition(transform, 0.36f, -0.65f, 0.56f);
-        } else {
-            worldPosition = transformPosition(transformV, 0, 1, 0);
-        }
-        passenger.setPos(worldPosition.x, worldPosition.y, worldPosition.z);
-        callback.accept(passenger, worldPosition.x, worldPosition.y, worldPosition.z);
-
-        copyEntityData(passenger);
-    }
-
-    public void copyEntityData(Entity entity) {
-        if (entity == getNthEntity(0)) {
-            entity.setYBodyRot(getBarrelYRot(1));
-        }
+    public Vec3 getBarrelPosition() {
+        return new Vec3(0.0234375, 0.33795, 0.825);
     }
 
     @Override
-    public int getMaxPassengers() {
-        return 5;
+    public Vec3 getTurretPosition() {
+        return new Vec3(0, 2.4003, 0);
     }
 
-    @Override
-    public Vec3 driverZoomPos(float ticks) {
-        Matrix4f transform = getTurretTransform(ticks);
-        Vector4f worldPosition = transformPosition(transform, 0.3f, 0.75f, 0.56f);
-        return new Vec3(worldPosition.x, worldPosition.y, worldPosition.z);
-    }
-
-    public Matrix4f getBarrelTransform(float ticks) {
-        Matrix4f transformT = getTurretTransform(ticks);
-
-        Matrix4f transform = new Matrix4f();
-        Vector4f worldPosition = transformPosition(transform, 0.0234375f, 0.33795f, 0.825f);
-
-        transformT.translate(worldPosition.x, worldPosition.y, worldPosition.z);
-
-        float a = getTurretYaw(ticks);
-
-        float r = (Mth.abs(a) - 90f) / 90f;
-
-        float r2;
-
-        if (Mth.abs(a) <= 90f) {
-            r2 = a / 90f;
-        } else {
-            if (a < 0) {
-                r2 = -(180f + a) / 90f;
-            } else {
-                r2 = (180f - a) / 90f;
-            }
-        }
-
-        float x = Mth.lerp(ticks, turretXRotO, getTurretXRot());
-        float xV = Mth.lerp(ticks, xRotO, getXRot());
-        float z = Mth.lerp(ticks, prevRoll, getRoll());
-
-        transformT.rotate(Axis.XP.rotationDegrees(x + r * xV + r2 * z));
-        return transformT;
-    }
-
-    public Vec3 getTurretVector(float pPartialTicks) {
-        Matrix4f transform = getTurretTransform(pPartialTicks);
-        Vector4f rootPosition = transformPosition(transform, 0, 0, 0);
-        Vector4f targetPosition = transformPosition(transform, 0, 0, 1);
-        return new Vec3(rootPosition.x, rootPosition.y, rootPosition.z).vectorTo(new Vec3(targetPosition.x, targetPosition.y, targetPosition.z));
-    }
-
-    @Override
-    public Matrix4f getTurretTransform(float ticks) {
-        Matrix4f transformV = getVehicleTransform(ticks);
-
-        Matrix4f transform = new Matrix4f();
-        Vector4f worldPosition = transformPosition(transform, 0, 2.4003f, 0);
-
-        transformV.translate(worldPosition.x, worldPosition.y, worldPosition.z);
-        transformV.rotate(Axis.YP.rotationDegrees(Mth.lerp(ticks, turretYRotO, getTurretYRot())));
-        return transformV;
-    }
-
-    @Override
-    public float rotateYOffset() {
-        return 2.2f;
-    }
-
-    protected void clampRotation(Entity entity) {
-        float a = getTurretYaw(1);
-        float r = (Mth.abs(a) - 90f) / 90f;
-
-        float r2;
-
-        if (Mth.abs(a) <= 90f) {
-            r2 = a / 90f;
-        } else {
-            if (a < 0) {
-                r2 = -(180f + a) / 90f;
-            } else {
-                r2 = (180f - a) / 90f;
-            }
-        }
-
-        float min = -32.5f - r * getXRot() - r2 * getRoll();
-        float max = 15f - r * getXRot() - r2 * getRoll();
-
-        float f = Mth.wrapDegrees(entity.getXRot());
-        float f1 = Mth.clamp(f, min, max);
-        entity.xRotO += f1 - f;
-        entity.setXRot(entity.getXRot() + f1 - f);
-
-        entity.setYBodyRot(getBarrelYRot(1));
-    }
-
-    @Override
-    public void onPassengerTurned(@NotNull Entity entity) {
-        this.clampRotation(entity);
-    }
-
+    // TODO 正确播放动画
     private PlayState firePredicate(AnimationState<Lav150Entity> event) {
         if (this.entityData.get(FIRE_ANIM) > 1 && getWeaponIndex(0) == 0) {
-            return event.setAndContinue(RawAnimation.begin().thenPlay("animation.lav.fire"));
+            return event.setAndContinue(RawAnimation.begin().thenPlay("animation.lav_150.fire"));
         }
 
         if (this.entityData.get(FIRE_ANIM) > 0 && getWeaponIndex(0) == 1) {
-            return event.setAndContinue(RawAnimation.begin().thenPlay("animation.lav.fire2"));
+            return event.setAndContinue(RawAnimation.begin().thenPlay("animation.lav_150.fire2"));
         }
 
-        return event.setAndContinue(RawAnimation.begin().thenLoop("animation.lav.idle"));
+        return event.setAndContinue(RawAnimation.begin().thenLoop("animation.lav_150.idle"));
     }
 
     @Override
@@ -444,38 +184,25 @@ public class Lav150Entity extends ContainerMobileVehicleEntity implements GeoEnt
     }
 
     @Override
-    public int mainGunRpm(Player player) {
-        if (getWeaponIndex(0) == 0) {
-            return 300;
-        } else if (getWeaponIndex(0) == 1) {
-            return 600;
-        }
-        return 300;
+    public int mainGunRpm(LivingEntity living) {
+        var data = getGunData(getSeatIndex(living));
+        if (data == null) return 0;
+        return data.get(GunProp.RPM);
     }
 
+    // client side
     @Override
-    public boolean canShoot(Player player) {
-        if (getWeaponIndex(0) == 0) {
-            return (this.entityData.get(AMMO) > 0 || InventoryTool.hasCreativeAmmoBox(player)) && !cannotFire;
-        } else if (getWeaponIndex(0) == 1) {
-            return (this.entityData.get(AMMO) > 0 || InventoryTool.hasCreativeAmmoBox(player)) && !cannotFireCoax;
-        }
-        return false;
+    public boolean canShoot(LivingEntity living) {
+        var gunData = getGunData(getSeatIndex(living));
+        return gunData != null && gunData.canShoot(getAmmoSupplier());
     }
 
+    // TODO 正确计算AmmoCount
     @Override
-    public int getAmmoCount(Player player) {
-        return this.entityData.get(AMMO);
-    }
-
-    @Override
-    public boolean banHand(Player player) {
-        return true;
-    }
-
-    @Override
-    public boolean hidePassenger(int index) {
-        return true;
+    public int getAmmoCount(LivingEntity living) {
+        var data = getGunData(getSeatIndex(living));
+        if (data == null) return 0;
+        return data.useBackpackAmmo() ? data.backupAmmoCount.get() : data.ammo.get();
     }
 
     @Override
@@ -484,98 +211,15 @@ public class Lav150Entity extends ContainerMobileVehicleEntity implements GeoEnt
     }
 
     @Override
-    public int getWeaponHeat(Player player) {
-        if (getWeaponIndex(0) == 0) {
-            return entityData.get(HEAT);
-        } else if (getWeaponIndex(0) == 1) {
-            return entityData.get(COAX_HEAT);
-        }
-        return 0;
-    }
-
-    @Override
-    public ResourceLocation getVehicleIcon() {
-        return Mod.loc("textures/vehicle_icon/lav150_icon.png");
-    }
-
-    @OnlyIn(Dist.CLIENT)
-    @Override
-    public void renderFirstPersonOverlay(GuiGraphics guiGraphics, Font font, Player player, int screenWidth, int screenHeight, float scale) {
-        super.renderFirstPersonOverlay(guiGraphics, font, player, screenWidth, screenHeight, scale);
-
-        if (this.getWeaponIndex(0) == 0) {
-            double heat = 1 - this.getEntityData().get(HEAT) / 100.0F;
-            guiGraphics.drawString(font, Component.literal("20MM CANNON " + (InventoryTool.hasCreativeAmmoBox(player) ? "∞" : this.getAmmoCount(player))), screenWidth / 2 - 33, screenHeight - 65, Mth.hsvToRgb((float) heat / 3.745318352059925F, 1.0F, 1.0F), false);
-        } else {
-            double heat = 1 - this.getEntityData().get(COAX_HEAT) / 100.0F;
-            guiGraphics.drawString(font, Component.literal("7.62MM COAX " + (InventoryTool.hasCreativeAmmoBox(player) ? "∞" : this.getAmmoCount(player))), screenWidth / 2 - 33, screenHeight - 65, Mth.hsvToRgb((float) heat / 3.745318352059925F, 1.0F, 1.0F), false);
-        }
-    }
-
-    @OnlyIn(Dist.CLIENT)
-    @Override
-    public void renderThirdPersonOverlay(GuiGraphics guiGraphics, Font font, Player player, int screenWidth, int screenHeight, float scale) {
-        super.renderThirdPersonOverlay(guiGraphics, font, player, screenWidth, screenHeight, scale);
-
-        if (this.getWeaponIndex(0) == 0) {
-            double heat = this.getEntityData().get(HEAT) / 100.0F;
-            guiGraphics.drawString(font, Component.literal("20MM CANNON " + (InventoryTool.hasCreativeAmmoBox(player) ? "∞" : this.getAmmoCount(player))), 30, -9, Mth.hsvToRgb(0F, (float) heat, 1.0F), false);
-        } else {
-            double heat2 = this.getEntityData().get(COAX_HEAT) / 100.0F;
-            guiGraphics.drawString(font, Component.literal("7.62MM COAX " + (InventoryTool.hasCreativeAmmoBox(player) ? "∞" : this.getAmmoCount(player))), 30, -9, Mth.hsvToRgb(0F, (float) heat2, 1.0F), false);
-        }
-    }
-
-    @Override
-    public boolean hasDecoy() {
-        return true;
+    public int getWeaponHeat(LivingEntity living) {
+        var gunData = getGunData(getSeatIndex(living));
+        if (gunData == null) return 0;
+        return Math.toIntExact(Math.round(gunData.heat.get()));
     }
 
     @Override
     public double getSensitivity(double original, boolean zoom, int seatIndex, boolean isOnGround) {
         return zoom ? 0.23 : Minecraft.getInstance().options.getCameraType().isFirstPerson() ? 0.3 : 0.4;
-    }
-
-    @Override
-    public boolean isEnclosed(int index) {
-        return true;
-    }
-
-    @OnlyIn(Dist.CLIENT)
-    @Override
-    public @Nullable Vec2 getCameraRotation(float partialTicks, Player player, boolean zoom, boolean isFirstPerson) {
-        if (zoom || isFirstPerson) {
-            if (this.getSeatIndex(player) == 0) {
-                return new Vec2((float) -getYRotFromVector(this.getBarrelVec(partialTicks)), (float) -getXRotFromVector(this.getBarrelVec(partialTicks)));
-            } else {
-                return new Vec2(Mth.lerp(partialTicks, player.yHeadRotO, player.getYHeadRot()), Mth.lerp(partialTicks, player.xRotO, player.getXRot()));
-            }
-        }
-        return super.getCameraRotation(partialTicks, player, false, false);
-    }
-
-    @OnlyIn(Dist.CLIENT)
-    @Override
-    public Vec3 getCameraPosition(float partialTicks, Player player, boolean zoom, boolean isFirstPerson) {
-        if (zoom || isFirstPerson) {
-            if (this.getSeatIndex(player) == 0) {
-                if (zoom) {
-                    return new Vec3(this.driverZoomPos(partialTicks).x, Mth.lerp(partialTicks, player.yo + player.getEyeHeight(), player.getEyeY()), this.driverZoomPos(partialTicks).z);
-                } else {
-                    return new Vec3(Mth.lerp(partialTicks, player.xo, player.getX()), Mth.lerp(partialTicks, player.yo + player.getEyeHeight(), player.getEyeY()), Mth.lerp(partialTicks, player.zo, player.getZ()));
-                }
-            } else {
-                return new Vec3(Mth.lerp(partialTicks, player.xo, player.getX()) - 6 * player.getViewVector(partialTicks).x,
-                        Mth.lerp(partialTicks, player.yo + player.getEyeHeight() + 1, player.getEyeY() + 1) - 6 * player.getViewVector(partialTicks).y,
-                        Mth.lerp(partialTicks, player.zo, player.getZ()) - 6 * player.getViewVector(partialTicks).z);
-            }
-        }
-        return super.getCameraPosition(partialTicks, player, false, false);
-    }
-
-    @Override
-    public @Nullable ResourceLocation getVehicleItemIcon() {
-        return Mod.loc("textures/gui/vehicle/type/land.png");
     }
 
     @Override
@@ -623,5 +267,10 @@ public class Lav150Entity extends ContainerMobileVehicleEntity implements GeoEnt
         Vector4f worldPositionT = transformPosition(transformT, 0, 0.3625f, 0f);
         this.obbTurret.center().set(new Vector3f(worldPositionT.x, worldPositionT.y, worldPositionT.z));
         this.obbTurret.setRotation(VectorTool.combineRotationsTurret(1, this));
+    }
+
+    @Override
+    public boolean hasTurret() {
+        return true;
     }
 }

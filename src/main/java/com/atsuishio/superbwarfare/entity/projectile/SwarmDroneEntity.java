@@ -1,20 +1,13 @@
 package com.atsuishio.superbwarfare.entity.projectile;
 
-import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModifier;
 import com.atsuishio.superbwarfare.init.*;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.tools.CustomExplosion;
 import com.atsuishio.superbwarfare.tools.EntityFindUtil;
 import com.atsuishio.superbwarfare.tools.ParticleTool;
 import com.atsuishio.superbwarfare.tools.SeekTool;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -29,7 +22,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
@@ -45,39 +37,31 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class SwarmDroneEntity extends FastThrowableProjectile implements GeoEntity, ExplosiveProjectile {
+public class SwarmDroneEntity extends MissileProjectile implements GeoEntity, ExplosiveProjectile {
 
-    public static final EntityDataAccessor<String> TARGET_UUID = SynchedEntityData.defineId(SwarmDroneEntity.class, EntityDataSerializers.STRING);
-    public static final EntityDataAccessor<Float> TARGET_X = SynchedEntityData.defineId(SwarmDroneEntity.class, EntityDataSerializers.FLOAT);
-    public static final EntityDataAccessor<Float> TARGET_Y = SynchedEntityData.defineId(SwarmDroneEntity.class, EntityDataSerializers.FLOAT);
-    public static final EntityDataAccessor<Float> TARGET_Z = SynchedEntityData.defineId(SwarmDroneEntity.class, EntityDataSerializers.FLOAT);
-    public static final EntityDataAccessor<Float> HEALTH = SynchedEntityData.defineId(SwarmDroneEntity.class, EntityDataSerializers.FLOAT);
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
-    private boolean distracted = false;
 
-    private float explosionDamage = 80f;
-    private float explosionRadius = 5f;
-    private float gravity = 0.1f;
-
-    private float randomFloat;
-    private int guideType = 0;
+    public float targetX;
+    public float targetY;
+    public float targetZ;
+    public float randomFloat;
+    public int guideType = 0;
 
     public SwarmDroneEntity(EntityType<? extends SwarmDroneEntity> type, Level level) {
         super(type, level);
         this.noCulling = true;
-    }
-
-    public SwarmDroneEntity(double x, double y, double z, Level level) {
-        super(ModEntities.SWARM_DRONE.get(), x, y, z, level);
-        this.noCulling = true;
+        this.explosionDamage = 80f;
+        this.explosionRadius = 5f;
+        this.gravity = 0.1f;
+        randomFloat = random.nextFloat();
     }
 
     public SwarmDroneEntity(LivingEntity entity, Level level, float explosionDamage, float explosionRadius) {
         super(ModEntities.SWARM_DRONE.get(), entity, level);
         this.noCulling = true;
-
         this.explosionDamage = explosionDamage;
         this.explosionRadius = explosionRadius;
+        this.gravity = 0.1f;
     }
 
     public SwarmDroneEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
@@ -85,22 +69,8 @@ public class SwarmDroneEntity extends FastThrowableProjectile implements GeoEnti
     }
 
     @Override
-    public boolean isPickable() {
-        return !this.isRemoved();
-    }
-
-    @Override
-    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
-    }
-
-    @Override
     protected @NotNull Item getDefaultItem() {
         return ModItems.SWARM_DRONE.get();
-    }
-
-    public void setTargetUuid(String uuid) {
-        this.entityData.set(TARGET_UUID, uuid);
     }
 
     public void setGuideType(int guideType) {
@@ -108,77 +78,16 @@ public class SwarmDroneEntity extends FastThrowableProjectile implements GeoEnti
     }
 
     public void setTargetVec(Vec3 targetPos) {
-        this.entityData.set(TARGET_X, (float) targetPos.x);
-        this.entityData.set(TARGET_Y, (float) targetPos.y);
-        this.entityData.set(TARGET_Z, (float) targetPos.z);
-    }
-
-    private static final DamageModifier DAMAGE_MODIFIER = DamageModifier.createDefaultModifier()
-            .immuneTo(ModEntities.SWARM_DRONE.get());
-
-    @Override
-    public boolean hurt(@NotNull DamageSource source, float amount) {
-        amount = DAMAGE_MODIFIER.compute(source, amount);
-        this.entityData.set(HEALTH, this.entityData.get(HEALTH) - amount);
-
-        return super.hurt(source, amount);
-    }
-
-    @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(HEALTH, 10f);
-        this.entityData.define(TARGET_UUID, "none");
-        this.entityData.define(TARGET_X, 0f);
-        this.entityData.define(TARGET_Y, 0f);
-        this.entityData.define(TARGET_Z, 0f);
-    }
-
-    @Override
-    public void readAdditionalSaveData(@NotNull CompoundTag compound) {
-        super.readAdditionalSaveData(compound);
-        if (compound.contains("Health")) {
-            this.entityData.set(HEALTH, compound.getFloat("Health"));
+        if (targetPos != null) {
+            this.targetX = (float) targetPos.x;
+            this.targetY = (float) targetPos.y;
+            this.targetZ = (float) targetPos.z;
         }
-        if (compound.contains("TargetUUID")) {
-            this.entityData.set(TARGET_UUID, compound.getString("TargetUUID"));
-        }
-        if (compound.contains("TargetX")) {
-            this.entityData.set(TARGET_X, compound.getFloat("TargetX"));
-        }
-        if (compound.contains("TargetY")) {
-            this.entityData.set(TARGET_X, compound.getFloat("TargetY"));
-        }
-        if (compound.contains("TargetZ")) {
-            this.entityData.set(TARGET_X, compound.getFloat("TargetZ"));
-        }
-        if (compound.contains("ExplosionDamage")) {
-            this.explosionDamage = compound.getFloat("ExplosionDamage");
-        }
-        if (compound.contains("Radius")) {
-            this.explosionRadius = compound.getFloat("Radius");
-        }
-    }
-
-    @Override
-    public void addAdditionalSaveData(@NotNull CompoundTag compound) {
-        super.addAdditionalSaveData(compound);
-        compound.putFloat("Health", this.entityData.get(HEALTH));
-        compound.putString("TargetUUID", this.entityData.get(TARGET_UUID));
-        compound.putFloat("TargetX", this.entityData.get(TARGET_X));
-        compound.putFloat("TargetY", this.entityData.get(TARGET_Y));
-        compound.putFloat("TargetZ", this.entityData.get(TARGET_Z));
-        compound.putFloat("ExplosionDamage", this.explosionDamage);
-        compound.putFloat("Radius", this.explosionRadius);
-    }
-
-    @Override
-    public boolean shouldRenderAtSqrDistance(double pDistance) {
-        return true;
     }
 
     @Override
     protected void onHitEntity(EntityHitResult result) {
+        super.onHitEntity(result);
         Entity entity = result.getEntity();
         if (entity instanceof SwarmDroneEntity) {
             return;
@@ -189,7 +98,7 @@ public class SwarmDroneEntity extends FastThrowableProjectile implements GeoEnti
             if (!living.level().isClientSide() && living instanceof ServerPlayer player) {
                 living.level().playSound(null, living.blockPosition(), ModSounds.INDICATION.get(), SoundSource.VOICE, 1, 1);
 
-                Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
+                NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
             }
         }
         if (this.level() instanceof ServerLevel) {
@@ -209,7 +118,7 @@ public class SwarmDroneEntity extends FastThrowableProjectile implements GeoEnti
     public void tick() {
         super.tick();
         Entity entity = EntityFindUtil.findEntity(this.level(), entityData.get(TARGET_UUID));
-        List<Entity> decoy = SeekTool.seekLivingEntities(this, this.level(), 32, 90);
+        List<Entity> decoy = SeekTool.seekLivingEntities(this, 32, 90);
 
         for (var e : decoy) {
             if (e.getType().is(ModTags.EntityTypes.DECOY) && !this.distracted) {
@@ -231,32 +140,39 @@ public class SwarmDroneEntity extends FastThrowableProjectile implements GeoEnti
             Vec3 targetPos;
 
             if (guideType == 0 && entity != null) {
-                targetPos = entity.getEyePosition();
-                this.entityData.set(TARGET_X, (float) targetPos.x);
-                this.entityData.set(TARGET_Y, (float) targetPos.y);
-                this.entityData.set(TARGET_Z, (float) targetPos.z);
+                Vec3 targetVec = new Vec3(entity.getDeltaMovement().x, 0, entity.getDeltaMovement().z);
+                targetPos = entity.getEyePosition().add(targetVec);
             } else {
-                targetPos = new Vec3(this.entityData.get(TARGET_X), this.entityData.get(TARGET_Y), this.entityData.get(TARGET_Z));
+                targetPos = new Vec3(targetX, targetY, targetZ);
             }
 
-            if (tickCount % 5 == 0) {
-                randomFloat = random.nextFloat();
+            if (tickCount %5 == 0) {
+                randomFloat = 2 * (random.nextFloat() - 0.5f);
             }
 
-            double dis = position().distanceTo(targetPos);
-            double disShooter = shooter.position().distanceTo(targetPos);
-            double randomPos = Mth.sin(0.25f * (tickCount + randomFloat)) * randomFloat * Mth.clamp(Mth.sin((float) (Mth.PI * (dis / disShooter))), 0, 0.8);
+            double dis = position().vectorTo(shooter.position()).horizontalDistance();
+            double dis2 = position().distanceToSqr(targetPos);
+            double disShooter = shooter.position().vectorTo(targetPos).horizontalDistance();
+            double randomPos = Mth.cos((float) Mth.clamp(dis / disShooter, 0, 1) * 1.5f * Mth.PI) * dis * 10 * randomFloat;
 
-            Vec3 toVec = this.position().vectorTo(targetPos).normalize().add(new Vec3(randomPos, 0.1 * randomPos, randomPos));
-            setDeltaMovement(getDeltaMovement().add(toVec.scale(0.5)));
-            this.setDeltaMovement(this.getDeltaMovement().multiply(0.85, 0.85, 0.85));
+            Vec3 toVec = this.position().vectorTo(targetPos).add(new Vec3(-randomPos, Mth.abs((float) randomPos) * 0.02, randomPos).scale(1 - Mth.clamp(0.02 * (tickCount - 20), 0, 1))).normalize();
+            turn(toVec, 90);
+            this.setDeltaMovement(this.getDeltaMovement().add(position().vectorTo(targetPos).normalize().scale(0.1)));
 
-            if (dis < 0.5) {
+            if (dis2 < 1) {
                 if (this.level() instanceof ServerLevel) {
                     causeMissileExplode(ModDamageTypes.causeCustomExplosionDamage(this.level().registryAccess(), this, this.getOwner()), this.explosionDamage, this.explosionRadius);
                 }
                 this.discard();
             }
+
+            this.setDeltaMovement(this.getDeltaMovement().multiply(0.55, 0.55, 0.55));
+        } else {
+            this.setDeltaMovement(this.getDeltaMovement().multiply(0.97, 0.97, 0.97));
+        }
+
+        if (this.tickCount > 13) {
+            this.setDeltaMovement(this.getDeltaMovement().add(getLookAngle()));
         }
 
         if (this.tickCount > 300 || this.isInWater() || this.entityData.get(HEALTH) <= 0) {
@@ -267,16 +183,11 @@ public class SwarmDroneEntity extends FastThrowableProjectile implements GeoEnti
         }
     }
 
-    @Override
-    protected void updateRotation() {
-    }
-
     public void causeMissileExplode(@Nullable DamageSource source, float damage, float radius) {
         new CustomExplosion.Builder(this)
                 .damageSource(source)
                 .damage(damage)
                 .radius(radius)
-                .causeVanillaExplosion()
                 .damageMultiplier(1.25F)
                 .withParticleType(ParticleTool.ParticleType.MEDIUM)
                 .explode();
@@ -299,11 +210,6 @@ public class SwarmDroneEntity extends FastThrowableProjectile implements GeoEnti
     }
 
     @Override
-    public boolean shouldSyncMotion() {
-        return true;
-    }
-
-    @Override
     public @NotNull SoundEvent getCloseSound() {
         return ModSounds.DRONE_SOUND.get();
     }
@@ -314,26 +220,22 @@ public class SwarmDroneEntity extends FastThrowableProjectile implements GeoEnti
     }
 
     @Override
-    public void setDamage(float damage) {
+    public float getMaxHealth() {
+        return 4;
     }
 
-    @Override
-    public void setExplosionDamage(float explosionDamage) {
-        this.explosionDamage = explosionDamage;
+    public void setRotate(Vec3 vec3) {
+        double d0 = vec3.horizontalDistance();
+        this.setYRot((float) (-Mth.atan2(vec3.x, vec3.z) * (double) (180F / (float) java.lang.Math.PI)));
+        this.setXRot((float) (-Mth.atan2(vec3.y, d0) * (double) (180F / (float) java.lang.Math.PI)));
+        this.yRotO = this.getYRot();
+        this.xRotO = this.getXRot();
     }
 
-    @Override
-    public void setExplosionRadius(float radius) {
-        this.explosionRadius = radius;
-    }
 
     @Override
-    public float getGravity() {
-        return tickCount > 10 ? 0 : this.gravity;
-    }
-
-    @Override
-    public void setGravity(float gravity) {
-        this.gravity = gravity;
+    public void shoot(double pX, double pY, double pZ, float pVelocity, float pInaccuracy) {
+        Vec3 vec3 = (new Vec3(pX, pY, pZ)).normalize().add(this.random.triangle(0.0D, 0.0172275D * (double) pInaccuracy), this.random.triangle(0.0D, 0.0172275D * (double) pInaccuracy), this.random.triangle(0.0D, 0.0172275D * (double) pInaccuracy)).scale((double) pVelocity);
+        this.setDeltaMovement(vec3);
     }
 }

@@ -1,24 +1,44 @@
 package com.atsuishio.superbwarfare.client.model.entity;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.entity.vehicle.Hpj11Entity;
-import net.minecraft.resources.ResourceLocation;
-import software.bernie.geckolib.model.GeoModel;
+import net.minecraft.client.CameraType;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Player;
+import org.jetbrains.annotations.Nullable;
 
-public class Hpj11Model extends GeoModel<Hpj11Entity> {
+import static com.atsuishio.superbwarfare.entity.vehicle.Hpj11Entity.ANIM_TIME;
+
+public class Hpj11Model extends VehicleModel<Hpj11Entity> {
 
     @Override
-    public ResourceLocation getAnimationResource(Hpj11Entity entity) {
-        return null;
+    public @Nullable TransformContext<Hpj11Entity> collectTransform(String boneName) {
+        return switch (boneName) {
+            case "radar2" -> (bone, vehicle, state) -> {
+                Player player = Minecraft.getInstance().player;
+                bone.setHidden(vehicle.getFirstPassenger() == player && Minecraft.getInstance().options.getCameraType() == CameraType.FIRST_PERSON);
+            };
+
+            case "barrel", "rdr", "rdr2" ->
+                    (bone, vehicle, state) -> bone.setRotX(-Mth.lerp(state.getPartialTick(), vehicle.xRotO, vehicle.getXRot()) * Mth.DEG_TO_RAD);
+
+            case "paoguanroll" -> (bone, vehicle, state) ->
+                    bone.setRotZ(-Mth.lerp(state.getPartialTick(), vehicle.gunRotO, vehicle.getGunRot()));
+
+            case "flare" -> (bone, vehicle, state) -> {
+                bone.setHidden(vehicle.getEntityData().get(ANIM_TIME) == 0);
+                bone.setScaleX((float) (2 + 0.8 * (Math.random() - 0.5)));
+                bone.setScaleY((float) (2 + 0.8 * (Math.random() - 0.5)));
+                bone.setRotZ((float) (0.5 * (Math.random() - 0.5)));
+            };
+
+            default -> super.collectTransform(boneName);
+        };
+
     }
 
     @Override
-    public ResourceLocation getModelResource(Hpj11Entity entity) {
-        return Mod.loc("geo/1130.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(Hpj11Entity entity) {
-        return Mod.loc("textures/entity/1130.png");
+    public boolean hideFor1stPassengerWhileZooming() {
+        return true;
     }
 }

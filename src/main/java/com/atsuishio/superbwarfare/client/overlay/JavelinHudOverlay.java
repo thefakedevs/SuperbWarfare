@@ -36,9 +36,16 @@ public class JavelinHudOverlay implements IGuiOverlay {
 
     public static final String ID = Mod.MODID + "_javelin_hud";
 
-    private static final ResourceLocation FRAME = Mod.loc("textures/screens/frame/frame.png");
-    private static final ResourceLocation FRAME_TARGET = Mod.loc("textures/screens/frame/frame_target.png");
-    private static final ResourceLocation FRAME_LOCK = Mod.loc("textures/screens/frame/frame_lock.png");
+    private static final ResourceLocation FRAME = Mod.loc("textures/overlay/frame/frame.png");
+    private static final ResourceLocation FRAME_TARGET = Mod.loc("textures/overlay/frame/frame_target_triangle.png");
+    private static final ResourceLocation FRAME_LOCK = Mod.loc("textures/overlay/frame/frame_lock.png");
+    private static final ResourceLocation JAVELIN_HUD = Mod.loc("textures/overlay/javelin/javelin_hud.png");
+    private static final ResourceLocation TOP = Mod.loc("textures/overlay/javelin/top.png");
+    private static final ResourceLocation DIR = Mod.loc("textures/overlay/javelin/dir.png");
+    private static final ResourceLocation MISSILE_GREEN = Mod.loc("textures/overlay/javelin/missile_green.png");
+    private static final ResourceLocation MISSILE_RED = Mod.loc("textures/overlay/javelin/missile_red.png");
+    private static final ResourceLocation SEEK = Mod.loc("textures/overlay/javelin/seek.png");
+
     private static float scopeScale = 1;
 
     @Override
@@ -51,7 +58,7 @@ public class JavelinHudOverlay implements IGuiOverlay {
 
         if (ClientEventHandler.isEditing)
             return;
-        if (player.getVehicle() instanceof ArmedVehicleEntity iArmedVehicle && iArmedVehicle.banHand(player))
+        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player))
             return;
 
         if ((stack.getItem() == ModItems.JAVELIN.get() && ClientEventHandler.zoomPos > 0.8) && Minecraft.getInstance().options.getCameraType().isFirstPerson() && ClientEventHandler.zoom) {
@@ -77,11 +84,11 @@ public class JavelinHudOverlay implements IGuiOverlay {
             float l = ((screenHeight - j) / 2) + moveY;
             float i1 = k + i;
             float j1 = l + j;
-            preciseBlit(guiGraphics, Mod.loc("textures/screens/javelin/javelin_hud.png"), k, l, 0, 0.0F, i, j, i, j);
-            preciseBlit(guiGraphics, Mod.loc(stack.getOrCreateTag().getBoolean("TopMode") ? "textures/screens/javelin/top.png" : "textures/screens/javelin/dir.png"), k, l, 0, 0.0F, i, j, i, j);
-            preciseBlit(guiGraphics, Mod.loc(data.hasEnoughAmmoToShoot(player) ? "textures/screens/javelin/missile_green.png" : "textures/screens/javelin/missile_red.png"), k, l, 0, 0.0F, i, j, i, j);
+            preciseBlit(guiGraphics, JAVELIN_HUD, k, l, 0, 0.0F, i, j, i, j);
+            preciseBlit(guiGraphics, data.selectedFireModeInfo().name.equals("Top") ? TOP : DIR, k, l, 0, 0.0F, i, j, i, j);
+            preciseBlit(guiGraphics, data.hasEnoughAmmoToShoot(player) ? MISSILE_GREEN : MISSILE_RED, k, l, 0, 0.0F, i, j, i, j);
             if (stack.getOrCreateTag().getInt("SeekTime") > 1 && stack.getOrCreateTag().getInt("SeekTime") < 20) {
-                preciseBlit(guiGraphics, Mod.loc("textures/screens/javelin/seek.png"), k, l, 0, 0.0F, i, j, i, j);
+                preciseBlit(guiGraphics, SEEK, k, l, 0, 0.0F, i, j, i, j);
             }
 
             guiGraphics.fill(RenderType.guiOverlay(), 0, (int) l, (int) k + 3, (int) j1, -90, -16777216);
@@ -98,12 +105,12 @@ public class JavelinHudOverlay implements IGuiOverlay {
             List<Entity> entities = SeekTool.getVehicleWithinRange(player, player.level(), 512);
             Entity nearestEntity = SeekTool.seekCustomSizeEntity(player, player.level(), 512, 6, 1.0, true);
 
-            if (stack.getOrCreateTag().getInt("GuideType") == 0) {
+            if (ClientEventHandler.guideType == 0) {
                 for (var e : entities) {
-                    Vec3 pos = e.getBoundingBox().getCenter();
+                    Vec3 pos = VectorTool.lerpGetEntityBoundingBoxCenter(e, partialTick);
                     Vec3 point = VectorUtil.worldToScreen(pos);
-                    boolean lockOn = stack.getOrCreateTag().getInt("SeekTime") > 20 && e == targetEntity;
-                    boolean nearest = e == nearestEntity;
+                    boolean lockOn = ClientEventHandler.lockOn && e == targetEntity;
+                    boolean nearest = e == naerestEntity;
 
                     poseStack.pushPose();
                     float x = (float) point.x;
@@ -113,16 +120,18 @@ public class JavelinHudOverlay implements IGuiOverlay {
                     poseStack.popPose();
                 }
             } else {
-                Vec3 pos = new Vec3(stack.getOrCreateTag().getDouble("TargetPosX"), stack.getOrCreateTag().getDouble("TargetPosY"), stack.getOrCreateTag().getDouble("TargetPosZ"));
-                boolean lockOn = stack.getOrCreateTag().getInt("SeekTime") > 20;
+                Vec3 pos = ClientEventHandler.lockingPos;
+                boolean lockOn = ClientEventHandler.lockOn;
 
                 Vec3 point = VectorUtil.worldToScreen(pos);
-                poseStack.pushPose();
-                float x = (float) point.x;
-                float y = (float) point.y;
+                if (VectorUtil.canSee(pos)) {
+                    poseStack.pushPose();
+                    float x = (float) point.x;
+                    float y = (float) point.y;
 
-                RenderHelper.blit(poseStack, lockOn ? FRAME_LOCK : FRAME_TARGET, x - 12, y - 12, 0, 0, 24, 24, 24, 24, 1f);
-                poseStack.popPose();
+                    RenderHelper.blit(poseStack, lockOn ? FRAME_LOCK : FRAME_TARGET, x - 12, y - 12, 0, 0, 24, 24, 24, 24, 1f);
+                    poseStack.popPose();
+                }
             }
             poseStack.popPose();
         } else {

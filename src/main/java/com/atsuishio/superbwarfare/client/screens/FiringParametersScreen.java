@@ -1,6 +1,7 @@
 package com.atsuishio.superbwarfare.client.screens;
 
 import com.atsuishio.superbwarfare.Mod;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.send.FiringParametersEditMessage;
 import com.mojang.math.Axis;
 import net.minecraft.ChatFormatting;
@@ -16,6 +17,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import org.jetbrains.annotations.NotNull;
 
 @OnlyIn(Dist.CLIENT)
 public class FiringParametersScreen extends Screen {
@@ -66,7 +68,7 @@ public class FiringParametersScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
+    public void render(@NotNull GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
         this.renderBackground(pGuiGraphics);
         this.renderBg(pGuiGraphics, pMouseX, pMouseY);
         super.render(pGuiGraphics, pMouseX, pMouseY, pPartialTick);
@@ -170,7 +172,7 @@ public class FiringParametersScreen extends Screen {
         }
 
         @Override
-        protected void updateWidgetNarration(NarrationElementOutput pNarrationElementOutput) {
+        protected void updateWidgetNarration(@NotNull NarrationElementOutput pNarrationElementOutput) {
         }
     }
 
@@ -187,7 +189,7 @@ public class FiringParametersScreen extends Screen {
             if (FiringParametersScreen.this.minecraft != null) {
                 FiringParametersScreen.this.minecraft.setScreen(null);
             }
-            Mod.PACKET_HANDLER.sendToServer(
+            NetworkRegistry.PACKET_HANDLER.sendToServer(
                     new FiringParametersEditMessage(
                             getEditBoxValue(FiringParametersScreen.this.posX.getValue()),
                             getEditBoxValue(FiringParametersScreen.this.posY.getValue()),
@@ -200,14 +202,14 @@ public class FiringParametersScreen extends Screen {
         }
 
         @Override
-        protected void renderWidget(GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
+        protected void renderWidget(@NotNull GuiGraphics pGuiGraphics, int pMouseX, int pMouseY, float pPartialTick) {
             if (this.isHovered) {
                 pGuiGraphics.blit(TEXTURE, this.getX(), this.getY(), 95, 1, 23, 14, 140, 140);
             }
         }
 
         @Override
-        protected void updateWidgetNarration(NarrationElementOutput pNarrationElementOutput) {
+        protected void updateWidgetNarration(@NotNull NarrationElementOutput pNarrationElementOutput) {
         }
 
         public int getEditBoxValue(String value) {

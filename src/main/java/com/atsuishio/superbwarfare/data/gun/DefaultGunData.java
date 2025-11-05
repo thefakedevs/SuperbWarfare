@@ -3,6 +3,7 @@ package com.atsuishio.superbwarfare.data.gun;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.annotation.ServerOnly;
 import com.atsuishio.superbwarfare.data.IDBasedData;
+import com.atsuishio.superbwarfare.data.ModColor;
 import com.atsuishio.superbwarfare.data.ObjectToList;
 import com.atsuishio.superbwarfare.data.StringToObject;
 import com.google.gson.annotations.SerializedName;
@@ -11,7 +12,7 @@ import java.util.List;
 import java.util.Set;
 
 @SuppressWarnings("unused")
-public class DefaultGunData implements IDBasedData {
+public class DefaultGunData implements IDBasedData<DefaultGunData> {
     @SerializedName("ID")
     public String id = "";
 
@@ -26,8 +27,19 @@ public class DefaultGunData implements IDBasedData {
     @SerializedName("MaxDurability")
     public int maxDurability = 0;
 
+    @ServerOnly
     @SerializedName("DurabilityPerShoot")
     public int durabilityPerShoot = 1;
+
+    @SerializedName("MaxEnergy")
+    public int maxEnergy = 0;
+
+    @ServerOnly
+    @SerializedName("MaxReceiveEnergy")
+    public int maxReceiveEnergy = -1;
+    @ServerOnly
+    @SerializedName("MaxExtractEnergy")
+    public int maxExtractEnergy = -1;
 
     @SerializedName("RecoilX")
     public double recoilX;
@@ -35,6 +47,10 @@ public class DefaultGunData implements IDBasedData {
     public double recoilY;
     @SerializedName("Recoil")
     public double recoil;
+    @SerializedName("RecoilTime")
+    public int recoilTime = 0;
+    @SerializedName("RecoilForce")
+    public float recoilForce = 0f;
 
     @SerializedName("DefaultZoom")
     public double defaultZoom = 1.25;
@@ -54,6 +70,9 @@ public class DefaultGunData implements IDBasedData {
     @SerializedName("Magazine")
     public int magazine;
 
+    @SerializedName("Range")
+    public int range = 128;
+
     @SerializedName("MeleeDamage")
     public double meleeDamage;
     @SerializedName("MeleeDuration")
@@ -65,20 +84,39 @@ public class DefaultGunData implements IDBasedData {
     @SerializedName("Projectile")
     public StringToObject<ProjectileInfo> projectile = new StringToObject<>(new ProjectileInfo());
 
+    @ServerOnly
+    @SerializedName("ShootPos")
+    public ShootPos shootPos = new ShootPos();
+
     @SerializedName("AmmoCostPerShoot")
     public int ammoCostPerShoot = 1;
     @SerializedName("ProjectileAmount")
     public int projectileAmount = 1;
     @SerializedName("Weight")
-    public double weight;
+    public double weight = 1;
 
     @SerializedName("DefaultFireMode")
-    public FireMode defaultFireMode = FireMode.SEMI;
+    public String defaultFireMode = FireMode.SEMI.name;
     @SerializedName("AvailableFireModes")
-    public Set<FireMode> availableFireModes = Set.of(FireMode.SEMI);
+    public ObjectToList<StringToObject<FireModeInfo>> availableFireModes = new ObjectToList<>(new StringToObject<>(new FireModeInfo()));
 
     @SerializedName("ReloadTypes")
     public Set<ReloadType> reloadTypes = Set.of(ReloadType.MAGAZINE);
+
+    @SerializedName("SeekType")
+    public SeekType seekType = SeekType.NONE;
+
+    @SerializedName("GunType")
+    public GunType gunType = GunType.SPECIAL;
+
+    @SerializedName("AutoReload")
+    public boolean autoReload = false;
+
+    @SerializedName("ZoomReload")
+    public boolean zoomReload = true;
+
+    @SerializedName("ClearHoldProgressAfterShoot")
+    public boolean ClearHoldProgressAfterShoot = false;
 
     @SerializedName("BurstAmount")
     public int burstAmount;
@@ -110,6 +148,21 @@ public class DefaultGunData implements IDBasedData {
         }
 
         return this.ammoConsumersCache;
+    }
+
+    private transient List<FireModeInfo> fireModesCache;
+
+    public List<FireModeInfo> getFireModes() {
+        if (fireModesCache == null) {
+            this.fireModesCache = this.availableFireModes.list.stream()
+                    .map(c -> {
+                        c.value.init();
+                        return c.value;
+                    })
+                    .toList();
+        }
+
+        return this.fireModesCache;
     }
 
     @SerializedName("NormalReloadTime")
@@ -144,6 +197,11 @@ public class DefaultGunData implements IDBasedData {
     @SerializedName("FinishTime")
     public int finishTime;
 
+    // 连发模式下的射击间隔时间
+    @SerializedName("BurstCooldown")
+    public int burstCooldown = 30;
+
+    @ServerOnly
     @SerializedName("SoundRadius")
     public double soundRadius;
     @SerializedName("RPM")
@@ -159,6 +217,7 @@ public class DefaultGunData implements IDBasedData {
     @SerializedName("ShootDelay")
     public int shootDelay = 0;
 
+    @ServerOnly
     @SerializedName("HeatPerShoot")
     public double heatPerShoot = 0;
 
@@ -178,4 +237,56 @@ public class DefaultGunData implements IDBasedData {
     @ServerOnly
     @SerializedName("DamageReduce")
     public DamageReduce damageReduce = new DamageReduce();
+
+    // 自然情况下每tick减少的热量
+    @ServerOnly
+    @SerializedName("NaturalCooldown")
+    public double naturalCooldown = 0.25;
+    // 在水中或雨中时的散热比例
+    @ServerOnly
+    @SerializedName("InWaterCooldownRate")
+    public double inWaterCooldownRate = 1.1;
+    // 在细雪中时的散热比例
+    @ServerOnly
+    @SerializedName("InSnowCooldownRate")
+    public double inSnowCooldownRate = 1.5;
+    // 在火焰中时的散热比例
+    @ServerOnly
+    @SerializedName("InFireCooldownRate")
+    public double inFireCooldownRate = 0.6;
+    // 在岩浆中时的散热比例
+    @ServerOnly
+    @SerializedName("InLavaCooldownRate")
+    public double inLavaCooldownRate = 0.2;
+
+    // 瞄准时的扩散比例
+    @SerializedName("ZoomSpreadRate")
+    public double zoomSpreadRate = 0.1;
+
+    @SerializedName("SeekTime")
+    public int seekTime = 20;
+    @SerializedName("SeekAngle")
+    public double seekAngle = 10;
+    @SerializedName("SeekRange")
+    public double seekRange = 384;
+
+    @SerializedName("SoundInfo")
+    public SoundInfo soundInfo = new SoundInfo();
+
+    // TODO 能不能挪assets里面去
+    @SerializedName("Icon")
+    public String icon = Mod.loc("textures/gun_icon/default_icon.png").toString();
+    /*
+     * 准星类型
+     * 预制的字段有：
+     * @Custom - 自定义
+     * @GunDefault - 默认枪械准星
+     * @VehicleDefault - 默认载具准星
+     */
+    @SerializedName("Crosshair")
+    public String crosshair = "@GunDefault";
+    @SerializedName("CrosshairColor")
+    public ModColor crosshairColor = new ModColor();
+    @SerializedName("Name")
+    public String name = "superbwarfare.gun.default";
 }

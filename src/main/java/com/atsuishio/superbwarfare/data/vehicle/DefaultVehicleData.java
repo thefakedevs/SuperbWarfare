@@ -1,16 +1,26 @@
 package com.atsuishio.superbwarfare.data.vehicle;
 
+import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.annotation.ServerOnly;
 import com.atsuishio.superbwarfare.config.server.VehicleConfig;
 import com.atsuishio.superbwarfare.data.IDBasedData;
+import com.atsuishio.superbwarfare.data.ModColor;
 import com.atsuishio.superbwarfare.data.ObjectToList;
 import com.atsuishio.superbwarfare.data.StringToObject;
+import com.atsuishio.superbwarfare.data.gun.DefaultGunData;
+import com.atsuishio.superbwarfare.data.vehicle.subdata.*;
 import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModify;
-import com.atsuishio.superbwarfare.tools.ParticleTool;
+import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.common.ForgeConfigSpec;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 @SuppressWarnings("unused")
-public class DefaultVehicleData implements IDBasedData {
+public class DefaultVehicleData implements IDBasedData<DefaultVehicleData> {
     @SerializedName("ID")
     public String id = "";
 
@@ -26,19 +36,19 @@ public class DefaultVehicleData implements IDBasedData {
 
     @ServerOnly
     @SerializedName("RepairCooldown")
-    public int repairCooldown = VehicleConfig.REPAIR_COOLDOWN.get();
+    public int repairCooldown = getConfigOrDefault(VehicleConfig.REPAIR_COOLDOWN);
 
     @ServerOnly
     @SerializedName("RepairAmount")
-    public float repairAmount = VehicleConfig.REPAIR_AMOUNT.get().floatValue();
+    public float repairAmount = getConfigOrDefault(VehicleConfig.REPAIR_AMOUNT).floatValue();
 
-    @ServerOnly
-    @SerializedName("RepairMaterial")
-    public String repairMaterial = "minecraft:iron_ingot";
-
-    @ServerOnly
-    @SerializedName("RepairMaterialHealAmount")
-    public float repairMaterialHealAmount = 50;
+    private static <T> T getConfigOrDefault(ForgeConfigSpec.ConfigValue<T> config) {
+        try {
+            return config.get();
+        } catch (Exception exception) {
+            return config.getDefault();
+        }
+    }
 
     /**
      * 开始自动扣血时的血量比例
@@ -54,9 +64,16 @@ public class DefaultVehicleData implements IDBasedData {
     @SerializedName("SelfHurtAmount")
     public float selfHurtAmount = 0.1F;
 
-
     @SerializedName("MaxEnergy")
     public int maxEnergy = Integer.MAX_VALUE;
+
+    @SerializedName("Seats")
+    protected ObjectToList<SeatInfo> seats = new ObjectToList<>();
+
+    public List<SeatInfo> seats() {
+        if (seats == null) return List.of();
+        return Collections.unmodifiableList(seats.list);
+    }
 
     @SerializedName("UpStep")
     public float upStep = 0;
@@ -64,6 +81,10 @@ public class DefaultVehicleData implements IDBasedData {
     @SerializedName("AllowFreeCam")
     public boolean allowFreeCam = false;
 
+    @SerializedName("HasDecoy")
+    public boolean hasDecoy = false;
+
+    @ServerOnly
     @SerializedName("ApplyDefaultDamageModifiers")
     public boolean applyDefaultDamageModifiers = true;
 
@@ -76,30 +97,43 @@ public class DefaultVehicleData implements IDBasedData {
     public float mass = 1;
 
     @ServerOnly
-    @SerializedName("CrashPassengersOnDestroy")
-    public boolean crashPassengersOnDestroy = false;
+    @SerializedName("DestroyInfo")
+    public DestroyInfo destroyInfo = new DestroyInfo();
 
-    @ServerOnly
-    @SerializedName("ExplodePassengersOnDestroy")
-    public boolean explodePassengersOnDestroy = true;
+    @SerializedName("VehicleContainerType")
+    public VehicleContainerType vehicleContainerType = VehicleContainerType.MEDIUM;
 
-    @ServerOnly
-    @SerializedName("ExplosionDamage")
-    public float explosionDamage = 0;
+    @SerializedName("HasUpgradeSlots")
+    public boolean hasUpgradeSlots = false;
 
-    @ServerOnly
-    @SerializedName("ExplosionRadius")
-    public float explosionRadius = 0;
+    @SerializedName("VehicleIcon")
+    public ResourceLocation vehicleIcon = Mod.loc("textures/gun_icon/default_icon.png");
 
-    @ServerOnly
-    @SerializedName("ExplosionDestroyBlockOnDestroy")
-    public boolean explosionDestroyBlockOnDestroy = true;
+    @SerializedName("ContainerIcon")
+    public ResourceLocation containerIcon = null;
 
-    @ServerOnly
-    @SerializedName("CauseVanillaExplosion")
-    public boolean causeVanillaExplosion = true;
+    @SerializedName("HUDColor")
+    public ModColor hudColor = new ModColor(0x66FF00);
 
-    @ServerOnly
-    @SerializedName("ExplosionParticleType")
-    public ParticleTool.ParticleType explosionParticleType = ParticleTool.ParticleType.MINI;
+    @SerializedName("Type")
+    public VehicleType type = VehicleType.EMPTY;
+
+    @SerializedName("EngineType")
+    public EngineType engineType = EngineType.EMPTY;
+    @SerializedName("EngineInfo")
+    public JsonObject engineInfo = new JsonObject();
+
+    @SerializedName("RotateOffsetHeight")
+    public float rotateOffsetHeight = 0;
+
+    @SerializedName("Weapons")
+    public Map<String, DefaultGunData> weapons = Map.of();
+
+    @Override
+    public void limit() {
+        this.maxHealth = Math.max(this.maxHealth, 0);
+        this.repairCooldown = Math.max(this.repairCooldown, 0);
+        this.maxEnergy = Math.max(this.maxEnergy, 0);
+        this.weapons = weapons == null ? Map.of() : weapons;
+    }
 }

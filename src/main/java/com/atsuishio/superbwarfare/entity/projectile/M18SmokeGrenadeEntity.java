@@ -1,10 +1,10 @@
 package com.atsuishio.superbwarfare.entity.projectile;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.particle.CustomSmokeOption;
 import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.tools.ParticleTool;
 import net.minecraft.core.BlockPos;
@@ -21,7 +21,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BellBlock;
@@ -39,7 +38,7 @@ import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
-public class M18SmokeGrenadeEntity extends ThrowableItemProjectile implements GeoEntity {
+public class M18SmokeGrenadeEntity extends FastThrowableProjectile implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -49,8 +48,8 @@ public class M18SmokeGrenadeEntity extends ThrowableItemProjectile implements Ge
     private float gColor = 1.0f;
     private float bColor = 1.0f;
 
-    public M18SmokeGrenadeEntity(EntityType<? extends M18SmokeGrenadeEntity> type, Level world) {
-        super(type, world);
+    public M18SmokeGrenadeEntity(EntityType<? extends M18SmokeGrenadeEntity> type, Level level) {
+        super(type, level);
         this.noCulling = true;
     }
 
@@ -143,7 +142,7 @@ public class M18SmokeGrenadeEntity extends ThrowableItemProjectile implements Ge
                         if (!living.level().isClientSide() && living instanceof ServerPlayer player) {
                             living.level().playSound(null, living.blockPosition(), ModSounds.INDICATION.get(), SoundSource.VOICE, 1, 1);
 
-                            Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
+                            NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
                         }
                     }
                     entity.hurt(entity.damageSources().thrown(this, this.getOwner()), 1);
@@ -224,7 +223,7 @@ public class M18SmokeGrenadeEntity extends ThrowableItemProjectile implements Ge
     }
 
     @Override
-    protected float getGravity() {
+    public float getGravity() {
         return 0.07F;
     }
 

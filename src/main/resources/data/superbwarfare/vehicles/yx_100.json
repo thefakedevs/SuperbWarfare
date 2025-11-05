@@ -2,7 +2,61 @@
   "ID": "superbwarfare:yx_100",
   "MaxHealth": 500,
   "MaxEnergy": 20000000,
+  "Seats": [
+    {
+      "HidePassenger": true,
+      "Transform": "Turret",
+      "Position": [
+        0.6669625,
+        0.07,
+        0.4776875
+      ],
+      "CanRotateHead": false,
+      "MinPitch": -10,
+      "MaxPitch": 30
+    },
+    {
+      "HidePassenger": true,
+      "Transform": "Turret",
+      "Position": [
+        -0.75805625,
+        0.3,
+        -0.57275625
+      ],
+      "CanRotateHead": false,
+      "MinPitch": -10,
+      "MaxPitch": 60
+    },
+    {
+      "Transform": "Turret",
+      "Position": [
+        0.86219375,
+        0.07,
+        -0.5696875
+      ],
+      "CanRotateBody": true,
+      "MinPitch": -25,
+      "MaxPitch": 90
+    }
+  ],
+  "HUDColor": "0x00FFF6",
+  "EngineType": "Track",
+  "EngineInfo": {
+    "Buoyancy": 0,
+    "EnergyCostRate": 128,
+    "WheelRotSpeed": 1.25,
+    "WheelDifferential": 0.75,
+    "TrackRotSpeed": 1.3,
+    "TrackDifferential": 0.6,
+    "MaxForwardSpeedRate": 1.1,
+    "MaxBackwardSpeedRate": 0.55,
+    "Increment": 0.02,
+    "Decrement": 0.01,
+    "SteeringSpeed": 0.1
+  },
+  "HasDecoy": true,
   "UpStep": 2.25,
+  "RotateOffsetHeight": 3.5,
   "Mass": 70,
   "DamageModifiers": [
     "minecraft:arrow 0",
@@ -23,15 +77,21 @@
     "superbwarfare:projectile_hit * 1.3",
     "superbwarfare:grapeshot_hit * 0.1",
     "#superbwarfare:projectile_absolute * 0.15",
+    "@superbwarfare:igla_9k38_missile * 0.3",
     "@superbwarfare:small_cannon_shell * 0.25",
     "@superbwarfare:c4 * 4",
-    "@superbwarfare:rpg_rocket * 1.1",
+    "@#superbwarfare:at_rocket * 1.1",
     "@superbwarfare:gun_grenade * 1.25",
     "@superbwarfare:mortar_shell * 1.25",
     "@superbwarfare:tm_62 * 2.5",
     "All - 9"
   ],
-  "ExplosionDamage": 200,
-  "ExplosionRadius": 16,
-  "ExplosionParticleType": "Giant"
+  "DestroyInfo": {
+    "ParticleType": "Giant",
+    "ExplosionDamage": 200,
+    "ExplosionRadius": 16
+  },
+  "VehicleIcon": "superbwarfare:textures/vehicle_icon/yx_100_icon.png",
+  "ContainerIcon": "superbwarfare:textures/gui/vehicle/type/land.png",
+  "Type": "Tank"
 }

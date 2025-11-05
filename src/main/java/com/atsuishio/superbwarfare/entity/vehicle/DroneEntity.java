@@ -5,12 +5,11 @@ import com.atsuishio.superbwarfare.data.drone_attachment.DroneAttachmentData;
 import com.atsuishio.superbwarfare.entity.C4Entity;
 import com.atsuishio.superbwarfare.entity.projectile.LaserEntity;
 import com.atsuishio.superbwarfare.entity.projectile.ProjectileEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.MobileVehicleEntity;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientMouseHandler;
 import com.atsuishio.superbwarfare.init.*;
 import com.atsuishio.superbwarfare.item.Monitor;
 import com.atsuishio.superbwarfare.tools.*;
-import com.mojang.math.Axis;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -66,7 +65,7 @@ import java.util.stream.Collectors;
 import static com.atsuishio.superbwarfare.event.ClientMouseHandler.freeCameraPitch;
 import static com.atsuishio.superbwarfare.event.ClientMouseHandler.freeCameraYaw;
 
-public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
+public class DroneEntity extends VehicleEntity implements GeoEntity {
 
     public static final EntityDataAccessor<Boolean> LINKED = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.BOOLEAN);
     public static final EntityDataAccessor<String> CONTROLLER = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.STRING);
@@ -226,12 +225,12 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
             if (controller != null) {
                 ItemStack stack = controller.getMainHandItem();
                 if (!stack.is(ModItems.MONITOR.get()) || !stack.getOrCreateTag().getBoolean("Using")) {
-                    upInputDown = false;
-                    downInputDown = false;
-                    forwardInputDown = false;
-                    backInputDown = false;
-                    leftInputDown = false;
-                    rightInputDown = false;
+                    setLeftInputDown(false);
+                    setRightInputDown(false);
+                    setForwardInputDown(false);
+                    setBackInputDown(false);
+                    setUpInputDown(false);
+                    setDownInputDown(false);
                 }
 
                 if (tickCount % 5 == 0) {
@@ -288,9 +287,9 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
             return switch (name) {
                 case "@sbw:owner" -> NbtUtils.createUUID(uuid);
                 case "@sbw:owner_string_lower" ->
-                        StringTag.valueOf(uuid.toString().replace("-", "").toLowerCase(Locale.ENGLISH));
+                        StringTag.valueOf(uuid.toString().replace("-", "").toLowerCase(Locale.ROOT));
                 case "@sbw:owner_string_upper" ->
-                        StringTag.valueOf(uuid.toString().replace("-", "").toUpperCase(Locale.ENGLISH));
+                        StringTag.valueOf(uuid.toString().replace("-", "").toUpperCase(Locale.ROOT));
                 default -> StringTag.valueOf(name);
             };
         });
@@ -352,7 +351,7 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
                 }
             }
         } else if (player.isCrouching()) {
-            if (stack.isEmpty() || stack.is(ModTags.Items.CROWBAR)) {
+            if (stack.isEmpty() || stack.is(ModTags.Items.TOOLS_CROWBAR)) {
                 // 无人机拆除
                 ItemHandlerHelper.giveItemToPlayer(player, new ItemStack(ModItems.DRONE.get()));
 
@@ -430,9 +429,9 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
                                 return switch (name) {
                                     case "@sbw:owner" -> NbtUtils.createUUID(uuid);
                                     case "@sbw:owner_string_lower" ->
-                                            StringTag.valueOf(uuid.toString().replace("-", "").toLowerCase(Locale.ENGLISH));
+                                            StringTag.valueOf(uuid.toString().replace("-", "").toLowerCase(Locale.ROOT));
                                     case "@sbw:owner_string_upper" ->
-                                            StringTag.valueOf(uuid.toString().replace("-", "").toUpperCase(Locale.ENGLISH));
+                                            StringTag.valueOf(uuid.toString().replace("-", "").toUpperCase(Locale.ROOT));
                                     default -> StringTag.valueOf(name);
                                 };
                             }));
@@ -457,10 +456,10 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
     public void travel() {
         if (!this.onGround()) {
             // left and right
-            if (rightInputDown) {
+            if (rightInputDown()) {
                 holdTickX++;
                 this.entityData.set(DELTA_ROT, this.entityData.get(DELTA_ROT) - 0.3f * Math.min(holdTickX, 5));
-            } else if (this.leftInputDown) {
+            } else if (this.leftInputDown()) {
                 holdTickX++;
                 this.entityData.set(DELTA_ROT, this.entityData.get(DELTA_ROT) + 0.3f * Math.min(holdTickX, 5));
             } else {
@@ -468,10 +467,10 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
             }
 
             // forward and backward
-            if (forwardInputDown) {
+            if (forwardInputDown()) {
                 holdTickZ++;
                 this.entityData.set(DELTA_X_ROT, this.entityData.get(DELTA_X_ROT) - 0.3f * Math.min(holdTickZ, 5));
-            } else if (backInputDown) {
+            } else if (backInputDown()) {
                 holdTickZ++;
                 this.entityData.set(DELTA_X_ROT, this.entityData.get(DELTA_X_ROT) + 0.3f * Math.min(holdTickZ, 5));
             } else {
@@ -491,8 +490,8 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
             this.hurt(ModDamageTypes.causeVehicleStrikeDamage(this.level().registryAccess(), this, this.getFirstPassenger() == null ? this : this.getFirstPassenger()), 26 + (float) (60 * ((lastTickSpeed - 0.4) * (lastTickSpeed - 0.4))));
         }
 
-        boolean up = this.upInputDown;
-        boolean down = this.downInputDown;
+        boolean up = this.upInputDown();
+        boolean down = this.downInputDown();
 
         if (up) {
             holdTickY++;
@@ -532,8 +531,8 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
         if (controller != null) {
             ItemStack stack = controller.getMainHandItem();
             if (stack.is(ModItems.MONITOR.get()) && stack.getOrCreateTag().getBoolean("Using")) {
-                this.setYRot(this.getYRot() + 0.5f * entityData.get(MOUSE_SPEED_X));
-                this.setXRot(Mth.clamp(this.getXRot() + 0.5f * entityData.get(MOUSE_SPEED_Y), -10, 90));
+                this.setYRot(this.getYRot() + 0.5f * getMouseMoveSpeedX());
+                this.setXRot(Mth.clamp(this.getXRot() + 0.5f * getMouseMoveSpeedY(), -10, 90));
             }
         }
 
@@ -586,7 +585,6 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
 
     @Override
     public float getEngineSoundVolume() {
-
         if (Math.abs(this.entityData.get(POWER)) <= 0.05) {
             return 0;
         }
@@ -700,13 +698,25 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
                 .orElse(null);
         if (bomb == null) return;
 
+        float radius = data.explosionRadius;
+        ParticleTool.ParticleType particleType;
+
+        if (radius < 4) {
+            particleType = ParticleTool.ParticleType.SMALL;
+        } else if (radius >= 4 && radius < 10) {
+            particleType = ParticleTool.ParticleType.MEDIUM;
+        } else if (radius >= 10 && radius < 20) {
+            particleType = ParticleTool.ParticleType.HUGE;
+        } else {
+            particleType = ParticleTool.ParticleType.GIANT;
+        }
+
         createCustomExplosion()
                 .source(bomb)
                 .attacker(attacker)
                 .damage(data.explosionDamage)
-                .radius(data.explosionRadius)
-                .causeVanillaExplosion()
-                .withParticleType(ParticleTool.ParticleType.HUGE)
+                .radius(radius)
+                .withParticleType(particleType)
                 .explode();
 
         // TODO 药水迫击炮炮弹
@@ -748,31 +758,10 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
         return false;
     }
 
-    public float getRotX(float tickDelta) {
-        return this.getPitch(tickDelta);
-    }
-
-    public float getRotY(float tickDelta) {
-        return this.getYaw(tickDelta);
-    }
-
-    public float getRotZ(float tickDelta) {
-        return this.getRoll(tickDelta);
-    }
-
-    public Matrix4f getClientVehicleTransform(float ticks) {
-        Matrix4f transform = new Matrix4f();
-        transform.translate((float) Mth.lerp(ticks, xo, getX()), (float) Mth.lerp(ticks, yo, getY()), (float) Mth.lerp(ticks, zo, getZ()));
-        transform.rotate(Axis.YP.rotationDegrees((float) (-Mth.lerp(ticks, yRotO, getYRot()) + freeCameraYaw)));
-        transform.rotate(Axis.XP.rotationDegrees((float) (Mth.lerp(ticks, xRotO, getXRot()) + freeCameraPitch)));
-        transform.rotate(Axis.ZP.rotationDegrees(Mth.lerp(ticks, prevRoll, getRoll())));
-        return transform;
-    }
-
     @OnlyIn(Dist.CLIENT)
     @Override
     public @Nullable Vec2 getCameraRotation(float partialTicks, Player player, boolean zoom, boolean isFirstPerson) {
-        return new Vec2((float) (getRotY(partialTicks) - freeCameraYaw), (float) (getRotX(partialTicks) + freeCameraPitch));
+        return new Vec2((float) (getYaw(partialTicks) - freeCameraYaw), (float) (getPitch(partialTicks) + freeCameraPitch));
     }
 
     @OnlyIn(Dist.CLIENT)

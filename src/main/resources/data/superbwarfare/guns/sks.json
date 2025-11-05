@@ -3,7 +3,7 @@
   "Spread": 4.5,
   "RecoilX": 0.004,
   "RecoilY": 0.015,
-  "Damage": 9.5,
+  "Damage": 10.5,
   "Headshot": 2,
   "Velocity": 36,
   "Magazine": 20,
@@ -16,7 +16,9 @@
   "DamageReduce": {
     "Type": "Rifle"
   },
+  "GunType": "Rifle",
   "AmmoType": "@RifleAmmo",
+  "Icon": "superbwarfare:textures/gun_icon/sks_icon.png",
   "AvailablePerks": [
     "@Ammo",
     "superbwarfare:heal_clip",
@@ -25,6 +27,7 @@
     "superbwarfare:subsistence",
     "superbwarfare:powerful_attraction",
     "superbwarfare:intelligent_chip",
+    "superbwarfare:backpack_linked_magazine",
     "superbwarfare:kill_clip",
     "superbwarfare:gutshot_straight",
     "superbwarfare:monster_hunter",
@@ -33,8 +36,21 @@
     "superbwarfare:magnificent_howl",
     "superbwarfare:firefly",
     "superbwarfare:fair_means",
+    "superbwarfare:high_impact_reserves",
     "!superbwarfare:micro_missile",
     "!superbwarfare:longer_wire",
     "!superbwarfare:cupid_arrow"
-  ]
+  ],
+  "SoundInfo": {
+    "Fire1P": "superbwarfare:sks_fire_1p",
+    "Fire3P": "superbwarfare:sks_fire_3p",
+    "Fire3PFar": "superbwarfare:sks_far",
+    "Fire3PVeryFar": "superbwarfare:sks_veryfar",
+    "ReloadNormal": "superbwarfare:sks_reload_normal",
+    "ReloadEmpty": "superbwarfare:sks_reload_empty",
+    "CancellableSounds": [
+      "superbwarfare:sks_reload_normal",
+      "superbwarfare:sks_reload_empty"
+    ]
+  }
 }

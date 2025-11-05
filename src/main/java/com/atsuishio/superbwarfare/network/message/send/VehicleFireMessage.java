@@ -1,35 +1,37 @@
 package com.atsuishio.superbwarfare.network.message.send;
 
-import com.atsuishio.superbwarfare.entity.vehicle.base.ArmedVehicleEntity;
-import net.minecraft.network.FriendlyByteBuf;
+import com.atsuishio.superbwarfare.data.gun.GunProp;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
 
-public class VehicleFireMessage {
+import static com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity.*;
 
-    private final int type;
+public enum VehicleFireMessage {
 
-    public VehicleFireMessage(int type) {
-        this.type = type;
-    }
+    INSTANCE;
 
-    public static VehicleFireMessage decode(FriendlyByteBuf buffer) {
-        return new VehicleFireMessage(buffer.readInt());
-    }
-
-    public static void encode(VehicleFireMessage message, FriendlyByteBuf buffer) {
-        buffer.writeInt(message.type);
-    }
-
-    public static void handler(VehicleFireMessage message, Supplier<NetworkEvent.Context> contextSupplier) {
+    public static void handler(Supplier<NetworkEvent.Context> contextSupplier) {
         NetworkEvent.Context context = contextSupplier.get();
         context.enqueueWork(() -> {
             if (context.getSender() != null) {
                 var player = context.getSender();
 
-                if (player.getVehicle() instanceof ArmedVehicleEntity iVehicle) {
-                    iVehicle.vehicleShoot(player, message.type);
+                if (player.getVehicle() instanceof VehicleEntity vehicle) {
+                    vehicle.vehicleShoot(player);
+
+                    var gunData = vehicle.getGunData(vehicle.getSeatIndex(player));
+
+                    if (gunData != null) {
+                        vehicle.getEntityData().set(CANNON_RECOIL_TIME, gunData.get(GunProp.RECOIL_TIME));
+                        vehicle.getEntityData().set(CANNON_RECOIL_FORCE, gunData.get(GunProp.RECOIL_FORCE));
+                        var list = gunData.get(GunProp.SHOOT_POS).positions;
+                        vehicle.currentFirePosIndex = ++vehicle.currentFirePosIndex % list.size();
+                    }
+
+                    vehicle.playShootSound3p(player);
+                    vehicle.getEntityData().set(YAW_WHILE_SHOOT, vehicle.getTurretYRot());
                 }
             }
         });

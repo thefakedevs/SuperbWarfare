@@ -2,6 +2,13 @@
   "ID": "superbwarfare:bl_132",
   "MaxHealth": 400,
   "Mass": 300,
+  "Seats": {
+    "HidePassenger": true,
+    "Transform" : "VehicleFlat",
+    "Position": [0, 4, -2],
+    "MinPitch": -6,
+    "MaxPitch": 85
+  },
   "DamageModifiers": [
     "All * 0.2",
     "minecraft:arrow * 1.5",
@@ -23,7 +30,13 @@
     "@superbwarfare:gun_grenade * 1.5",
     "All - 8"
   ],
-  "ExplosionDamage": 160,
-  "ExplosionRadius": 8,
-  "ExplosionParticleType": "Huge"
+  "VehicleContainerType": "One",
+  "DestroyInfo": {
+    "ParticleType": "Huge",
+    "ExplosionDamage": 160,
+    "ExplosionRadius": 8
+  },
+  "VehicleIcon": "superbwarfare:textures/vehicle_icon/bl_132_icon.png",
+  "ContainerIcon": "superbwarfare:textures/gui/vehicle/type/defense.png",
+  "Type": "Artillery"
 }

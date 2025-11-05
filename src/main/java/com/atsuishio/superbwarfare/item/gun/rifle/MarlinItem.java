@@ -1,16 +1,12 @@
 package com.atsuishio.superbwarfare.item.gun.rifle;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.GunRendererBuilder;
 import com.atsuishio.superbwarfare.client.model.item.MarlinItemModel;
 import com.atsuishio.superbwarfare.data.gun.GunData;
-import com.atsuishio.superbwarfare.event.ClientEventHandler;
-import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.item.gun.GunGeoItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
@@ -24,11 +20,10 @@ import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.renderer.GeoItemRenderer;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class MarlinItem extends GunItem {
+public class MarlinItem extends GunGeoItem {
 
     public MarlinItem() {
         super(new Item.Properties().rarity(Rarity.COMMON));
@@ -36,7 +31,7 @@ public class MarlinItem extends GunItem {
 
     @Override
     public Supplier<? extends GeoItemRenderer<? extends Item>> getRenderer() {
-        return GunRendererBuilder.simple(MarlinItemModel::new, 0, 0, 1.33720625, 0.4, true);
+        return GunRendererBuilder.simple(MarlinItemModel::new);
     }
 
     private PlayState fireAnimPredicate(AnimationState<MarlinItem> event) {
@@ -72,45 +67,15 @@ public class MarlinItem extends GunItem {
         return event.setAndContinue(RawAnimation.begin().thenLoop("animation.marlin.idle"));
     }
 
-    private PlayState idlePredicate(AnimationState<MarlinItem> event) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) return PlayState.STOP;
-        ItemStack stack = player.getMainHandItem();
-        if (!(stack.getItem() instanceof GunItem)) return PlayState.STOP;
-        if (event.getData(DataTickets.ITEM_RENDER_PERSPECTIVE) != ItemDisplayContext.FIRST_PERSON_RIGHT_HAND)
-            return event.setAndContinue(RawAnimation.begin().thenLoop("animation.marlin.idle"));
-
-        var data = GunData.from(stack);
-
-        if (player.isSprinting() && player.onGround()
-                && ClientEventHandler.cantSprint == 0
-                && ClientEventHandler.drawTime < 0.01
-                && !data.reloading()) {
-            if (ClientEventHandler.tacticalSprint) {
-                return event.setAndContinue(RawAnimation.begin().thenLoop("animation.marlin.run_fast"));
-            } else {
-                return event.setAndContinue(RawAnimation.begin().thenLoop("animation.marlin.run"));
-            }
-        }
-
-        event.getController().setAnimation(RawAnimation.begin().thenLoop("animation.marlin.idle"));
-        return PlayState.CONTINUE;
-    }
-
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar data) {
         var fireAnimController = new AnimationController<>(this, "fireAnimController", 1, this::fireAnimPredicate);
         data.add(fireAnimController);
-        var idleController = new AnimationController<>(this, "idleController", 3, this::idlePredicate);
-        data.add(idleController);
     }
 
     @Override
-    public Set<SoundEvent> getReloadSound() {
-        return Set.of(ModSounds.MARLIN_LOOP.get(),
-                ModSounds.MARLIN_PREPARE.get(),
-                ModSounds.MARLIN_END.get(),
-                ModSounds.MARLIN_BOLT.get());
+    public void whenNoAmmo(GunData data) {
+        data.closeStrike.set(true);
     }
 
     @Override
@@ -118,10 +83,4 @@ public class MarlinItem extends GunItem {
         super.addBoltTimeBehavior(behaviors);
         behaviors.put(9, data -> data.closeStrike.set(false));
     }
-
-    @Override
-    public ResourceLocation getGunIcon(ItemStack stack) {
-        return Mod.loc("textures/gun_icon/marlin_icon.png");
-    }
-
 }

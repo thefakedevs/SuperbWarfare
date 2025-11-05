@@ -28,13 +28,18 @@ public class Yx100SwarmDroneHudOverlay implements IGuiOverlay {
 
     public static final String ID = Mod.MODID + "_yx100_swarm_drone_hud";
 
-    private static final ResourceLocation FRAME_LOCK = Mod.loc("textures/screens/frame/frame_lock.png");
+    private static final ResourceLocation FRAME_LOCK = Mod.loc("textures/overlay/frame/frame_lock.png");
+    private static final ResourceLocation CROSSHAIR = Mod.loc("textures/overlay/vehicle/crosshair/common_missile.png");
 
     @Override
     public void render(ForgeGui gui, GuiGraphics guiGraphics, float partialTick, int screenWidth, int screenHeight) {
         Minecraft mc = gui.getMinecraft();
         Player player = mc.player;
         PoseStack poseStack = guiGraphics.pose();
+        float minWH = (float) Math.min(screenWidth, screenHeight);
+        float scaledMinWH = Mth.floor(minWH);
+        float centerW = ((screenWidth - scaledMinWH) / 2);
+        float centerH = ((screenHeight - scaledMinWH) / 2);
 
         if (!shouldRenderCrossHair(player)) return;
 
@@ -52,17 +57,11 @@ public class Yx100SwarmDroneHudOverlay implements IGuiOverlay {
 
         if (player.getVehicle() instanceof Yx100Entity yx100 && yx100.banHand(player)) {
             if (Minecraft.getInstance().options.getCameraType() == CameraType.FIRST_PERSON) {
-                float fovAdjust = (float) 70 / Minecraft.getInstance().options.fov().get();
+                int color = yx100.getHudColor();
 
-                float f = (float) Math.min(screenWidth, screenHeight);
-                float f1 = Math.min((float) screenWidth / f, (float) screenHeight / f) * fovAdjust;
-                int i = Mth.floor(f * f1);
-                int j = Mth.floor(f * f1);
-                int k = (screenWidth - i) / 2;
-                int l = (screenHeight - j) / 2;
-                RenderHelper.preciseBlit(guiGraphics, Mod.loc("textures/screens/land/lav_missile_cross.png"), k, l, 0, 0.0F, i, j, i, j);
+                RenderHelper.blit(poseStack, CROSSHAIR, centerW, centerH, 0, 0.0F, scaledMinWH, scaledMinWH, scaledMinWH, scaledMinWH, color);
                 VehicleHudOverlay.renderKillIndicator(guiGraphics, screenWidth, screenHeight);
-                Entity naerestEntity = SeekTool.seekLivingEntity(player, player.level(), 384, 6);
+                Entity naerestEntity = SeekTool.seekLivingEntity(player,384, 6);
 
                 if (naerestEntity != null) {
                     Vec3 pos = new Vec3(Mth.lerp(partialTick, naerestEntity.xo, naerestEntity.getX()), Mth.lerp(partialTick, naerestEntity.yo + naerestEntity.getEyeHeight(), naerestEntity.getEyeY()), Mth.lerp(partialTick, naerestEntity.zo, naerestEntity.getZ()));

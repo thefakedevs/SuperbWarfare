@@ -7,16 +7,19 @@ public class MiscConfig {
     public static ForgeConfigSpec.BooleanValue ALLOW_TACTICAL_SPRINT;
     public static ForgeConfigSpec.BooleanValue SEND_KILL_FEEDBACK;
     public static ForgeConfigSpec.BooleanValue ALLOW_FORCE_DAMAGE;
+    public static ForgeConfigSpec.BooleanValue DROP_AMMO_BOX;
     public static ForgeConfigSpec.IntValue DEFAULT_ARMOR_LEVEL;
     public static ForgeConfigSpec.IntValue MILITARY_ARMOR_LEVEL;
     public static ForgeConfigSpec.IntValue HEAVY_MILITARY_ARMOR_LEVEL;
-    public static ForgeConfigSpec.IntValue ARMOR_PONT_PER_LEVEL;
+    public static ForgeConfigSpec.IntValue ARMOR_POINT_PER_LEVEL;
     public static ForgeConfigSpec.IntValue CHARGING_STATION_MAX_ENERGY;
     public static ForgeConfigSpec.IntValue CHARGING_STATION_GENERATE_SPEED;
     public static ForgeConfigSpec.IntValue CHARGING_STATION_TRANSFER_SPEED;
     public static ForgeConfigSpec.IntValue CHARGING_STATION_CHARGE_RADIUS;
     public static ForgeConfigSpec.IntValue CHARGING_STATION_DEFAULT_FUEL_TIME;
     public static ForgeConfigSpec.IntValue ARTILLERY_INDICATOR_LIST_SIZE;
+    public static ForgeConfigSpec.BooleanValue MINE_HITBOX_INVISIBLE;
+    public static ForgeConfigSpec.BooleanValue SMOKE_HIDE_TARGET;
 
     public static void init(ForgeConfigSpec.Builder builder) {
         builder.push("misc");
@@ -30,6 +33,9 @@ public class MiscConfig {
         builder.comment("Set true to enable force damage");
         ALLOW_FORCE_DAMAGE = builder.define("allow_force_damage", false);
 
+        builder.comment("Whether to drop an ammo box after the player dies when GameRule KeepInventory is False");
+        DROP_AMMO_BOX = builder.define("drop_ammo_box", true);
+
         builder.comment("The default maximum armor level for normal armors");
         DEFAULT_ARMOR_LEVEL = builder.defineInRange("default_armor_level", 1, 0, Integer.MAX_VALUE);
 
@@ -40,7 +46,7 @@ public class MiscConfig {
         HEAVY_MILITARY_ARMOR_LEVEL = builder.defineInRange("heavy_military_armor_level", 3, 0, Integer.MAX_VALUE);
 
         builder.comment("The points per level for armor plate");
-        ARMOR_PONT_PER_LEVEL = builder.defineInRange("armor_point_per_level", 15, 0, Integer.MAX_VALUE);
+        ARMOR_POINT_PER_LEVEL = builder.defineInRange("armor_point_per_level", 15, 0, Integer.MAX_VALUE);
 
         builder.comment("Max energy storage of charging station");
         CHARGING_STATION_MAX_ENERGY = builder.defineInRange("charging_station_max_energy", 4000000, 1, Integer.MAX_VALUE);
@@ -59,6 +65,12 @@ public class MiscConfig {
 
         builder.comment("The max size of artillery indicator binding list");
         ARTILLERY_INDICATOR_LIST_SIZE = builder.defineInRange("artillery_indicator_list_size", 32, 1, Integer.MAX_VALUE);
+
+        builder.comment("Set true to make mine hitbox invisible");
+        MINE_HITBOX_INVISIBLE = builder.define("mine_hitbox_invisible", false);
+
+        builder.comment("Set true to allow smoke to prevent entities from being set as target");
+        SMOKE_HIDE_TARGET = builder.define("smoke_hide_target", false);
 
         builder.pop();
     }

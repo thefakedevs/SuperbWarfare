@@ -1,14 +1,12 @@
 package com.atsuishio.superbwarfare.client.model.item;
 
-import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.client.AnimationHelper;
+import com.atsuishio.superbwarfare.client.animation.AnimationHelper;
 import com.atsuishio.superbwarfare.client.overlay.CrossHairOverlay;
 import com.atsuishio.superbwarfare.data.gun.FireMode;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.item.gun.handgun.Glock18Item;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -16,34 +14,6 @@ import software.bernie.geckolib.core.animatable.model.CoreGeoBone;
 import software.bernie.geckolib.core.animation.AnimationState;
 
 public class Glock18ItemModel extends CustomGunModel<Glock18Item> {
-
-    public static float fireRotY = 0f;
-    public static float fireRotZ = 0f;
-
-    @Override
-    public ResourceLocation getAnimationResource(Glock18Item animatable) {
-        return Mod.loc("animations/glock_17.animation.json");
-    }
-
-    @Override
-    public ResourceLocation getModelResource(Glock18Item animatable) {
-        return Mod.loc("geo/glock18.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(Glock18Item animatable) {
-        return Mod.loc("textures/item/glock_17.png");
-    }
-
-    @Override
-    public ResourceLocation getLODModelResource(Glock18Item animatable) {
-        return Mod.loc("geo/lod/glock_17.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getLODTextureResource(Glock18Item animatable) {
-        return Mod.loc("textures/item/lod/glock_17.png");
-    }
 
     @Override
     public void setCustomAnimations(Glock18Item animatable, long instanceId, AnimationState<Glock18Item> animationState) {
@@ -57,7 +27,7 @@ public class Glock18ItemModel extends CustomGunModel<Glock18Item> {
         CoreGeoBone switch_ = getAnimationProcessor().getBone("kuaimanji");
 
         var data = GunData.from(stack);
-        var mode = data.fireMode.get();
+        var mode = data.selectedFireModeInfo().mode;
         if (mode == FireMode.SEMI) {
             switch_.setRotX(35 * Mth.DEG_TO_RAD);
         }
@@ -65,13 +35,9 @@ public class Glock18ItemModel extends CustomGunModel<Glock18Item> {
             switch_.setRotX(0);
         }
 
-        float times = 0.6f * (float) Math.min(Minecraft.getInstance().getDeltaFrameTime(), 0.8);
         double zt = ClientEventHandler.zoomTime;
         double zp = ClientEventHandler.zoomPos;
         double zpz = ClientEventHandler.zoomPosZ;
-        double fpz = ClientEventHandler.firePosZ * 13 * times;
-        double fp = ClientEventHandler.firePos;
-        double fr = ClientEventHandler.fireRot;
 
         gun.setPosX(1.23f * (float) zp);
 
@@ -83,22 +49,7 @@ public class Glock18ItemModel extends CustomGunModel<Glock18Item> {
 
         CoreGeoBone body = getAnimationProcessor().getBone("gun");
 
-        fireRotY = (float) Mth.lerp(0.5f * times, fireRotY, 0.3f * ClientEventHandler.recoilHorizon * fpz);
-        fireRotZ = (float) Mth.lerp(2f * times, fireRotZ, (0.4f + 0.5 * fpz) * ClientEventHandler.recoilHorizon);
-
-        body.setPosX(-0.4f * (float) (ClientEventHandler.recoilHorizon * (0.5 + 0.4 * ClientEventHandler.fireSpread)));
-        body.setPosY((float) (0.15f * fp + 0.18f * fr));
-        body.setPosZ((float) (1.935 * fp + 0.16f * fr + 0.925 * fpz));
-        body.setRotX((float) (0.08f * fp + 0.1f * fr + 0.35f * fpz));
-        body.setRotY(fireRotY);
-        body.setRotZ(fireRotZ);
-
-        body.setPosX((float) (body.getPosX() * (1 - 0.4 * zt)));
-        body.setPosY((float) (body.getPosY() * (-1 + 0.5 * zt)));
-        body.setPosZ((float) (body.getPosZ() * (1 - 0.3 * zt)));
-        body.setRotX((float) (body.getRotX() * (1 - 0.8 * zt)));
-        body.setRotY((float) (body.getRotY() * (1 - 0.7 * zt)));
-        body.setRotZ((float) (body.getRotZ() * (1 - 0.65 * zt)));
+        ClientEventHandler.handleShootAnimation(body, 1.25f, -2.5f, 1.35f, 4.5f, 1.3f, 1f, 0.2f, 1);
 
         CrossHairOverlay.gunRot = body.getRotZ();
 
@@ -108,7 +59,7 @@ public class Glock18ItemModel extends CustomGunModel<Glock18Item> {
             huatao.setPosZ(1.5f);
         }
 
-        ClientEventHandler.gunRootMove(getAnimationProcessor());
+        ClientEventHandler.gunRootMove(getAnimationProcessor(), 4, 2, 3, false);
 
         CoreGeoBone camera = getAnimationProcessor().getBone("camera");
         CoreGeoBone main = getAnimationProcessor().getBone("0");

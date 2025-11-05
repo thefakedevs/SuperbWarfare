@@ -1,86 +1,62 @@
 package com.atsuishio.superbwarfare.client.model.entity;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.config.server.VehicleConfig;
 import com.atsuishio.superbwarfare.entity.vehicle.AnnihilatorEntity;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import software.bernie.geckolib.core.animatable.model.CoreGeoBone;
-import software.bernie.geckolib.core.animation.AnimationState;
-import software.bernie.geckolib.model.GeoModel;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.AABB;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.regex.Pattern;
 
 import static com.atsuishio.superbwarfare.entity.vehicle.AnnihilatorEntity.*;
 
-public class AnnihilatorModel extends GeoModel<AnnihilatorEntity> {
+public class AnnihilatorModel extends VehicleModel<AnnihilatorEntity> {
+
+    private final Pattern LED_PATTERN = Pattern.compile("led(?<type>green|red)(?<id>\\d+)");
 
     @Override
-    public ResourceLocation getAnimationResource(AnnihilatorEntity entity) {
-        return Mod.loc("animations/annihilator.animation.json");
-    }
+    public @Nullable TransformContext<AnnihilatorEntity> collectTransform(String boneName) {
 
-    @Override
-    public ResourceLocation getModelResource(AnnihilatorEntity entity) {
-        if (RenderHelper.isInGui()) {
-            return Mod.loc("geo/annihilator.geo.json");
-        }
+        return switch (boneName) {
+            case "laser1" ->
+                    (bone, vehicle, state) -> bone.setScaleZ(vehicle.getEntityData().get(LASER_LEFT_LENGTH) + 0.5f);
+            case "laser2" ->
+                    (bone, vehicle, state) -> bone.setScaleZ(vehicle.getEntityData().get(LASER_MIDDLE_LENGTH) + 0.5f);
+            case "laser3" ->
+                    (bone, vehicle, state) -> bone.setScaleZ(vehicle.getEntityData().get(LASER_RIGHT_LENGTH) + 0.5f);
+            case "root" -> (bone, vehicle, state) -> {
+                var minecraft = Minecraft.getInstance();
+                var pCamera = minecraft.levelRenderer.getFrustum();
 
-        Player player = Minecraft.getInstance().player;
+                var aabb = vehicle.getBoundingBoxForCulling().inflate(0.5);
+                if (aabb.hasNaN() || aabb.getSize() == 0.0) {
+                    aabb = new AABB(vehicle.getX() - 6.0, vehicle.getY() - 4.0, vehicle.getZ() - 6.0, vehicle.getX() + 6.0, vehicle.getY() + 4.0, vehicle.getZ() + 6.0);
+                }
 
-        int distance = 0;
+                bone.setHidden(!pCamera.isVisible(aabb) && !RenderHelper.isInGui());
+            };
 
-        if (player != null) {
-            distance = (int) player.position().distanceTo(entity.position());
-        }
+            case "barrel", "barrel2" ->
+                    (bone, vehicle, state) -> bone.setRotX(-Mth.lerp(state.getPartialTick(), vehicle.xRotO, vehicle.getXRot()) * Mth.DEG_TO_RAD);
+            default -> {
+                var matcher = LED_PATTERN.matcher(boneName);
+                if (matcher.matches()) {
+                    var isGreen = matcher.group("type").equals("green");
+                    var id = Integer.parseInt(matcher.group("id"));
 
-        if (distance < 64) {
-            return Mod.loc("geo/annihilator.geo.json");
-        } else {
-            return Mod.loc("geo/vehicle_lod/annihilator.lod1.geo.json");
-        }
-    }
+                    yield (bone, vehicle, state) -> {
+                        float coolDown = vehicle.getEntityData().get(COOL_DOWN);
+                        boolean cantShoot = vehicle.getEnergy() < VehicleConfig.ANNIHILATOR_SHOOT_COST.get();
 
-    @Override
-    public ResourceLocation getTextureResource(AnnihilatorEntity entity) {
-        return Mod.loc("textures/entity/annihilator.png");
-    }
+                        var hideGreen = coolDown > (100 - id * 20) || cantShoot;
+                        bone.setHidden(isGreen == hideGreen);
+                    };
+                }
 
-    @Override
-    public void setCustomAnimations(AnnihilatorEntity animatable, long instanceId, AnimationState<AnnihilatorEntity> animationState) {
-        CoreGeoBone laserLeft = getAnimationProcessor().getBone("laser1");
-        CoreGeoBone laserMiddle = getAnimationProcessor().getBone("laser2");
-        CoreGeoBone laserRight = getAnimationProcessor().getBone("laser3");
-
-        laserLeft.setScaleZ(animatable.getEntityData().get(LASER_LEFT_LENGTH) + 0.5f);
-        laserMiddle.setScaleZ(animatable.getEntityData().get(LASER_MIDDLE_LENGTH) + 0.5f);
-        laserRight.setScaleZ(animatable.getEntityData().get(LASER_RIGHT_LENGTH) + 0.5f);
-
-        CoreGeoBone ledGreen = getAnimationProcessor().getBone("ledgreen");
-        CoreGeoBone ledGreen2 = getAnimationProcessor().getBone("ledgreen2");
-        CoreGeoBone ledGreen3 = getAnimationProcessor().getBone("ledgreen3");
-        CoreGeoBone ledGreen4 = getAnimationProcessor().getBone("ledgreen4");
-        CoreGeoBone ledGreen5 = getAnimationProcessor().getBone("ledgreen5");
-
-        CoreGeoBone ledRed = getAnimationProcessor().getBone("ledred");
-        CoreGeoBone ledRed2 = getAnimationProcessor().getBone("ledred2");
-        CoreGeoBone ledRed3 = getAnimationProcessor().getBone("ledred3");
-        CoreGeoBone ledRed4 = getAnimationProcessor().getBone("ledred4");
-        CoreGeoBone ledRed5 = getAnimationProcessor().getBone("ledred5");
-
-        float coolDown = animatable.getEntityData().get(COOL_DOWN);
-        boolean cantShoot = animatable.getEnergy() < VehicleConfig.ANNIHILATOR_SHOOT_COST.get();
-
-        ledGreen.setHidden(coolDown > 80 || cantShoot);
-        ledGreen2.setHidden(coolDown > 60 || cantShoot);
-        ledGreen3.setHidden(coolDown > 40 || cantShoot);
-        ledGreen4.setHidden(coolDown > 20 || cantShoot);
-        ledGreen5.setHidden(coolDown > 0 || cantShoot);
-
-        ledRed.setHidden(!ledGreen.isHidden());
-        ledRed2.setHidden(!ledGreen2.isHidden());
-        ledRed3.setHidden(!ledGreen3.isHidden());
-        ledRed4.setHidden(!ledGreen4.isHidden());
-        ledRed5.setHidden(!ledGreen5.isHidden());
+                yield super.collectTransform(boneName);
+            }
+        };
     }
 }

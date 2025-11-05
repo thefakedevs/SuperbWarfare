@@ -1,11 +1,9 @@
 package com.atsuishio.superbwarfare.client.model.item;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.overlay.CrossHairOverlay;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.item.gun.special.BocekItem;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -15,31 +13,6 @@ import software.bernie.geckolib.core.animation.AnimationState;
 public class BocekItemModel extends CustomGunModel<BocekItem> {
 
     public static float rightHandPosZ;
-
-    @Override
-    public ResourceLocation getAnimationResource(BocekItem animatable) {
-        return Mod.loc("animations/bocek.animation.json");
-    }
-
-    @Override
-    public ResourceLocation getModelResource(BocekItem animatable) {
-        return Mod.loc("geo/bocek.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(BocekItem animatable) {
-        return Mod.loc("textures/item/bocek.png");
-    }
-
-    @Override
-    public ResourceLocation getLODModelResource(BocekItem animatable) {
-        return Mod.loc("geo/lod/bocek.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getLODTextureResource(BocekItem animatable) {
-        return Mod.loc("textures/item/lod/bocek.png");
-    }
 
     @Override
     public void setCustomAnimations(BocekItem animatable, long instanceId, AnimationState<BocekItem> animationState) {
@@ -98,10 +71,12 @@ public class BocekItemModel extends CustomGunModel<BocekItem> {
         rightHand.setPosZ(rightHandPosZ);
 
         CrossHairOverlay.gunRot = shen.getRotZ();
-        ClientEventHandler.gunRootMove(getAnimationProcessor());
+        ClientEventHandler.gunRootMove(getAnimationProcessor(), 0, 0, 0, true);
 
         CoreGeoBone camera = getAnimationProcessor().getBone("camera");
         ClientEventHandler.handleReloadShake(Mth.RAD_TO_DEG * camera.getRotX(), Mth.RAD_TO_DEG * camera.getRotY(), Mth.RAD_TO_DEG * camera.getRotZ());
+
+        ClientEventHandler.handleShootAnimation(shen, 0, 0, 0, 0, 0, 0, 0, 1f);
     }
 
     public static void wingControl(CoreGeoBone coreGeoBone, float m) {

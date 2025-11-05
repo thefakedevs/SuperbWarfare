@@ -3,15 +3,11 @@ package com.atsuishio.superbwarfare.entity.projectile;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.ExplosionConfig;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModifier;
 import com.atsuishio.superbwarfare.init.*;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.tools.*;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -21,7 +17,6 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -33,10 +28,10 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -48,42 +43,35 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.List;
 
-public class JavelinMissileEntity extends FastThrowableProjectile implements GeoEntity, ExplosiveProjectile {
+public class JavelinMissileEntity extends MissileProjectile implements GeoEntity, ExplosiveProjectile {
 
-    public static final EntityDataAccessor<Float> HEALTH = SynchedEntityData.defineId(JavelinMissileEntity.class, EntityDataSerializers.FLOAT);
-    public static final EntityDataAccessor<String> TARGET_UUID = SynchedEntityData.defineId(JavelinMissileEntity.class, EntityDataSerializers.STRING);
     public static final EntityDataAccessor<Boolean> TOP = SynchedEntityData.defineId(JavelinMissileEntity.class, EntityDataSerializers.BOOLEAN);
-    public static final EntityDataAccessor<Float> TARGET_X = SynchedEntityData.defineId(JavelinMissileEntity.class, EntityDataSerializers.FLOAT);
-    public static final EntityDataAccessor<Float> TARGET_Y = SynchedEntityData.defineId(JavelinMissileEntity.class, EntityDataSerializers.FLOAT);
-    public static final EntityDataAccessor<Float> TARGET_Z = SynchedEntityData.defineId(JavelinMissileEntity.class, EntityDataSerializers.FLOAT);
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
-    private float gravity = 0f;
-    private float damage = 500.0f;
-    private float explosionDamage = 140f;
-    private float explosionRadius = 6f;
-    private boolean fire = true;
-    private boolean distracted = false;
     private int guideType = 0;
+    public float targetX;
+    public float targetY;
+    public float targetZ;
 
-    public JavelinMissileEntity(EntityType<? extends JavelinMissileEntity> type, Level world) {
-        super(type, world);
+    public JavelinMissileEntity(EntityType<? extends JavelinMissileEntity> type, Level level) {
+        super(type, level);
         this.noCulling = true;
     }
 
-    public JavelinMissileEntity(LivingEntity entity, Level level, float damage, float explosionDamage, float explosionRadius, int guideType, Vec3 targetPos) {
+    public JavelinMissileEntity(Entity entity, Level level, float damage, float explosionDamage, float explosionRadius, int guideType, @Nullable Vec3 targetPos) {
         super(ModEntities.JAVELIN_MISSILE.get(), entity, level);
         this.noCulling = true;
         this.damage = damage;
         this.explosionDamage = explosionDamage;
         this.explosionRadius = explosionRadius;
         this.guideType = guideType;
-        this.fire = fire;
-        this.entityData.set(TARGET_X, (float) targetPos.x);
-        this.entityData.set(TARGET_Y, (float) targetPos.y);
-        this.entityData.set(TARGET_Z, (float) targetPos.z);
         this.durability = 50;
+        if (targetPos != null) {
+            this.targetX = (float) targetPos.x;
+            this.targetY = (float) targetPos.y;
+            this.targetZ = (float) targetPos.z;
+        }
     }
 
     public JavelinMissileEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
@@ -91,90 +79,23 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
     }
 
     @Override
-    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
-    }
-
-    @Override
     protected @NotNull Item getDefaultItem() {
         return ModItems.JAVELIN_MISSILE.get();
-    }
-
-    public void setTargetUuid(String uuid) {
-        this.entityData.set(TARGET_UUID, uuid);
     }
 
     public void setAttackMode(boolean mode) {
         this.entityData.set(TOP, mode);
     }
 
-    private static final DamageModifier DAMAGE_MODIFIER = DamageModifier.createDefaultModifier();
-
-    @Override
-    public boolean hurt(@NotNull DamageSource source, float amount) {
-        amount = DAMAGE_MODIFIER.compute(source, amount);
-        this.entityData.set(HEALTH, this.entityData.get(HEALTH) - amount);
-        return super.hurt(source, amount);
-    }
-
     @Override
     protected void defineSynchedData() {
         super.defineSynchedData();
-        this.entityData.define(HEALTH, 10f);
-        this.entityData.define(TARGET_UUID, "none");
         this.entityData.define(TOP, false);
-        this.entityData.define(TARGET_X, 0f);
-        this.entityData.define(TARGET_Y, 0f);
-        this.entityData.define(TARGET_Z, 0f);
-    }
-
-    @Override
-    public boolean isPickable() {
-        return !this.isRemoved();
-    }
-
-    @Override
-    public void readAdditionalSaveData(@NotNull CompoundTag compound) {
-        super.readAdditionalSaveData(compound);
-        if (compound.contains("Health")) {
-            this.entityData.set(HEALTH, compound.getFloat("Health"));
-        }
-        if (compound.contains("Damage")) {
-            this.damage = compound.getFloat("Damage");
-        }
-        if (compound.contains("ExplosionDamage")) {
-            this.explosionDamage = compound.getFloat("ExplosionDamage");
-        }
-        if (compound.contains("Radius")) {
-            this.explosionRadius = compound.getFloat("Radius");
-        }
-        if (compound.contains("Fire")) {
-            this.fire = compound.getBoolean("Fire");
-        }
-    }
-
-    @Override
-    public void addAdditionalSaveData(@NotNull CompoundTag compound) {
-        super.addAdditionalSaveData(compound);
-        compound.putFloat("Health", this.entityData.get(HEALTH));
-        compound.putFloat("Damage", this.damage);
-        compound.putFloat("ExplosionDamage", this.explosionDamage);
-        compound.putFloat("Radius", this.explosionRadius);
-        compound.putBoolean("Fire", this.fire);
-    }
-
-    @Override
-    public boolean shouldRenderAtSqrDistance(double pDistance) {
-        return true;
-    }
-
-    @Override
-    public boolean isNoGravity() {
-        return true;
     }
 
     @Override
     protected void onHitEntity(EntityHitResult result) {
+        super.onHitEntity(result);
         Entity entity = result.getEntity();
         if (this.getOwner() != null && this.getOwner().getVehicle() != null && entity == this.getOwner().getVehicle())
             return;
@@ -184,7 +105,8 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
             if (this.getOwner() instanceof LivingEntity living) {
                 if (!living.level().isClientSide() && living instanceof ServerPlayer player) {
                     living.level().playSound(null, living.blockPosition(), ModSounds.INDICATION.get(), SoundSource.VOICE, 1, 1);
-                    Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
+
+                    NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
                 }
             }
 
@@ -201,6 +123,7 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
 
     @Override
     public void onHitBlock(@NotNull BlockHitResult blockHitResult) {
+        super.onHitBlock(blockHitResult);
         if (this.level() instanceof ServerLevel) {
             BlockPos resultPos = blockHitResult.getBlockPos();
             float hardness = this.level().getBlockState(resultPos).getBlock().defaultDestroyTime();
@@ -211,7 +134,9 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
                         firstHit = false;
                         Mod.queueServerWork(3, this::discard);
                     }
-                    this.level().destroyBlock(resultPos, true);
+                    if (ExplosionConfig.EXTRA_EXPLOSION_EFFECT.get()) {
+                        this.level().destroyBlock(resultPos, true);
+                    }
                 }
             } else {
                 causeExplode(blockHitResult.getLocation());
@@ -225,52 +150,18 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
     }
 
     @Override
-    public void causeExplode(Vec3 vec3) {
-        CustomExplosion explosion = new CustomExplosion.Builder(this)
-                .attacker(this.getOwner())
-                .damage(explosionDamage)
-                .radius(explosionRadius)
-                .position(vec3)
-                .causeVanillaExplosion()
-                .withParticleType(ParticleTool.ParticleType.HUGE)
-                .explode();
-
-        // Set fire to blocks within the explosion radius with 8% chance per block if fire flag is true
-        if (this.fire && this.level() instanceof ServerLevel serverLevel) {
-            int fireRadius = (int) Math.floor(this.explosionRadius);
-            BlockPos center = new BlockPos((int) vec3.x, (int) vec3.y, (int) vec3.z);
-            for (int x = -fireRadius; x <= fireRadius; x++) {
-                for (int y = -fireRadius; y <= fireRadius; y++) {
-                    for (int z = -fireRadius; z <= fireRadius; z++) {
-                        BlockPos pos = center.offset(x, y, z);
-                        double distance = Math.sqrt(x * x + y * y + z * z);
-                        if (distance <= fireRadius && serverLevel.getBlockState(pos).isAir() && serverLevel.getBlockState(pos.below()).isSolidRender(serverLevel, pos.below())) {
-                            if (serverLevel.random.nextFloat() < 0.08f) { // 8% chance
-                                serverLevel.setBlock(pos, Blocks.FIRE.defaultBlockState(), 11);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    public ParticleTool.ParticleType explosionParticleType() {
+        return ParticleTool.ParticleType.HUGE;
     }
 
     @Override
     public void tick() {
         super.tick();
 
-        if (this.level() instanceof ServerLevel serverLevel && tickCount > 1) {
-            double l = getDeltaMovement().length();
-            for (double i = 0; i < l; i++) {
-                Vec3 startPos = new Vec3(this.xo, this.yo, this.zo);
-                Vec3 pos = startPos.add(getDeltaMovement().normalize().scale(i));
-                ParticleTool.sendParticle(serverLevel, ParticleTypes.CAMPFIRE_COSY_SMOKE, pos.x, pos.y, pos.z,
-                        1, 0, 0, 0, 0.001, true);
-            }
-        }
+        mediumTrail();
 
         Entity entity = EntityFindUtil.findEntity(this.level(), entityData.get(TARGET_UUID));
-        List<Entity> decoy = SeekTool.seekLivingEntities(this, this.level(), 32, 90);
+        List<Entity> decoy = SeekTool.seekLivingEntities(this, 32, 90);
 
         for (var e : decoy) {
             if (e.getType().is(ModTags.EntityTypes.DECOY) && !this.distracted) {
@@ -282,79 +173,63 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
 
         if (guideType == 0 || !entityData.get(TARGET_UUID).equals("none")) {
             if (entity != null) {
-                if (entity.level() instanceof ServerLevel) {
-                    this.entityData.set(TARGET_X, (float) entity.getX());
-                    this.entityData.set(TARGET_Y, (float) entity.getY() + 0.5f * entity.getBbHeight());
-                    this.entityData.set(TARGET_Z, (float) entity.getZ());
-                    if ((!entity.getPassengers().isEmpty() || entity instanceof VehicleEntity) && entity.tickCount % ((int) Math.max(0.04 * this.distanceTo(entity), 2)) == 0) {
-                        entity.level().playSound(null, entity.getOnPos(), entity instanceof Pig ? SoundEvents.PIG_HURT : ModSounds.MISSILE_WARNING.get(), SoundSource.PLAYERS, 2, 1f);
-                    }
+                boolean dir = position().vectorTo(entity.position()).horizontalDistanceSqr() < 900;
+                Vec3 targetPos = new Vec3(entity.getX(), entity.getY() + 0.5f * entity.getBbHeight() + (entity instanceof EnderDragon ? -3 : 0), entity.getZ());
+                Vec3 targetVec = new Vec3(entity.getDeltaMovement().x, 0, entity.getDeltaMovement().z);
+                Vec3 toVec = position().vectorTo(targetPos.add(targetVec)).normalize();
+                if ((!entity.getPassengers().isEmpty() || entity instanceof VehicleEntity) && entity.tickCount % ((int) Math.max(0.04 * this.distanceTo(entity), 2)) == 0) {
+                    entity.level().playSound(null, entity.getOnPos(), entity instanceof Pig ? SoundEvents.PIG_HURT : ModSounds.MISSILE_WARNING.get(), SoundSource.PLAYERS, 2, 1f);
                 }
-            }
-
-            double px = this.getX();
-            double ex = this.entityData.get(TARGET_X);
-            double pz = this.getZ();
-            double ez = this.entityData.get(TARGET_Z);
-            boolean dir = Math.sqrt(Math.pow(px - ex, 2) + Math.pow(pz - ez, 2)) < 30;
-            Vec3 targetPos = new Vec3(this.entityData.get(TARGET_X), this.entityData.get(TARGET_Y) + (entity instanceof EnderDragon ? -3 : 0), this.entityData.get(TARGET_Z));
-            if (entity != null) {
-                Vec3 toVec = getEyePosition().vectorTo(targetPos.add(entity.getDeltaMovement().scale(0.5))).normalize();
                 if (this.tickCount > 3) {
                     if (entityData.get(TOP)) {
                         if (!dir) {
-                            Vec3 targetTopPos = new Vec3(this.entityData.get(TARGET_X), this.entityData.get(TARGET_Y) + Mth.clamp(5 * this.tickCount, 0, 90), this.entityData.get(TARGET_Z));
-                            Vec3 toTopVec = getEyePosition().vectorTo(targetTopPos).normalize();
-                            setDeltaMovement(getDeltaMovement().add(toTopVec.scale(0.5)));
+                            Vec3 targetTopPos = new Vec3(targetPos.x, targetPos.y + Mth.clamp(6 * this.tickCount, 0, 90), targetPos.z);
+                            Vec3 toTopVec = position().vectorTo(targetTopPos).normalize();
+                            turn(toTopVec, 6);
                         } else {
                             boolean lostTarget = this.getY() < entity.getY();
                             if (!lostTarget) {
-                                setDeltaMovement(getDeltaMovement().add(toVec).scale(0.87));
+                                turn(toVec, 45);
+                                this.setDeltaMovement(this.getDeltaMovement().scale(0.1).add(getLookAngle().scale(8)));
                             }
                         }
                     } else {
-                        boolean lostTarget = (VectorTool.calculateAngle(getDeltaMovement(), toVec) > 80);
+                        boolean lostTarget = (VectorTool.calculateAngle(getLookAngle(), toVec) > 80);
                         if (!lostTarget) {
-                            setDeltaMovement(getDeltaMovement().add(toVec).scale(0.87));
+                            turn(toVec, 6);
                         }
                     }
                 }
             }
         } else if (guideType == 1) {
-            double px = this.getX();
-            double ex = this.entityData.get(TARGET_X);
-            double pz = this.getZ();
-            double ez = this.entityData.get(TARGET_Z);
-            boolean dir = Math.sqrt(Math.pow(px - ex, 2) + Math.pow(pz - ez, 2)) < 30;
-            Vec3 targetPos = new Vec3(this.entityData.get(TARGET_X), this.entityData.get(TARGET_Y), this.entityData.get(TARGET_Z));
+            Vec3 targetPos = new Vec3(targetX, targetY, targetZ);
+            boolean dir = position().vectorTo(targetPos).horizontalDistanceSqr() < 900;
             Vec3 toVec = getEyePosition().vectorTo(targetPos).normalize();
 
             if (this.tickCount > 3) {
                 if (entityData.get(TOP)) {
                     if (!dir) {
-                        Vec3 targetTopPos = new Vec3(this.entityData.get(TARGET_X), this.entityData.get(TARGET_Y) + Mth.clamp(5 * this.tickCount, 0, 90), this.entityData.get(TARGET_Z));
+                        Vec3 targetTopPos = new Vec3(targetPos.x, targetPos.y + Mth.clamp(5 * this.tickCount, 0, 90), targetPos.z);
                         Vec3 toTopVec = getEyePosition().vectorTo(targetTopPos).normalize();
-                        setDeltaMovement(getDeltaMovement().add(toTopVec.scale(0.5)));
+                        turn(toTopVec, 6);
                     } else {
-                        boolean lostTarget = this.getY() < this.entityData.get(TARGET_Y);
+                        boolean lostTarget = this.getY() < targetPos.y;
                         if (!lostTarget) {
-                            setDeltaMovement(getDeltaMovement().add(toVec).scale(0.87));
+                            turn(toVec, 45);
+                            this.setDeltaMovement(this.getDeltaMovement().scale(0.1).add(getLookAngle().scale(8)));
                         }
                     }
                 } else {
                     boolean lostTarget = (VectorTool.calculateAngle(getDeltaMovement(), toVec) > 80);
                     if (!lostTarget) {
-                        setDeltaMovement(getDeltaMovement().add(toVec).scale(0.87));
+                        turn(toVec, 6);
                     }
                 }
             }
         }
 
-        if (this.tickCount == 4) {
-            if (!this.level().isClientSide() && this.level() instanceof ServerLevel serverLevel) {
-                ParticleTool.sendParticle(serverLevel, ParticleTypes.CLOUD, this.xo, this.yo, this.zo, 15, 0.8, 0.8, 0.8, 0.01, true);
-                ParticleTool.sendParticle(serverLevel, ParticleTypes.CAMPFIRE_COSY_SMOKE, this.xo, this.yo, this.zo, 10, 0.8, 0.8, 0.8, 0.01, true);
-            }
+        if (this.tickCount > 3) {
+            this.setDeltaMovement(this.getDeltaMovement().add(getLookAngle()));
         }
 
         if (this.tickCount > 200 || this.isInWater() || this.entityData.get(HEALTH) <= 0) {
@@ -366,16 +241,7 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
             this.discard();
         }
 
-        // 控制速度
-        if (this.getDeltaMovement().length() < 2.6) {
-            this.setDeltaMovement(this.getDeltaMovement().multiply(1.06, 1.06, 1.06));
-        }
-
-        if (this.getDeltaMovement().length() > 2.9) {
-            this.setDeltaMovement(this.getDeltaMovement().multiply(0.9, 0.9, 0.9));
-        }
-
-        this.setDeltaMovement(this.getDeltaMovement().multiply(0.96, 0.96, 0.96));
+        this.setDeltaMovement(this.getDeltaMovement().multiply(0.8, 0.8, 0.8));
         destroyBlock();
     }
 
@@ -394,11 +260,6 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
     }
 
     @Override
-    public boolean shouldSyncMotion() {
-        return true;
-    }
-
-    @Override
     public @NotNull SoundEvent getCloseSound() {
         return ModSounds.ROCKET_ENGINE.get();
     }
@@ -411,30 +272,5 @@ public class JavelinMissileEntity extends FastThrowableProjectile implements Geo
     @Override
     public float getVolume() {
         return 0.4f;
-    }
-
-    @Override
-    public void setDamage(float damage) {
-        this.damage = damage;
-    }
-
-    @Override
-    public void setExplosionDamage(float damage) {
-        this.explosionDamage = damage;
-    }
-
-    @Override
-    public void setExplosionRadius(float radius) {
-        this.explosionRadius = radius;
-    }
-
-    @Override
-    public float getGravity() {
-        return this.gravity;
-    }
-
-    @Override
-    public void setGravity(float gravity) {
-        this.gravity = gravity;
     }
 }

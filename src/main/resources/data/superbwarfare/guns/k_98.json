@@ -9,7 +9,9 @@
   "Magazine": 5,
   "BoltActionTime": 22,
   "Weight": 5,
+  "ZoomSpreadRate": 0.005,
   "DefaultFireMode": "Auto",
+  "GunType": "Sniper",
   "ReloadTypes": [
     "Clip",
     "Iterative"
@@ -24,6 +26,7 @@
     "Type": "Sniper"
   },
   "AmmoType": "@SniperAmmo",
+  "Icon": "superbwarfare:textures/gun_icon/k_98_icon.png",
   "AvailablePerks": [
     "@Ammo",
     "superbwarfare:heal_clip",
@@ -31,6 +34,7 @@
     "superbwarfare:subsistence",
     "superbwarfare:powerful_attraction",
     "superbwarfare:intelligent_chip",
+    "superbwarfare:backpack_linked_magazine",
     "superbwarfare:kill_clip",
     "superbwarfare:monster_hunter",
     "superbwarfare:vorpal_weapon",
@@ -40,5 +44,23 @@
     "!superbwarfare:longer_wire",
     "!superbwarfare:butterfly_bullet",
     "!superbwarfare:cupid_arrow"
-  ]
+  ],
+  "SoundInfo": {
+    "Fire1P": "superbwarfare:k_98_fire_1p",
+    "Fire3P": "superbwarfare:k_98_fire_3p",
+    "Fire3PFar": "superbwarfare:k_98_far",
+    "Fire3PVeryFar": "superbwarfare:k_98_veryfar",
+    "ReloadEmpty": "superbwarfare:k_98_reload_empty",
+    "Bolt": "superbwarfare:k_98_bolt",
+    "ReloadPrepare": "superbwarfare:k_98_prepare",
+    "ReloadLoop": "superbwarfare:k_98_loop",
+    "ReloadEnd": "superbwarfare:k_98_end",
+    "CancellableSounds": [
+      "superbwarfare:k_98_reload_empty",
+      "superbwarfare:k_98_bolt",
+      "superbwarfare:k_98_prepare",
+      "superbwarfare:k_98_loop",
+      "superbwarfare:k_98_end"
+    ]
+  }
 }

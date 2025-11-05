@@ -1,7 +1,7 @@
 package com.atsuishio.superbwarfare.client.renderer.gun;
 
-import com.atsuishio.superbwarfare.client.AnimationHelper;
 import com.atsuishio.superbwarfare.client.ItemModelHelper;
+import com.atsuishio.superbwarfare.client.animation.AnimationHelper;
 import com.atsuishio.superbwarfare.client.model.item.AK47ItemModel;
 import com.atsuishio.superbwarfare.client.renderer.CustomGunRenderer;
 import com.atsuishio.superbwarfare.data.gun.GunData;
@@ -54,7 +54,7 @@ public class AK47ItemRenderer extends CustomGunRenderer<AK47Item> {
                 }
 
                 ItemModelHelper.handleGunAttachments(bone, itemStack, name);
-                AnimationHelper.handleShootFlare(name, stack, itemStack, bone, buffer, packedLightIn, 0, 0.02, 1.12375, 0.3);
+                AnimationHelper.handleShootFlare(name, stack, itemStack, bone, buffer, packedLightIn);
 
                 if (this.renderPerspective == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) {
                     if (GunData.from(itemStack).attachment.get(AttachmentType.SCOPE) == 2

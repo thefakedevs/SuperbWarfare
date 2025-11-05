@@ -34,10 +34,10 @@ public class AmmoPerk extends Perk {
 
         appendModification(GunProp.VELOCITY, (data, amount) -> amount * this.speedRate);
 
-        appendModification(GunProp.DAMAGE, (data, damage) -> {
+        appendModification(GunProp.DAMAGE, (pm, data, damage) -> {
             if (data.perk.get(Type.AMMO) instanceof AmmoPerk ammoPerk) {
                 if (ammoPerk.slug) {
-                    return damage * ammoPerk.damageRate * data.get(GunProp.PROJECTILE_AMOUNT);
+                    return damage * ammoPerk.damageRate * pm.<Integer>get(GunProp.PROJECTILE_AMOUNT);
                 }
                 return damage * ammoPerk.damageRate;
             }
@@ -48,6 +48,14 @@ public class AmmoPerk extends Perk {
             var perk = data.perk.get(Perk.Type.AMMO);
             if (perk instanceof AmmoPerk ammoPerk && ammoPerk.slug) {
                 return 1;
+            }
+            return amount;
+        });
+
+        appendModification(GunProp.ZOOM_SPREAD_RATE, (data, amount) -> {
+            var perk = data.perk.get(Perk.Type.AMMO);
+            if (perk instanceof AmmoPerk ammoPerk && ammoPerk.slug && data.isShotgun()) {
+                return 0.15;
             }
             return amount;
         });

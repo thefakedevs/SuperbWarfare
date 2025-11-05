@@ -1,13 +1,13 @@
 package com.atsuishio.superbwarfare.client.overlay;
 
 import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ArmedVehicleEntity;
+import com.atsuishio.superbwarfare.client.animation.AnimationCurves;
+import com.atsuishio.superbwarfare.client.animation.AnimationTimer;
+import com.atsuishio.superbwarfare.client.animation.ValueAnimator;
+import com.atsuishio.superbwarfare.data.gun.Ammo;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.item.common.ammo.AmmoSupplierItem;
-import com.atsuishio.superbwarfare.tools.Ammo;
-import com.atsuishio.superbwarfare.tools.animation.AnimationCurves;
-import com.atsuishio.superbwarfare.tools.animation.AnimationTimer;
-import com.atsuishio.superbwarfare.tools.animation.ValueAnimator;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -54,7 +54,7 @@ public class AmmoCountOverlay implements IGuiOverlay {
         var currentTime = System.currentTimeMillis();
         ItemStack stack = player.getMainHandItem();
         if ((stack.getItem() instanceof AmmoSupplierItem || stack.getItem() == ModItems.AMMO_BOX.get())
-                && !(player.getVehicle() instanceof ArmedVehicleEntity vehicle && vehicle.banHand(player))
+                && !(player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player))
         ) {
             // 刚拿出弹药物品时，视为开始弹药信息渲染
             startRenderingAmmoInfo = ammoInfoTimer.getProgress(currentTime) == 0;

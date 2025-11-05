@@ -1,11 +1,11 @@
 package com.atsuishio.superbwarfare.entity.vehicle;
 
 import com.atsuishio.superbwarfare.Mod;
+import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.config.server.VehicleConfig;
 import com.atsuishio.superbwarfare.entity.OBBEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ContainerMobileVehicleEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.LandArmorEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.ThirdPersonCameraPosition;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.WeaponVehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModifier;
 import com.atsuishio.superbwarfare.entity.vehicle.weapon.LaserWeapon;
@@ -14,10 +14,11 @@ import com.atsuishio.superbwarfare.event.ClientMouseHandler;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
 import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.network.message.receive.ShakeClientMessage;
 import com.atsuishio.superbwarfare.tools.*;
-import com.mojang.math.Axis;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -31,7 +32,6 @@ import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -39,7 +39,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
@@ -52,10 +52,9 @@ import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.PlayMessages;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.joml.*;
 import org.joml.Math;
+import org.joml.*;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -63,15 +62,11 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 import java.util.List;
-import java.util.stream.StreamSupport;
 
-import static com.atsuishio.superbwarfare.client.RenderHelper.preciseBlit;
 import static com.atsuishio.superbwarfare.tools.ParticleTool.sendParticle;
-import static com.atsuishio.superbwarfare.tools.SeekTool.baseFilter;
 
-public class PrismTankEntity extends ContainerMobileVehicleEntity implements GeoEntity, LandArmorEntity, WeaponVehicleEntity, OBBEntity {
+public class PrismTankEntity extends VehicleEntity implements GeoEntity, WeaponVehicleEntity, OBBEntity {
 
-    public static final EntityDataAccessor<Integer> CANNON_FIRE_TIME = SynchedEntityData.defineId(PrismTankEntity.class, EntityDataSerializers.INT);
     public static final EntityDataAccessor<Float> LASER_LENGTH = SynchedEntityData.defineId(PrismTankEntity.class, EntityDataSerializers.FLOAT);
     public static final EntityDataAccessor<Float> LASER_SCALE = SynchedEntityData.defineId(PrismTankEntity.class, EntityDataSerializers.FLOAT);
     public static final EntityDataAccessor<Float> LASER_SCALE_O = SynchedEntityData.defineId(PrismTankEntity.class, EntityDataSerializers.FLOAT);
@@ -104,6 +99,11 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
     }
 
     @Override
+    public int getContainerSize() {
+        return 102;
+    }
+
+    @Override
     public VehicleWeapon[][] initWeapons() {
         return new VehicleWeapon[][]{
                 new VehicleWeapon[]{
@@ -113,6 +113,8 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
                                 .sound3p(ModSounds.PRISM_FIRE_3P.get()),
                         new LaserWeapon()
                                 .sound(ModSounds.INTO_CANNON.get())
+                                .sound1p(ModSounds.PRISM_FIRE_1P_2.get())
+                                .sound3p(ModSounds.PRISM_FIRE_3P_2.get()),
                 }
         };
     }
@@ -125,7 +127,6 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
     @Override
     protected void defineSynchedData() {
         super.defineSynchedData();
-        this.entityData.define(CANNON_FIRE_TIME, 0);
         this.entityData.define(LASER_LENGTH, 0f);
         this.entityData.define(LASER_SCALE, 0f);
         this.entityData.define(LASER_SCALE_O, 0f);
@@ -174,18 +175,56 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
             this.entityData.set(LASER_LENGTH, 0f);
         }
 
-        turretAngle(10, 12.5f);
         this.terrainCompact(4.6375f, 5.171875f);
         inertiaRotate(1);
 
-        releaseSmokeDecoy(getTurretVector(1));
-
-        if (this.getFirstPassenger() instanceof Player player && fireInputDown && getWeaponIndex(0) == 1 && getEnergy() > VehicleConfig.PRISM_TANK_SHOOT_COST_MODE_2.get() && !cannotFire) {
-            vehicleShoot(player, 0);
-        }
 
         lowHealthWarning();
         this.refreshDimensions();
+    }
+
+    // 炮塔最大水平旋转速度
+    @Override
+    public float turretYSpeed() {
+        return 15;
+    }
+
+    // 炮塔最大俯仰旋转速度
+    @Override
+    public float turretXSpeed() {
+        return 15F;
+    }
+
+    // 炮塔最小俯角
+    @Override
+    public float turretMinPitch() {
+        return -15f;
+    }
+
+    // 炮塔最大仰角
+    @Override
+    public float turretMaxPitch() {
+        return 32.5f;
+    }
+
+    // 炮弹发射位置
+    @Override
+    public Vec3 getShootPos(int seatIndex, float ticks) {
+        Matrix4f transform = getBarrelTransform(1);
+        Vector4f worldPosition = transformPosition(transform, 0, 0.5f, 0);
+        return new Vec3(worldPosition.x, worldPosition.y, worldPosition.z);
+    }
+
+    // 炮弹发射速度
+    @Override
+    public float projectileVelocity(Entity entity) {
+        return 114514;
+    }
+
+    // 炮弹重力
+    @Override
+    public float projectileGravity(Entity entity) {
+        return 0;
     }
 
     @Override
@@ -194,15 +233,7 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
     }
 
     @Override
-    public void move(@NotNull MoverType movementType, @NotNull Vec3 movement) {
-        super.move(movementType, movement);
-        if (this.isInWater() && horizontalCollision) {
-            setDeltaMovement(this.getDeltaMovement().add(0, 0.07, 0));
-        }
-    }
-
-    @Override
-    public void vehicleShoot(Player player, int type) {
+    public void vehicleShoot(LivingEntity living) {
         Matrix4f transform = getBarrelTransform(1);
         Vector4f worldPosition = transformPosition(transform, 0, 0.5f, 0);
         Vec3 root = new Vec3(worldPosition.x, worldPosition.y, worldPosition.z);
@@ -210,20 +241,13 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
         if (getWeaponIndex(0) == 0) {
             if (this.cannotFire) return;
 
-            if (!this.canConsume(VehicleConfig.PRISM_TANK_SHOOT_COST_MODE_1.get())) {
+            if (!this.canConsume(VehicleConfig.PRISM_TANK_SHOOT_COST_MODE_1.get()) && living instanceof Player player) {
                 player.displayClientMessage(Component.translatable("tips.superbwarfare.annihilator.energy_not_enough").withStyle(ChatFormatting.RED), true);
                 return;
             }
 
-            Level level = player.level();
-            if (level instanceof ServerLevel) {
-                if (!player.level().isClientSide) {
-                    playShootSound3p(player, 0, 5, 5, 5);
-                }
-
-                this.entityData.set(HEAT, entityData.get(HEAT) + 55);
+            if (level() instanceof ServerLevel) {
                 this.consumeEnergy(VehicleConfig.PRISM_TANK_SHOOT_COST_MODE_1.get());
-
                 ShakeClientMessage.sendToNearbyPlayers(this, 5, 8, 4, 7);
             }
 
@@ -237,26 +261,22 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
             }
 
             this.entityData.set(LASER_SCALE, 3f);
+            this.entityData.set(HEAT, entityData.get(HEAT) + 55);
 
         } else if (getWeaponIndex(0) == 1) {
             if (this.cannotFire) return;
 
-            if (!this.canConsume(VehicleConfig.PRISM_TANK_SHOOT_COST_MODE_2.get())) {
+            if (!this.canConsume(VehicleConfig.PRISM_TANK_SHOOT_COST_MODE_2.get()) && living instanceof Player player) {
                 player.displayClientMessage(Component.translatable("tips.superbwarfare.annihilator.energy_not_enough").withStyle(ChatFormatting.RED), true);
                 return;
             }
 
-            Level level = player.level();
-
             float pitch = entityData.get(HEAT) <= 60 ? 1.1f : (float) (1.1f - 0.011 * Math.abs(60 - entityData.get(HEAT)));
-            SoundTool.playLocalSound(player, ModSounds.PRISM_FIRE_1P_2.get(), 1f, pitch);
+            if (living instanceof Player player) {
+                SoundTool.playLocalSound(player, ModSounds.PRISM_FIRE_1P_2.get(), 1f, pitch);
+            }
 
-            if (level instanceof ServerLevel) {
-                if (!player.level().isClientSide) {
-                    playShootSound3p(player, 0, 4, 4, 4);
-                }
-
-                this.entityData.set(HEAT, entityData.get(HEAT) + 2);
+            if (level() instanceof ServerLevel) {
                 this.consumeEnergy(VehicleConfig.PRISM_TANK_SHOOT_COST_MODE_2.get());
             }
 
@@ -270,6 +290,7 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
             }
 
             this.entityData.set(LASER_SCALE, 1f);
+            this.entityData.set(HEAT, entityData.get(HEAT) + 2);
         }
     }
 
@@ -313,7 +334,9 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
             Vec3 viewVec = getBarrelVector(1);
             Vec3 toVec = pos.add(viewVec.x * 512, viewVec.y * 512, viewVec.z * 512);
             AABB aabb = getBoundingBox().expandTowards(viewVec.scale(512)).inflate(1.0D, 1.0D, 1.0D);
-            EntityHitResult entityhitresult = ProjectileUtil.getEntityHitResult(this, pos, toVec, aabb, p -> !p.isSpectator() && p.isAlive() && SeekTool.smokeFilter(p), distance);
+            EntityHitResult entityhitresult = ProjectileUtil.getEntityHitResult(this, pos, toVec, aabb,
+                    p -> !p.isSpectator() && p.isAlive() && SeekTool.NOT_IN_SMOKE.test(p), distance);
+
             if (entityhitresult != null) {
                 Vec3 targetPos = entityhitresult.getLocation();
                 double distanceToTarget = pos.distanceToSqr(targetPos);
@@ -342,7 +365,7 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
                             if (getFirstPassenger() != null && !getFirstPassenger().level().isClientSide() && getFirstPassenger() instanceof ServerPlayer player) {
                                 var holder = Holder.direct(ModSounds.INDICATION.get());
                                 player.connection.send(new ClientboundSoundPacket(holder, SoundSource.PLAYERS, player.getX(), player.getY(), player.getZ(), 1f, 1f, player.level().random.nextLong()));
-                                Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
+                                NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
                             }
                         }
                     }
@@ -359,7 +382,15 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
         int aoeDamage = VehicleConfig.PRISM_TANK_AOE_DAMAGE.get();
         int range = VehicleConfig.PRISM_TANK_AOE_RADIUS.get();
         if (level() instanceof ServerLevel serverLevel) {
-            List<Entity> entities = seekNearEntities(vec, level(), range);
+            List<Entity> entities = new SeekTool.Builder(this)
+                    .withinRange(range)
+                    .notItsVehicle()
+                    .baseFilter()
+                    .smokeFilter()
+                    .noVehicle()
+                    .differentTeam()
+                    .build();
+
             for (var e : entities) {
                 double dis = vec.distanceTo(e.getEyePosition());
                 for (float i = 0; i < dis; i += 0.2f) {
@@ -374,21 +405,10 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
                 if (getFirstPassenger() != null && !getFirstPassenger().level().isClientSide() && getFirstPassenger() instanceof ServerPlayer player) {
                     var holder = Holder.direct(ModSounds.INDICATION.get());
                     player.connection.send(new ClientboundSoundPacket(holder, SoundSource.PLAYERS, player.getX(), player.getY(), player.getZ(), 1f, 1f, player.level().random.nextLong()));
-                    Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
+                    NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
                 }
             }
         }
-    }
-
-    public List<Entity> seekNearEntities(Vec3 vec3, Level level, double seekRange) {
-        return StreamSupport.stream(EntityFindUtil.getEntities(level).getAll().spliterator(), false)
-                .filter(e -> e.position().distanceTo(vec3) <= seekRange
-                        && e != this
-                        && e.getVehicle() != this
-                        && baseFilter(e)
-                        && SeekTool.smokeFilter(e)
-                        && e.getVehicle() == null
-                        && (!e.isAlliedTo(this) || e.getTeam() == null || e.getTeam().getName().equals("TDM"))).toList();
     }
 
     public HitResult pickNew(Vec3 pos, double pHitDistance) {
@@ -398,55 +418,13 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
     }
 
     @Override
-    public void travel() {
-        trackEngine(false, 0, VehicleConfig.PRISM_TANK_ENERGY_COST.get(), 1.25, 0.5, 1.9, 0.8, 0.26f, -0.2f, 0.0032f, 0.0024f, 0.12f);
-    }
-
-    @Override
     public SoundEvent getEngineSound() {
         return ModSounds.PRISM_ENGINE.get();
     }
 
     @Override
     public float getEngineSoundVolume() {
-        return Math.max(Mth.abs(entityData.get(POWER)), Mth.abs(0.1f * this.entityData.get(DELTA_ROT))) * 2.5f;
-    }
-
-    @Override
-    public void positionRider(@NotNull Entity passenger, @NotNull MoveFunction callback) {
-        // From Immersive_Aircraft
-        if (!this.hasPassenger(passenger)) {
-            return;
-        }
-
-        Matrix4f transform = getTurretTransform(1);
-        Matrix4f transformV = getVehicleTransform(1);
-
-        int i = this.getSeatIndex(passenger);
-
-        Vector4f worldPosition;
-        if (i == 0) {
-            worldPosition = transformPosition(transform, 0, -0.6f, 0);
-        } else {
-            worldPosition = transformPosition(transformV, -0.59375f, 1f, 3.0625f);
-        }
-        passenger.setPos(worldPosition.x, worldPosition.y, worldPosition.z);
-        callback.accept(passenger, worldPosition.x, worldPosition.y, worldPosition.z);
-
-        copyEntityData(passenger);
-    }
-
-    public void copyEntityData(Entity entity) {
-        if (entity == getNthEntity(0)) {
-            entity.setYBodyRot(getBarrelYRot(1));
-        }
-        if (entity == getNthEntity(1)) {
-            entity.setYBodyRot(getYRot());
-        }
-    }
-
-    public int getMaxPassengers() {
-        return 2;
+        return Math.max(Mth.abs(entityData.get(POWER)), Mth.abs(1.4f * this.entityData.get(DELTA_ROT))) * 0.4f;
     }
 
     public Vec3 driverPos(float ticks) {
@@ -456,121 +434,20 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
     }
 
     @Override
-    public Vec3 driverZoomPos(float ticks) {
+    public Vec3 zoomPos(Entity entity, float ticks) {
         Matrix4f transform = getBarrelTransform(ticks);
         Vector4f worldPosition = transformPosition(transform, 0, 0.95f, 0f);
         return new Vec3(worldPosition.x, worldPosition.y, worldPosition.z);
     }
 
     @Override
-    public Vec3 getBarrelVector(float pPartialTicks) {
-        Matrix4f transform = getBarrelTransform(pPartialTicks);
-        Vector4f rootPosition = transformPosition(transform, 0, 0, 0);
-        Vector4f targetPosition = transformPosition(transform, 0, 0, 1);
-        return new Vec3(rootPosition.x, rootPosition.y, rootPosition.z).vectorTo(new Vec3(targetPosition.x, targetPosition.y, targetPosition.z));
-    }
-
-    public Matrix4f getBarrelTransform(float ticks) {
-        Matrix4f transformT = getTurretTransform(ticks);
-
-        Matrix4f transform = new Matrix4f();
-        Vector4f worldPosition = transformPosition(transform, 0, 1.484375f, -0.2375f);
-
-        transformT.translate(worldPosition.x, worldPosition.y, worldPosition.z);
-
-        float a = getTurretYaw(ticks);
-
-        float r = (Mth.abs(a) - 90f) / 90f;
-
-        float r2;
-
-        if (Mth.abs(a) <= 90f) {
-            r2 = a / 90f;
-        } else {
-            if (a < 0) {
-                r2 = -(180f + a) / 90f;
-            } else {
-                r2 = (180f - a) / 90f;
-            }
-        }
-
-        float x = Mth.lerp(ticks, turretXRotO, getTurretXRot());
-        float xV = Mth.lerp(ticks, xRotO, getXRot());
-        float z = Mth.lerp(ticks, prevRoll, getRoll());
-
-        transformT.rotate(Axis.XP.rotationDegrees(x + r * xV + r2 * z));
-        return transformT;
-    }
-
-    public Vec3 getTurretVector(float pPartialTicks) {
-        Matrix4f transform = getTurretTransform(pPartialTicks);
-        Vector4f rootPosition = transformPosition(transform, 0, 0, 0);
-        Vector4f targetPosition = transformPosition(transform, 0, 0, 1);
-        return new Vec3(rootPosition.x, rootPosition.y, rootPosition.z).vectorTo(new Vec3(targetPosition.x, targetPosition.y, targetPosition.z));
+    public Vec3 getBarrelPosition() {
+        return new Vec3(0, 1.484375, -0.2375);
     }
 
     @Override
-    public Matrix4f getTurretTransform(float ticks) {
-        Matrix4f transformV = getVehicleTransform(ticks);
-
-        Matrix4f transform = new Matrix4f();
-        Vector4f worldPosition = transformPosition(transform, 0, 2.14375f, 0.7375f);
-
-        transformV.translate(worldPosition.x, worldPosition.y, worldPosition.z);
-        transformV.rotate(Axis.YP.rotationDegrees(Mth.lerp(ticks, turretYRotO, getTurretYRot())));
-        return transformV;
-    }
-
-    @Override
-    public float rotateYOffset() {
-        return 3.5f;
-    }
-
-    protected void clampRotation(Entity entity) {
-        if (entity == getNthEntity(0)) {
-            float a = getTurretYaw(1);
-            float r = (Mth.abs(a) - 90f) / 90f;
-
-            float r2;
-
-            if (Mth.abs(a) <= 90f) {
-                r2 = a / 90f;
-            } else {
-                if (a < 0) {
-                    r2 = -(180f + a) / 90f;
-                } else {
-                    r2 = (180f - a) / 90f;
-                }
-            }
-
-            float min = -32.5f - r * getXRot() - r2 * getRoll();
-            float max = 15f - r * getXRot() - r2 * getRoll();
-
-            float f = Mth.wrapDegrees(entity.getXRot());
-            float f1 = Mth.clamp(f, min, max);
-            entity.xRotO += f1 - f;
-            entity.setXRot(entity.getXRot() + f1 - f);
-
-            entity.setYBodyRot(getBarrelYRot(1));
-        }
-
-        if (entity == getNthEntity(1)) {
-            float f = Mth.wrapDegrees(entity.getXRot());
-            float f1 = Mth.clamp(f, -80.0F, 10F);
-            entity.xRotO += f1 - f;
-            entity.setXRot(entity.getXRot() + f1 - f);
-
-            float f2 = Mth.wrapDegrees(entity.getYRot() - this.getYRot());
-            float f3 = Mth.clamp(f2, -100.0F, 100.0F);
-            entity.yRotO += f3 - f2;
-            entity.setYRot(entity.getYRot() + f3 - f2);
-            entity.setYBodyRot(this.getYRot());
-        }
-    }
-
-    @Override
-    public void onPassengerTurned(@NotNull Entity entity) {
-        this.clampRotation(entity);
+    public Vec3 getTurretPosition() {
+        return new Vec3(0, 2.14375, 0.7375);
     }
 
     @Override
@@ -583,36 +460,26 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
     }
 
     @Override
-    public int mainGunRpm(Player player) {
+    public int mainGunRpm(LivingEntity living) {
         if (getWeaponIndex(0) == 0) {
             return 30;
-        } else if (getWeaponIndex(0) == 1) {
-            return 0;
+        } else {
+            return 1200;
         }
-        return 30;
     }
 
     @Override
-    public boolean canShoot(Player player) {
+    public boolean canShoot(LivingEntity living) {
         if (getWeaponIndex(0) == 0) {
             return getEnergy() > VehicleConfig.PRISM_TANK_SHOOT_COST_MODE_1.get() && !cannotFire;
+        } else {
+            return getEnergy() > VehicleConfig.PRISM_TANK_SHOOT_COST_MODE_2.get() && !cannotFire;
         }
-        return false;
     }
 
     @Override
-    public int getAmmoCount(Player player) {
+    public int getAmmoCount(LivingEntity living) {
         return (int) (this.getCapability(ForgeCapabilities.ENERGY).map(IEnergyStorage::getEnergyStored).orElse(0) * 100f / (float) this.getMaxEnergy());
-    }
-
-    @Override
-    public boolean banHand(Player player) {
-        return player == getFirstPassenger();
-    }
-
-    @Override
-    public boolean hidePassenger(int index) {
-        return index == 0;
     }
 
     @Override
@@ -621,34 +488,24 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
     }
 
     @Override
-    public int getWeaponHeat(Player player) {
+    public int getWeaponHeat(LivingEntity living) {
         return entityData.get(HEAT);
-    }
-
-    @Override
-    public boolean hasTracks() {
-        return true;
-    }
-
-    @Override
-    public ResourceLocation getVehicleIcon() {
-        return Mod.loc("textures/vehicle_icon/prism_tank_icon.png");
     }
 
     @OnlyIn(Dist.CLIENT)
     @Override
-    public void renderFirstPersonOverlay(GuiGraphics guiGraphics, Font font, Player player, int screenWidth, int screenHeight, float scale) {
+    public void renderFirstPersonOverlay(GuiGraphics guiGraphics, PoseStack poseStack, Font font, Player player, int screenWidth, int screenHeight, float scale, int color) {
         float minWH = (float) Math.min(screenWidth, screenHeight);
         float scaledMinWH = Mth.floor(minWH * scale);
         float centerW = ((screenWidth - scaledMinWH) / 2);
         float centerH = ((screenHeight - scaledMinWH) / 2);
 
         // 准心
-        preciseBlit(guiGraphics, Mod.loc("textures/screens/land/lav_missile_cross.png"), centerW, centerH, 0, 0.0F, scaledMinWH, scaledMinWH, scaledMinWH, scaledMinWH);
+        RenderHelper.blit(poseStack, Mod.loc("textures/screens/land/common_missile.png"), centerW, centerH, 0, 0.0F, scaledMinWH, scaledMinWH, scaledMinWH, scaledMinWH, color);
 
         // 武器名称+过热
-        double heat = 1 - this.getEntityData().get(HEAT) / 100.0F;
-        guiGraphics.drawString(font, Component.literal("LASER   " + (this.getEntityData().get(HEAT) + 25) + " ℃"), screenWidth / 2 - 33, screenHeight - 65, Mth.hsvToRgb((float) heat / 3.745318352059925F, 1.0F, 1.0F), false);
+        int heat = this.getEntityData().get(HEAT);
+        guiGraphics.drawString(font, Component.literal("LASER   " + (this.getEntityData().get(HEAT) + 25) + " ℃"), screenWidth / 2 - 33, screenHeight - 65, MathTool.getGradientColor(color, 0xFF0000, heat, 2), false);
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -661,18 +518,8 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
     }
 
     @Override
-    public boolean hasDecoy() {
-        return true;
-    }
-
-    @Override
     public double getSensitivity(double original, boolean zoom, int seatIndex, boolean isOnGround) {
         return zoom ? 0.26 : Minecraft.getInstance().options.getCameraType().isFirstPerson() ? 0.33 : 0.45;
-    }
-
-    @Override
-    public boolean isEnclosed(int index) {
-        return index == 0;
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -680,7 +527,7 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
     public @Nullable Vec2 getCameraRotation(float partialTicks, Player player, boolean zoom, boolean isFirstPerson) {
         if (zoom || isFirstPerson) {
             if (this.getSeatIndex(player) == 0) {
-                return new Vec2((float) -getYRotFromVector(this.getBarrelVec(partialTicks)), (float) -getXRotFromVector(this.getBarrelVec(partialTicks)));
+                return new Vec2((float) -getYRotFromVector(this.getBarrelVector(partialTicks)), (float) -getXRotFromVector(this.getBarrelVector(partialTicks)));
             }
         }
         return super.getCameraRotation(partialTicks, player, false, false);
@@ -692,7 +539,7 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
         if (zoom || isFirstPerson) {
             if (this.getSeatIndex(player) == 0) {
                 if (zoom) {
-                    return new Vec3(this.driverZoomPos(partialTicks).x, this.driverZoomPos(partialTicks).y, this.driverZoomPos(partialTicks).z);
+                    return new Vec3(this.zoomPos(player, partialTicks).x, this.zoomPos(player, partialTicks).y, this.zoomPos(player, partialTicks).z);
                 } else {
                     return new Vec3(this.driverPos(partialTicks).x, this.driverPos(partialTicks).y, this.driverPos(partialTicks).z);
                 }
@@ -704,11 +551,6 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
     @OnlyIn(Dist.CLIENT)
     public boolean useFixedCameraPos(Entity entity) {
         return this.getSeatIndex(entity) == 0;
-    }
-
-    @Override
-    public @Nullable ResourceLocation getVehicleItemIcon() {
-        return Mod.loc("textures/gui/vehicle/type/land.png");
     }
 
     @Override
@@ -759,5 +601,10 @@ public class PrismTankEntity extends ContainerMobileVehicleEntity implements Geo
         Vector4f worldPositionT = transformPosition(transformT, 0, 1.59375f, -0.390625f);
         this.obbTurret.center().set(new Vector3f(worldPositionT.x, worldPositionT.y, worldPositionT.z));
         this.obbTurret.setRotation(VectorTool.combineRotationsTurret(1, this));
+    }
+
+    @Override
+    public boolean hasTurret() {
+        return true;
     }
 }

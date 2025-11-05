@@ -3,25 +3,17 @@ package com.atsuishio.superbwarfare.entity.projectile;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.ExplosionConfig;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModifier;
 import com.atsuishio.superbwarfare.init.*;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.tools.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
-import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Mth;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -32,7 +24,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
@@ -48,33 +39,30 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.List;
 
-public class Agm65Entity extends FastThrowableProjectile implements GeoEntity, ExplosiveProjectile {
+public class Agm65Entity extends MissileProjectile implements GeoEntity, ExplosiveProjectile {
 
-    public static final EntityDataAccessor<Float> HEALTH = SynchedEntityData.defineId(Agm65Entity.class, EntityDataSerializers.FLOAT);
-    public static final EntityDataAccessor<String> TARGET_UUID = SynchedEntityData.defineId(Agm65Entity.class, EntityDataSerializers.STRING);
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
-    private static final DamageModifier DAMAGE_MODIFIER = DamageModifier.createDefaultModifier();
-    private float damage = ExplosionConfig.AGM_65_DAMAGE.get();
-    private float explosionDamage = ExplosionConfig.AGM_65_EXPLOSION_DAMAGE.get();
-    private float explosionRadius = ExplosionConfig.AGM_65_EXPLOSION_RADIUS.get().floatValue();
-    private boolean distracted = false;
-    private int durability;
-    public float gravity = 0.15f;
 
-    public Agm65Entity(EntityType<? extends Agm65Entity> type, Level world) {
-        super(type, world);
+    public Agm65Entity(EntityType<? extends Agm65Entity> type, Level level) {
+        super(type, level);
         this.noCulling = true;
+        this.damage = ExplosionConfig.AGM_65_DAMAGE.get();
+        this.explosionDamage = ExplosionConfig.AGM_65_EXPLOSION_DAMAGE.get();
+        this.explosionRadius = ExplosionConfig.AGM_65_EXPLOSION_RADIUS.get().floatValue();
+        this.distracted = false;
+        this.gravity = 0.15f;
         this.durability = 25;
     }
 
     public Agm65Entity(LivingEntity entity, Level level) {
         super(ModEntities.AGM_65.get(), entity, level);
         this.noCulling = true;
+        this.damage = ExplosionConfig.AGM_65_DAMAGE.get();
+        this.explosionDamage = ExplosionConfig.AGM_65_EXPLOSION_DAMAGE.get();
+        this.explosionRadius = ExplosionConfig.AGM_65_EXPLOSION_RADIUS.get().floatValue();
+        this.distracted = false;
+        this.gravity = 0.15f;
         this.durability = 25;
-    }
-
-    public void setTargetUuid(String uuid) {
-        this.entityData.set(TARGET_UUID, uuid);
     }
 
     public Agm65Entity(PlayMessages.SpawnEntity spawnEntity, Level level) {
@@ -87,62 +75,8 @@ public class Agm65Entity extends FastThrowableProjectile implements GeoEntity, E
     }
 
     @Override
-    public boolean hurt(@NotNull DamageSource source, float amount) {
-        amount = DAMAGE_MODIFIER.compute(source, amount);
-        this.entityData.set(HEALTH, this.entityData.get(HEALTH) - amount);
-
-        return super.hurt(source, amount);
-    }
-
-    @Override
-    protected void defineSynchedData() {
-        super.defineSynchedData();
-        this.entityData.define(HEALTH, 30f);
-        this.entityData.define(TARGET_UUID, "none");
-    }
-
-    @Override
-    public boolean isPickable() {
-        return !this.isRemoved();
-    }
-
-    @Override
-    public void readAdditionalSaveData(@NotNull CompoundTag compound) {
-        super.readAdditionalSaveData(compound);
-        if (compound.contains("Health")) {
-            this.entityData.set(HEALTH, compound.getFloat("Health"));
-        }
-        if (compound.contains("Damage")) {
-            this.damage = compound.getFloat("Damage");
-        }
-        if (compound.contains("ExplosionDamage")) {
-            this.explosionDamage = compound.getFloat("ExplosionDamage");
-        }
-        if (compound.contains("Radius")) {
-            this.explosionRadius = compound.getFloat("Radius");
-        }
-        if (compound.contains("Durability")) {
-            this.durability = compound.getInt("Durability");
-        }
-    }
-
-    @Override
-    public void addAdditionalSaveData(@NotNull CompoundTag compound) {
-        super.addAdditionalSaveData(compound);
-        compound.putFloat("Health", this.entityData.get(HEALTH));
-        compound.putFloat("Damage", this.damage);
-        compound.putFloat("ExplosionDamage", this.explosionDamage);
-        compound.putFloat("Radius", this.explosionRadius);
-        compound.putInt("Durability", this.durability);
-    }
-
-    @Override
-    public boolean shouldRenderAtSqrDistance(double pDistance) {
-        return true;
-    }
-
-    @Override
     protected void onHitEntity(EntityHitResult result) {
+        super.onHitEntity(result);
         Entity entity = result.getEntity();
         if (entity == this.getOwner() || (this.getOwner() != null && entity == this.getOwner().getVehicle()))
             return;
@@ -151,7 +85,7 @@ public class Agm65Entity extends FastThrowableProjectile implements GeoEntity, E
                 if (!living.level().isClientSide() && living instanceof ServerPlayer player) {
                     living.level().playSound(null, living.blockPosition(), ModSounds.INDICATION.get(), SoundSource.VOICE, 1, 1);
 
-                    Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
+                    NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
                 }
             }
 
@@ -169,6 +103,7 @@ public class Agm65Entity extends FastThrowableProjectile implements GeoEntity, E
 
     @Override
     public void onHitBlock(@NotNull BlockHitResult blockHitResult) {
+        super.onHitBlock(blockHitResult);
         if (this.level() instanceof ServerLevel) {
             BlockPos resultPos = blockHitResult.getBlockPos();
             float hardness = this.level().getBlockState(resultPos).getBlock().defaultDestroyTime();
@@ -179,7 +114,9 @@ public class Agm65Entity extends FastThrowableProjectile implements GeoEntity, E
                         firstHit = false;
                         Mod.queueServerWork(3, this::discard);
                     }
-                    this.level().destroyBlock(resultPos, true);
+                    if (ExplosionConfig.EXTRA_EXPLOSION_EFFECT.get()) {
+                        this.level().destroyBlock(resultPos, true);
+                    }
                 }
             } else {
                 causeExplode(blockHitResult.getLocation());
@@ -193,34 +130,18 @@ public class Agm65Entity extends FastThrowableProjectile implements GeoEntity, E
     }
 
     @Override
-    public void causeExplode(Vec3 vec3) {
-        new CustomExplosion.Builder(this)
-                .attacker(this.getOwner())
-                .damage(explosionDamage)
-                .radius(explosionRadius)
-                .position(vec3)
-                .causeVanillaExplosion()
-                .withParticleType(ParticleTool.ParticleType.HUGE)
-                .explode();
+    public ParticleTool.ParticleType explosionParticleType() {
+        return super.explosionParticleType();
     }
 
     @Override
     public void tick() {
         super.tick();
 
-        if (this.level() instanceof ServerLevel serverLevel && tickCount > 1) {
-            double l = getDeltaMovement().length();
-            for (double i = 0; i < l; i++) {
-                Vec3 startPos = new Vec3(this.xo, this.yo, this.zo);
-                Vec3 pos = startPos.add(getDeltaMovement().normalize().scale(-i));
-                ParticleTool.sendParticle(serverLevel, ParticleTypes.CAMPFIRE_COSY_SMOKE, pos.x, pos.y, pos.z,
-                        1, 0, 0, 0, 0.001, true);
-            }
-        }
-
+        largeTrail();
 
         Entity entity = EntityFindUtil.findEntity(this.level(), entityData.get(TARGET_UUID));
-        List<Entity> decoy = SeekTool.seekLivingEntities(this, this.level(), 32, 90);
+        List<Entity> decoy = SeekTool.seekLivingEntities(this, 32, 90);
 
         for (var e : decoy) {
             if (e.getType().is(ModTags.EntityTypes.DECOY) && !this.distracted) {
@@ -237,17 +158,21 @@ public class Agm65Entity extends FastThrowableProjectile implements GeoEntity, E
                         entity.level().playSound(null, entity.getOnPos(), entity instanceof Pig ? SoundEvents.PIG_HURT : ModSounds.MISSILE_WARNING.get(), SoundSource.PLAYERS, 2, 1f);
                     }
 
-                    Vec3 targetPos = new Vec3(entity.getX(), entity.getY() + (entity instanceof EnderDragon ? -2 : 0) + 0.1 * distanceTo(entity), entity.getZ());
+                    Vec3 targetPos = new Vec3(entity.getX(), entity.getY() + (entity instanceof EnderDragon ? -2 : 0), entity.getZ());
 
-                    Vec3 toVec = getEyePosition().vectorTo(targetPos).normalize();
+                    Vec3 toVec = position().vectorTo(targetPos).normalize();
                     if (this.tickCount > 8) {
-                        boolean lostTarget = (VectorTool.calculateAngle(getDeltaMovement(), toVec) > 80);
+                        boolean lostTarget = (VectorTool.calculateAngle(getLookAngle(), toVec) > 80);
                         if (!lostTarget) {
-                            setDeltaMovement(getDeltaMovement().add(toVec.scale(4)).scale(0.65).add(entity.getDeltaMovement().scale(0.2)));
+                            turn(toVec, 6);
                         }
                     }
                 }
             }
+        }
+
+        if (this.tickCount > 8) {
+            this.setDeltaMovement(this.getDeltaMovement().add(getLookAngle()));
         }
 
         if (this.tickCount == 8) {
@@ -256,10 +181,6 @@ public class Agm65Entity extends FastThrowableProjectile implements GeoEntity, E
                 ParticleTool.sendParticle(serverLevel, ParticleTypes.CLOUD, this.xo, this.yo, this.zo, 15, 0.8, 0.8, 0.8, 0.01, true);
                 ParticleTool.sendParticle(serverLevel, ParticleTypes.CAMPFIRE_COSY_SMOKE, this.xo, this.yo, this.zo, 10, 0.8, 0.8, 0.8, 0.01, true);
             }
-        }
-
-        if (this.tickCount > 8) {
-            this.setDeltaMovement(this.getDeltaMovement().multiply(1.06, 1.06, 1.06));
         }
 
         if (this.tickCount > 600 || this.isInWater() || this.entityData.get(HEALTH) <= 0) {
@@ -271,15 +192,9 @@ public class Agm65Entity extends FastThrowableProjectile implements GeoEntity, E
             this.discard();
         }
 
-        float f = (float) Mth.clamp(1 - 0.005 * getDeltaMovement().length(), 0.001, 1);
+        this.setDeltaMovement(this.getDeltaMovement().multiply(0.8, 0.8, 0.8));
 
-        this.setDeltaMovement(this.getDeltaMovement().multiply(f, f, f));
         destroyBlock();
-    }
-
-    @Override
-    public boolean isNoGravity() {
-        return true;
     }
 
     private PlayState movementPredicate(AnimationState<Agm65Entity> event) {
@@ -302,11 +217,6 @@ public class Agm65Entity extends FastThrowableProjectile implements GeoEntity, E
     }
 
     @Override
-    public boolean shouldSyncMotion() {
-        return true;
-    }
-
-    @Override
     public @NotNull SoundEvent getCloseSound() {
         return ModSounds.ROCKET_ENGINE.get();
     }
@@ -322,32 +232,7 @@ public class Agm65Entity extends FastThrowableProjectile implements GeoEntity, E
     }
 
     @Override
-    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
-    }
-
-    @Override
-    public void setDamage(float damage) {
-        this.damage = damage;
-    }
-
-    @Override
-    public void setExplosionDamage(float explosionDamage) {
-        this.explosionDamage = explosionDamage;
-    }
-
-    @Override
-    public void setExplosionRadius(float radius) {
-        this.explosionRadius = radius;
-    }
-
-    @Override
-    public boolean forceLoadChunk() {
-        return true;
-    }
-
-    @Override
-    public void setGravity(float gravity) {
-        this.gravity = gravity;
+    public float getMaxHealth() {
+        return 70;
     }
 }

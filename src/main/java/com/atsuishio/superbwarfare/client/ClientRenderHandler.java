@@ -27,11 +27,8 @@ public class ClientRenderHandler {
     public static void registerTooltip(RegisterClientTooltipComponentFactoriesEvent event) {
         event.register(GunImageComponent.class, ClientGunImageTooltip::new);
         event.register(BocekImageComponent.class, ClientBocekImageTooltip::new);
-        event.register(EnergyImageComponent.class, ClientEnergyImageTooltip::new);
         event.register(CellImageComponent.class, ClientCellImageTooltip::new);
         event.register(SentinelImageComponent.class, ClientSentinelImageTooltip::new);
-        event.register(LauncherImageComponent.class, ClientLauncherImageTooltip::new);
-        event.register(SecondaryCataclysmImageComponent.class, ClientSecondaryCataclysmImageTooltip::new);
         event.register(ChargingStationImageComponent.class, ClientChargingStationImageTooltip::new);
         event.register(DogTagImageComponent.class, ClientDogTagImageTooltip::new);
     }
@@ -49,25 +46,27 @@ public class ClientRenderHandler {
     @SubscribeEvent
     public static void registerGuiOverlays(RegisterGuiOverlaysEvent event) {
         event.registerBelowAll(KillMessageOverlay.ID, new KillMessageOverlay());
-        event.registerBelow(Mod.loc(KillMessageOverlay.ID), IFFOverlay.ID, new IFFOverlay());
+        event.registerBelow(Mod.loc(KillMessageOverlay.ID), ArmorPlateOverlay.ID, new ArmorPlateOverlay());
+        event.registerBelow(Mod.loc(ArmorPlateOverlay.ID), AmmoBarOverlay.ID, new AmmoBarOverlay());
+        event.registerBelow(Mod.loc(AmmoBarOverlay.ID), IFFOverlay.ID, new IFFOverlay());
         event.registerBelow(Mod.loc(IFFOverlay.ID), VehicleTeamOverlay.ID, new VehicleTeamOverlay());
         event.registerBelow(Mod.loc(VehicleTeamOverlay.ID), JavelinHudOverlay.ID, new JavelinHudOverlay());
-        event.registerBelow(Mod.loc(JavelinHudOverlay.ID), ArmorPlateOverlay.ID, new ArmorPlateOverlay());
-        event.registerBelow(Mod.loc(ArmorPlateOverlay.ID), VehicleHudOverlay.ID, new VehicleHudOverlay());
-        event.registerBelow(Mod.loc(VehicleHudOverlay.ID), VehicleMgHudOverlay.ID, new VehicleMgHudOverlay());
+        event.registerBelow(Mod.loc(JavelinHudOverlay.ID), IglaHudOverlay.ID, new IglaHudOverlay());
+        event.registerBelow(Mod.loc(IglaHudOverlay.ID), AACalculatorOverlay.ID, new AACalculatorOverlay());
+        event.registerBelow(Mod.loc(AACalculatorOverlay.ID), VehicleHudOverlay.ID, new VehicleHudOverlay());
+        event.registerBelow(Mod.loc(VehicleHudOverlay.ID), VehicleCrosshairOverlay.ID, new VehicleCrosshairOverlay());
         event.registerBelowAll(StaminaOverlay.ID, new StaminaOverlay());
         event.registerBelowAll(Yx100SwarmDroneHudOverlay.ID, new Yx100SwarmDroneHudOverlay());
-        event.registerBelowAll(AmmoBarOverlay.ID, new AmmoBarOverlay());
         event.registerBelowAll(AmmoCountOverlay.ID, new AmmoCountOverlay());
         event.registerBelowAll(ItemRendererFixOverlay.ID, new ItemRendererFixOverlay());
         event.registerBelowAll(CannonHudOverlay.ID, new CannonHudOverlay());
         event.registerBelowAll(CrossHairOverlay.ID, new CrossHairOverlay());
         event.registerBelowAll(HeatBarOverlay.ID, new HeatBarOverlay());
         event.registerBelowAll(DroneHudOverlay.ID, new DroneHudOverlay());
-        event.registerBelowAll(GrenadeLauncherOverlay.ID, new GrenadeLauncherOverlay());
         event.registerBelowAll(RedTriangleOverlay.ID, new RedTriangleOverlay());
         event.registerBelowAll(HandsomeFrameOverlay.ID, new HandsomeFrameOverlay());
         event.registerBelowAll(SpyglassRangeOverlay.ID, new SpyglassRangeOverlay());
+        event.registerBelowAll(TowOverlay.ID, new TowOverlay());
         event.registerBelowAll(HelicopterHudOverlay.ID, new HelicopterHudOverlay());
         event.registerBelowAll(AircraftOverlay.ID, new AircraftOverlay());
         event.registerBelowAll(MortarInfoOverlay.ID, new MortarInfoOverlay());

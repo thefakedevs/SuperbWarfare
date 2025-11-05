@@ -1,45 +1,35 @@
 package com.atsuishio.superbwarfare.client.model.entity;
 
-import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.entity.vehicle.Type63Entity;
-import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import software.bernie.geckolib.model.GeoModel;
+import org.jetbrains.annotations.Nullable;
 
-public class Type63Model extends GeoModel<Type63Entity> {
+import java.util.regex.Pattern;
 
-    @Override
-    public ResourceLocation getAnimationResource(Type63Entity entity) {
-        return null;
-    }
+import static com.atsuishio.superbwarfare.entity.vehicle.Type63Entity.LOADED_AMMO;
+
+public class Type63Model extends VehicleModel<Type63Entity> {
+
+    private final Pattern SHELL_PATTERN = Pattern.compile("^shell(?<id>\\d+)$");
 
     @Override
-    public ResourceLocation getModelResource(Type63Entity entity) {
-        if (RenderHelper.isInGui()) {
-            return Mod.loc("geo/type_63.geo.json");
+    public @Nullable TransformContext<Type63Entity> collectTransform(String boneName) {
+        if (boneName.equals("shoulunx")) {
+            return (bone, vehicle, state) -> bone.setRotX(-turretXRot * 3);
         }
 
-        Player player = Minecraft.getInstance().player;
-
-        int distance = 0;
-
-        if (player != null) {
-            distance = (int) player.position().distanceTo(entity.position());
+        if (boneName.equals("shouluny")) {
+            return (bone, vehicle, state) -> bone.setRotZ(-turretYRot * 6);
         }
 
-        if (distance < 32 || player.isScoping()) {
-            return Mod.loc("geo/type_63.geo.json");
-        } else if (distance < 96) {
-            return Mod.loc("geo/vehicle_lod/type_63.lod1.geo.json");
-        } else {
-            return Mod.loc("geo/vehicle_lod/type_63.lod2.geo.json");
+        var matcher = SHELL_PATTERN.matcher(boneName);
+        if (matcher.matches()) {
+            return (bone, vehicle, state) -> {
+                var items = vehicle.getEntityData().get(LOADED_AMMO);
+                int i = Integer.parseInt(matcher.group("id"));
+                bone.setHidden(items.get(i) == -1);
+            };
         }
-    }
 
-    @Override
-    public ResourceLocation getTextureResource(Type63Entity entity) {
-        return Mod.loc("textures/entity/type_63.png");
+        return super.collectTransform(boneName);
     }
 }

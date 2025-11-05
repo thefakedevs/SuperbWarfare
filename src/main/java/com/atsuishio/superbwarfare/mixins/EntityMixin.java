@@ -1,7 +1,7 @@
 package com.atsuishio.superbwarfare.mixins;
 
 import com.atsuishio.superbwarfare.entity.mixin.OBBHitter;
-import com.atsuishio.superbwarfare.entity.vehicle.base.MobileVehicleEntity;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.tools.OBB;
 import net.minecraft.core.BlockPos;
@@ -40,9 +40,18 @@ public abstract class EntityMixin implements OBBHitter {
     @Shadow
     public abstract AABB getBoundingBox();
 
+    @Shadow
+    public abstract Vec3 position();
+
+    @Shadow
+    public abstract void setDeltaMovement(Vec3 pDeltaMovement);
+
+    @Shadow
+    public abstract Vec3 getDeltaMovement();
+
     @Inject(method = "collide", at = @At("HEAD"))
     private void sbw$spoofGroundStart(Vec3 movement, CallbackInfoReturnable<Vec3> cir) {
-        if (MobileVehicleEntity.IGNORE_ENTITY_GROUND_CHECK_STEPPING) {
+        if (VehicleEntity.IGNORE_ENTITY_GROUND_CHECK_STEPPING) {
             this.sbw$cacheOnGround = this.onGround;
             this.onGround = true;
         }
@@ -50,9 +59,9 @@ public abstract class EntityMixin implements OBBHitter {
 
     @Inject(method = "collide", at = @At("TAIL"))
     private void sbw$spoofGroundEnd(Vec3 movement, CallbackInfoReturnable<Vec3> cir) {
-        if (MobileVehicleEntity.IGNORE_ENTITY_GROUND_CHECK_STEPPING) {
+        if (VehicleEntity.IGNORE_ENTITY_GROUND_CHECK_STEPPING) {
             this.onGround = this.sbw$cacheOnGround;
-            MobileVehicleEntity.IGNORE_ENTITY_GROUND_CHECK_STEPPING = false;
+            VehicleEntity.IGNORE_ENTITY_GROUND_CHECK_STEPPING = false;
         }
     }
 
@@ -68,31 +77,6 @@ public abstract class EntityMixin implements OBBHitter {
     public void sbw$setCurrentHitPart(OBB.Part part) {
         this.sbw$currentHitPart = part;
     }
-
-    // TODO 优化OBB面算法并排除AABB影响，现在下车就动不了了
-//    @Inject(method = "collide", at = @At("HEAD"), cancellable = true)
-//    private void onHitOBB(Vec3 movement, CallbackInfoReturnable<Vec3> cir) {
-//        AABB boundingBox = this.getBoundingBox();
-//        Entity self = (Entity) (Object) this;
-//        var list = this.level().getEntities(self, boundingBox.expandTowards(movement).inflate(1), e -> true);
-//        var entity = list.stream().filter(e -> e instanceof OBBEntity).min((e1, e2) -> (int) (e1.position().distanceTo(self.position()) - e2.position().distanceTo(self.position()))).orElse(null);
-//        if (entity == null || entity == self) return;
-//
-//        OBBEntity obbEntity = (OBBEntity) entity;
-//        Vec3 position = self.position();
-//        // 第一版实现
-//        var faceInfo = OBB.findClosestFace(obbEntity.getOBBs(), position);
-//        if (faceInfo == null) return;
-//        double dot = movement.dot(new Vec3(faceInfo.faceNormal()));
-//        var vec = new Vec3(faceInfo.faceNormal()).multiply(dot, dot, dot);
-//
-//        if (self instanceof Player player) {
-//            player.displayClientMessage(Component.literal("Vec: [" + vec.x + ", " + vec.y + ", " + vec.z + "]," +
-//                    " Face: [" + faceInfo.faceNormal().x + ", " + faceInfo.faceNormal().y + ", " + faceInfo.faceNormal().z + "]"), true);
-//        }
-//
-//        cir.setReturnValue(movement.subtract(vec));
-//    }
 
     @Inject(method = "turn(DD)V", at = @At("HEAD"), cancellable = true)
     public void turn(double pYRot, double pXRot, CallbackInfo ci) {

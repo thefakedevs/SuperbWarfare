@@ -1,43 +1,21 @@
 package com.atsuishio.superbwarfare.client.model.entity;
 
-import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.entity.vehicle.SpeedboatEntity;
-import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.player.Player;
-import software.bernie.geckolib.model.GeoModel;
+import net.minecraft.util.Mth;
+import org.jetbrains.annotations.Nullable;
 
-public class SpeedboatModel extends GeoModel<SpeedboatEntity> {
+public class SpeedboatModel extends VehicleModel<SpeedboatEntity> {
 
     @Override
-    public ResourceLocation getAnimationResource(SpeedboatEntity entity) {
-        return Mod.loc("animations/speedboat.animation.json");
-    }
-
-    @Override
-    public ResourceLocation getModelResource(SpeedboatEntity entity) {
-        if (RenderHelper.isInGui()) {
-            return Mod.loc("geo/speedboat.geo.json");
+    public @Nullable TransformContext<SpeedboatEntity> collectTransform(String boneName) {
+        if (boneName.equals("propeller")) {
+            return (bone, vehicle, state) -> bone.setRotZ(Mth.lerp(state.getPartialTick(), vehicle.propellerRotO, vehicle.getPropellerRot()));
         }
 
-        Player player = Minecraft.getInstance().player;
-
-        int distance = 0;
-
-        if (player != null) {
-            distance = (int) player.position().distanceTo(entity.position());
+        if (boneName.equals("rudder")) {
+            return (bone, vehicle, state) -> bone.setRotY(Mth.lerp(state.getPartialTick(), vehicle.rudderRotO, vehicle.getRudderRot()));
         }
 
-        if (distance < 32) {
-            return Mod.loc("geo/speedboat.geo.json");
-        } else {
-            return Mod.loc("geo/vehicle_lod/speedboat.lod1.geo.json");
-        }
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(SpeedboatEntity entity) {
-        return Mod.loc("textures/entity/speedboat.png");
+        return super.collectTransform(boneName);
     }
 }

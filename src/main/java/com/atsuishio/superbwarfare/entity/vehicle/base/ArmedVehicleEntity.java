@@ -1,7 +1,7 @@
 package com.atsuishio.superbwarfare.entity.vehicle.base;
 
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.LivingEntity;
 
 public interface ArmedVehicleEntity {
 
@@ -10,21 +10,14 @@ public interface ArmedVehicleEntity {
     }
 
     /**
-     * 载具开火
-     *
-     * @param player 玩家
-     */
-    void vehicleShoot(Player player, int type);
-
-    /**
      * 判断指定玩家是否是载具驾驶员
      *
-     * @param player 玩家
+     * @param living 玩家
      * @return 是否是驾驶员
      */
-    default boolean isDriver(Player player) {
+    default boolean isDriver(LivingEntity living) {
         if (this instanceof Entity entity) {
-            return player == entity.getFirstPassenger();
+            return living == entity.getFirstPassenger();
         }
         return false;
     }
@@ -34,36 +27,23 @@ public interface ArmedVehicleEntity {
      *
      * @return 射速
      */
-    int mainGunRpm(Player player);
+    int mainGunRpm(LivingEntity living);
 
     /**
      * 当前情况载具是否可以开火
      *
-     * @param player 玩家
+     * @param living 玩家
      * @return 是否可以开火
      */
-    boolean canShoot(Player player);
+    boolean canShoot(LivingEntity living);
 
     /**
      * 获取当前选择的主武器的备弹数量
      *
-     * @param player 玩家
+     * @param living 玩家
      * @return 备弹数量
      */
-    int getAmmoCount(Player player);
-
-    /**
-     * 是否禁用玩家手臂
-     *
-     * @param player 玩家
-     */
-    default boolean banHand(Player player) {
-        // 若玩家所在位置有可用武器，则默认禁用手臂
-        if (this instanceof VehicleEntity vehicle && this instanceof WeaponVehicleEntity weaponVehicle) {
-            return weaponVehicle.hasWeapon(vehicle.getSeatIndex(player));
-        }
-        return false;
-    }
+    int getAmmoCount(LivingEntity living);
 
     /**
      * 瞄准时的放大倍率
@@ -72,5 +52,5 @@ public interface ArmedVehicleEntity {
      */
     int zoomFov();
 
-    int getWeaponHeat(Player player);
+    int getWeaponHeat(LivingEntity living);
 }

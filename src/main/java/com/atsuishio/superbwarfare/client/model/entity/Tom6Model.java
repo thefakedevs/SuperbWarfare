@@ -1,24 +1,17 @@
 package com.atsuishio.superbwarfare.client.model.entity;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.entity.vehicle.Tom6Entity;
-import net.minecraft.resources.ResourceLocation;
-import software.bernie.geckolib.model.GeoModel;
+import org.jetbrains.annotations.Nullable;
 
-public class Tom6Model extends GeoModel<Tom6Entity> {
+import static com.atsuishio.superbwarfare.entity.vehicle.Tom6Entity.MELON;
 
+public class Tom6Model extends VehicleModel<Tom6Entity> {
     @Override
-    public ResourceLocation getAnimationResource(Tom6Entity entity) {
-        return null;
-    }
+    public @Nullable TransformContext<Tom6Entity> collectTransform(String boneName) {
+        if (boneName.equals("melon")) {
+            return (bone, vehicle, state) -> bone.setHidden(!vehicle.getEntityData().get(MELON));
+        }
 
-    @Override
-    public ResourceLocation getModelResource(Tom6Entity entity) {
-        return Mod.loc("geo/tom_6.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(Tom6Entity entity) {
-        return Mod.loc("textures/entity/tom_6.png");
+        return super.collectTransform(boneName);
     }
 }

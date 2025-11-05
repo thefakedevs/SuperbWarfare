@@ -1,15 +1,13 @@
 package com.atsuishio.superbwarfare.perk;
 
 import com.atsuishio.superbwarfare.data.Prop;
-import com.atsuishio.superbwarfare.data.gun.DamageReduce;
-import com.atsuishio.superbwarfare.data.gun.GunData;
-import com.atsuishio.superbwarfare.data.gun.GunProp;
-import com.atsuishio.superbwarfare.data.gun.GunPropertyModifier;
+import com.atsuishio.superbwarfare.data.gun.*;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.item.PerkItem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraftforge.registries.RegistryObject;
 import org.jetbrains.annotations.NotNull;
@@ -25,11 +23,11 @@ public class Perk implements GunPropertyModifier {
     public final String name;
     public final Type type;
 
-    public Map<GunProp<?>, Prop.PropModifyContext<GunData, ?>> propertyModifiers = new HashMap<>();
+    public Map<GunProp<?>, Prop.PropModifyContext<GunData, DefaultGunData, ?>> propertyModifiers = new HashMap<>();
 
     @Override
     @SuppressWarnings("unchecked")
-    public @NotNull Map<GunProp<?>, Prop.PropModifyContext<GunData, ?>> getPropModifiers() {
+    public @NotNull Map<GunProp<?>, Prop.PropModifyContext<GunData, DefaultGunData, ?>> getPropModifiers() {
         return this.propertyModifiers;
     }
 
@@ -42,7 +40,7 @@ public class Perk implements GunPropertyModifier {
         boolean isFirst = true;
         for (char c : descriptionId.toCharArray()) {
             if (isFirst || useUpperCase) {
-                builder.append(String.valueOf(c).toUpperCase(Locale.ENGLISH));
+                builder.append(String.valueOf(c).toUpperCase(Locale.ROOT));
                 isFirst = false;
                 useUpperCase = false;
             } else if (c == '_') {
@@ -70,19 +68,22 @@ public class Perk implements GunPropertyModifier {
     /**
      * 在背包中每Tick触发
      */
-    public void tick(GunData data, PerkInstance instance, @Nullable Entity living) {
+    public void tick(GunData data, PerkInstance instance, @Nullable Entity entity) {
     }
 
-    public void preReload(GunData data, PerkInstance instance, @Nullable Entity living) {
+    public void preReload(GunData data, PerkInstance instance, @Nullable Entity entity) {
     }
 
-    public void postReload(GunData data, PerkInstance instance, @Nullable Entity living) {
+    public void postReload(GunData data, PerkInstance instance, @Nullable Entity entity) {
     }
 
     public void onKill(GunData data, PerkInstance instance, Entity target, DamageSource source) {
     }
 
-    public void onHit(float damage, GunData data, PerkInstance instance, Entity target, DamageSource source) {
+    public void onHurtEntity(float damage, GunData data, PerkInstance instance, Entity target, DamageSource source) {
+    }
+
+    public void onHit(LivingEntity attacker, GunData data, PerkInstance instance, Entity target) {
     }
 
     public int getModifiedCustomRPM(int rpm, GunData data, PerkInstance instance) {
@@ -103,13 +104,6 @@ public class Perk implements GunPropertyModifier {
     }
 
     /**
-     * 用于武器额外伤害信息显示，默认为负数
-     */
-    public double getExtraDisplayDamage(double damage, GunData data, PerkInstance instance) {
-        return -1;
-    }
-
-    /**
      * 用于处理武器伤害衰减比率
      */
     public double getModifiedDamageReduceRate(DamageReduce reduce) {
@@ -121,6 +115,12 @@ public class Perk implements GunPropertyModifier {
      */
     public double getModifiedDamageReduceMinDistance(DamageReduce reduce) {
         return reduce.getMinDistance();
+    }
+
+    /**
+     * 用于处理武器近战攻击后的逻辑
+     */
+    public void onMeleeAttack(GunData data, PerkInstance instance, Entity target) {
     }
 
     public enum Type {

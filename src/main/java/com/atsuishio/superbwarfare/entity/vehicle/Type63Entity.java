@@ -3,22 +3,19 @@ package com.atsuishio.superbwarfare.entity.vehicle;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.entity.OBBEntity;
 import com.atsuishio.superbwarfare.entity.projectile.MediumRocketEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ContainerMobileVehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.*;
 import com.atsuishio.superbwarfare.item.common.ammo.MediumRocketItem;
 import com.atsuishio.superbwarfare.network.message.receive.ShakeClientMessage;
 import com.atsuishio.superbwarfare.tools.OBB;
+import com.atsuishio.superbwarfare.tools.ParticleTool;
 import com.atsuishio.superbwarfare.tools.VectorTool;
-import com.mojang.math.Axis;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -29,15 +26,15 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.joml.*;
 import org.joml.Math;
+import org.joml.*;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
@@ -45,16 +42,15 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.List;
 
-public class Type63Entity extends ContainerMobileVehicleEntity implements GeoEntity, OBBEntity {
+public class Type63Entity extends VehicleEntity implements GeoEntity, OBBEntity {
 
     public static final EntityDataAccessor<Float> PITCH = SynchedEntityData.defineId(Type63Entity.class, EntityDataSerializers.FLOAT);
     public static final EntityDataAccessor<Float> YAW = SynchedEntityData.defineId(Type63Entity.class, EntityDataSerializers.FLOAT);
     public static final EntityDataAccessor<Float> BODY_YAW = SynchedEntityData.defineId(Type63Entity.class, EntityDataSerializers.FLOAT);
-
     public static final EntityDataAccessor<Float> SHOOT_PITCH = SynchedEntityData.defineId(Type63Entity.class, EntityDataSerializers.FLOAT);
     public static final EntityDataAccessor<Float> SHOOT_YAW = SynchedEntityData.defineId(Type63Entity.class, EntityDataSerializers.FLOAT);
-
     public static final EntityDataAccessor<IntList> LOADED_AMMO = SynchedEntityData.defineId(Type63Entity.class, ModSerializers.INT_LIST_SERIALIZER.get());
+
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
     public OBB[] barrel = new OBB[12];
@@ -68,6 +64,7 @@ public class Type63Entity extends ContainerMobileVehicleEntity implements GeoEnt
     public OBB body2;
 
     public double interactionTick;
+    public int cooldown;
 
     public Type63Entity(PlayMessages.SpawnEntity packet, Level world) {
         this(ModEntities.TYPE_63.get(), world);
@@ -96,19 +93,6 @@ public class Type63Entity extends ContainerMobileVehicleEntity implements GeoEnt
         this.yawController = new OBB(this.position().toVector3f(), new Vector3f(0.125f, 0.125f, 0.125f), new Quaternionf(), OBB.Part.INTERACTIVE);
         this.hoe1 = new OBB(this.position().toVector3f(), new Vector3f(0.125f, 0.125f, 0.875f), new Quaternionf(), OBB.Part.INTERACTIVE);
         this.hoe2 = new OBB(this.position().toVector3f(), new Vector3f(0.125f, 0.125f, 0.875f), new Quaternionf(), OBB.Part.INTERACTIVE);
-    }
-
-    @Override
-    public void playerTouch(Player pPlayer) {
-        if (pPlayer.position().distanceToSqr(position()) > 1.2) return;
-        if (pPlayer.isCrouching() && !this.level().isClientSide) {
-            double entitySize = pPlayer.getBbWidth() * pPlayer.getBbHeight();
-            double thisSize = this.getBbWidth() * this.getBbHeight();
-            double f = Math.min(entitySize / thisSize, 2);
-            double f1 = Math.min(thisSize / entitySize, 4);
-            this.setDeltaMovement(this.getDeltaMovement().add(new Vec3(pPlayer.position().vectorTo(this.position()).toVector3f()).scale(0.22 * f * pPlayer.getDeltaMovement().length())));
-            pPlayer.setDeltaMovement(pPlayer.getDeltaMovement().add(new Vec3(this.position().vectorTo(pPlayer.position()).toVector3f()).scale(0.1 * f1 * pPlayer.getDeltaMovement().length())));
-        }
     }
 
     @Override
@@ -222,8 +206,8 @@ public class Type63Entity extends ContainerMobileVehicleEntity implements GeoEnt
             }
         }
 
-        if (stack.is(ModTags.Items.CROWBAR)) {
-            // 撬棍发射
+        if (stack.is(ModTags.Items.TOOLS_CROWBAR) || stack.is(Items.FLINT_AND_STEEL)) {
+            // 发射
             if (lookingAtBarrel(player)) {
                 // 精准发射
                 for (int i = 0; i < this.barrel.length; i++) {
@@ -300,16 +284,11 @@ public class Type63Entity extends ContainerMobileVehicleEntity implements GeoEnt
 
         cooldown = 10;
         if (level() instanceof ServerLevel serverLevel) {
-            for (int p = 0; p < 15; p++) {
-                Vec3 pPos = shootPos.add(getShootVector(1).scale(p * -0.5));
-                serverLevel.sendParticles(ParticleTypes.SMOKE, pPos.x, pPos.y, pPos.z, 3, 0.05, 0.05, 0.05, 0.007);
-                serverLevel.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, pPos.x, pPos.y, pPos.z, 3, 0.05, 0.05, 0.05, 0.007);
-                serverLevel.sendParticles(ParticleTypes.FLAME, pPos.x, pPos.y, pPos.z, 2, 0.05, 0.05, 0.05, 0.007);
-
-                Vec3 pPos2 = shootPos.add(getShootVector(1).scale(-p));
-                serverLevel.sendParticles(ParticleTypes.SMOKE, pPos2.x, pPos2.y, pPos2.z, 3, 0.05, 0.05, 0.05, 0.007);
-                serverLevel.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, pPos2.x, pPos2.y, pPos2.z, 3, 0.05, 0.05, 0.05, 0.007);
-                serverLevel.sendParticles(ParticleTypes.FLAME, pPos2.x, pPos2.y, pPos2.z, 2, 0.05, 0.05, 0.05, 0.007);
+            ParticleTool.spawnMediumCannonMuzzleParticles(getShootVector(1).scale(-1), shootPos.add(getShootVector(1).scale(-0.5)), serverLevel, this);
+            ParticleTool.spawnMediumCannonMuzzleParticles(getShootVector(1).scale(-1), shootPos.add(getShootVector(1).scale(-1.5)), serverLevel, this);
+            ParticleTool.spawnMediumCannonMuzzleParticles(getShootVector(1), shootPos.add(getShootVector(1).scale(1.5)), serverLevel, this);
+            for (int j = 0; j < 20; j += 4) {
+                Mod.queueServerWork(j, () -> ParticleTool.spawnBarrelSmoke(1, serverLevel, getShootVector(1), shootPos.add(getShootVector(1).scale(1.3))));
             }
         }
 
@@ -370,33 +349,18 @@ public class Type63Entity extends ContainerMobileVehicleEntity implements GeoEnt
 
         double s0 = getDeltaMovement().dot(this.getViewVector(1));
 
-        this.setLeftWheelRot((float) (this.getLeftWheelRot() - 1.75 * s0));
-        this.setRightWheelRot((float) (this.getRightWheelRot() - 1.75 * s0));
+        this.setLeftWheelRot((float) (this.getLeftWheelRot() - 1.167 * s0));
+        this.setRightWheelRot((float) (this.getRightWheelRot() - 1.167 * s0));
     }
 
     @Override
-    public Matrix4f getTurretTransform(float ticks) {
-        Matrix4f transformV = getVehicleTransform(ticks);
-
-        Matrix4f transform = new Matrix4f();
-        Vector4f worldPosition = transformPosition(transform, 0, 0.45703125f, -0.1625f);
-
-        transformV.translate(worldPosition.x, worldPosition.y, worldPosition.z);
-        transformV.rotate(Axis.YP.rotationDegrees(Mth.lerp(ticks, turretYRotO, getTurretYRot())));
-        return transformV;
+    public Vec3 getTurretPosition() {
+        return new Vec3(0, 0.45703125, -0.1625);
     }
 
-    public Matrix4f getBarrelTransform(float ticks) {
-        Matrix4f transformT = getTurretTransform(ticks);
-
-        Matrix4f transform = new Matrix4f();
-        Vector4f worldPosition = transformPosition(transform, 0, 0.65f, -0.203125f);
-
-        transformT.translate(worldPosition.x, worldPosition.y, worldPosition.z);
-
-        float x = Mth.lerp(ticks, turretXRotO, getTurretXRot());
-        transformT.rotate(Axis.XP.rotationDegrees(x));
-        return transformT;
+    @Override
+    public Vec3 getBarrelPosition() {
+        return new Vec3(0, 0.65, -0.203125);
     }
 
     public Vec3 getShootVector(float pPartialTicks) {
@@ -419,23 +383,6 @@ public class Type63Entity extends ContainerMobileVehicleEntity implements GeoEnt
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return this.cache;
-    }
-
-    public int cooldown;
-
-    @Override
-    public ResourceLocation getVehicleIcon() {
-        return Mod.loc("textures/vehicle_icon/lav150_icon.png");
-    }
-
-    @Override
-    public @Nullable ResourceLocation getVehicleItemIcon() {
-        return Mod.loc("textures/gui/vehicle/type/defense.png");
-    }
-
-    @Override
-    public int getContainerSize() {
-        return 12;
     }
 
     @Override
@@ -538,15 +485,5 @@ public class Type63Entity extends ContainerMobileVehicleEntity implements GeoEnt
     @Override
     public boolean hasEnergyStorage() {
         return false;
-    }
-
-    @Override
-    public boolean hasMenu() {
-        return false;
-    }
-
-    @Override
-    public int getMaxPassengers() {
-        return 0;
     }
 }

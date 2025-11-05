@@ -1,12 +1,10 @@
 package com.atsuishio.superbwarfare.client.model.item;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.overlay.CrossHairOverlay;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.item.gun.rifle.MarlinItem;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -14,33 +12,6 @@ import software.bernie.geckolib.core.animatable.model.CoreGeoBone;
 import software.bernie.geckolib.core.animation.AnimationState;
 
 public class MarlinItemModel extends CustomGunModel<MarlinItem> {
-
-    @Override
-    public ResourceLocation getAnimationResource(MarlinItem animatable) {
-        return Mod.loc("animations/marlin.animation.json");
-    }
-
-    @Override
-    public ResourceLocation getModelResource(MarlinItem animatable) {
-        return Mod.loc("geo/marlin.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getTextureResource(MarlinItem animatable) {
-        return Mod.loc("textures/item/marlin.png");
-    }
-
-
-    @Override
-    public ResourceLocation getLODModelResource(MarlinItem animatable) {
-        return Mod.loc("geo/lod/marlin.geo.json");
-    }
-
-    @Override
-    public ResourceLocation getLODTextureResource(MarlinItem animatable) {
-        return Mod.loc("textures/item/lod/marlin.png");
-    }
-
 
     @Override
     public void setCustomAnimations(MarlinItem animatable, long instanceId, AnimationState<MarlinItem> animationState) {
@@ -53,14 +24,9 @@ public class MarlinItemModel extends CustomGunModel<MarlinItem> {
         CoreGeoBone shen = getAnimationProcessor().getBone("shen");
         CoreGeoBone jichui = getAnimationProcessor().getBone("jichui");
 
-        float times = 0.6f * (float) Math.min(Minecraft.getInstance().getDeltaFrameTime(), 0.8);
         double zt = ClientEventHandler.zoomTime;
         double zp = ClientEventHandler.zoomPos;
         double zpz = ClientEventHandler.zoomPosZ;
-
-        double fpz = ClientEventHandler.firePosZ * 7 * times;
-        double fp = ClientEventHandler.firePos;
-        double fr = ClientEventHandler.fireRot;
 
         gun.setPosX(1.712f * (float) zp);
         gun.setPosY(1.06f * (float) zp - (float) (0.2f * zpz));
@@ -68,19 +34,7 @@ public class MarlinItemModel extends CustomGunModel<MarlinItem> {
         gun.setRotZ((float) (0.02f * zpz));
         gun.setScaleZ(1f - (0.2f * (float) zp));
 
-        shen.setPosX((float) (0.95f * ClientEventHandler.recoilHorizon * fpz * fp));
-        shen.setPosY((float) (0.4f * fp + 0.44f * fr));
-        shen.setPosZ((float) (2.825 * fp + 0.17f * fr + 1.175 * fpz));
-        shen.setRotX((float) (0.01f * fp + 0.15f * fr + 0.01f * fpz));
-        shen.setRotY((float) (0.1f * ClientEventHandler.recoilHorizon * fpz));
-        shen.setRotZ((float) ((0.08f + 0.1 * fr) * ClientEventHandler.recoilHorizon));
-
-        shen.setPosX((float) (shen.getPosX() * (1 - 0.4 * zt)));
-        shen.setPosY((float) (shen.getPosY() * (1 - 0.5 * zt)));
-        shen.setPosZ((float) (shen.getPosZ() * (1 - 0.6 * zt)));
-        shen.setRotX((float) (shen.getRotX() * (1 - 0.87 * zt)));
-        shen.setRotY((float) (shen.getRotY() * (1 - 0.7 * zt)));
-        shen.setRotZ((float) (shen.getRotZ() * (1 - 0.65 * zt)));
+        ClientEventHandler.handleShootAnimation(shen, 1.25f, 1.7f, 2f, 2.5f, 1.3f, 1f, 0.4f, 0.55f);
 
         CrossHairOverlay.gunRot = shen.getRotZ();
 
@@ -88,7 +42,7 @@ public class MarlinItemModel extends CustomGunModel<MarlinItem> {
             jichui.setRotX(-0.52f);
         }
 
-        ClientEventHandler.gunRootMove(getAnimationProcessor());
+        ClientEventHandler.gunRootMove(getAnimationProcessor(), 0, -1, 2, false);
 
         CoreGeoBone camera = getAnimationProcessor().getBone("camera");
         CoreGeoBone main = getAnimationProcessor().getBone("0");

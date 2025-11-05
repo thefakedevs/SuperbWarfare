@@ -2,6 +2,13 @@
   "ID": "superbwarfare:annihilator",
   "MaxHealth": 1200,
   "MaxEnergy": 20000000,
+  "Seats": {
+    "HidePassenger": true,
+    "Transform": "VehicleFlat",
+    "Position": [0, 3.3, 1.5],
+    "MinPitch": -5,
+    "MaxPitch": 45
+  },
   "Mass": 2774,
   "DamageModifiers": [
     "All * 0.1",
@@ -27,7 +34,13 @@
     "@superbwarfare:cannon_shell * 3",
     "All - 12"
   ],
-  "ExplosionDamage": 600,
-  "ExplosionRadius": 15,
-  "ExplosionParticleType": "Giant"
+  "VehicleContainerType": "Empty",
+  "DestroyInfo": {
+    "ParticleType": "Giant",
+    "ExplosionDamage": 600,
+    "ExplosionRadius": 15
+  },
+  "VehicleIcon": "superbwarfare:textures/vehicle_icon/annihilator_icon.png",
+  "ContainerIcon": "superbwarfare:textures/gui/vehicle/type/defense.png",
+  "Type": "Artillery"
 }

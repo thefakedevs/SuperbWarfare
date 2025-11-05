@@ -3,24 +3,21 @@ package com.atsuishio.superbwarfare.entity.vehicle;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.VehicleConfig;
 import com.atsuishio.superbwarfare.entity.TargetEntity;
+import com.atsuishio.superbwarfare.entity.projectile.DestroyableProjectile;
 import com.atsuishio.superbwarfare.entity.vehicle.base.AutoAimable;
-import com.atsuishio.superbwarfare.entity.vehicle.base.DefenseEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
 import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModSounds;
 import com.atsuishio.superbwarfare.init.ModTags;
 import com.atsuishio.superbwarfare.item.common.container.ContainerBlockItem;
-import com.atsuishio.superbwarfare.tools.DamageHandler;
-import com.atsuishio.superbwarfare.tools.EntityFindUtil;
-import com.atsuishio.superbwarfare.tools.ParticleTool;
-import com.atsuishio.superbwarfare.tools.VectorTool;
+import com.atsuishio.superbwarfare.tools.*;
+import com.atsuishio.superbwarfare.world.TDMSavedData;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.OldUsersConverter;
@@ -52,9 +49,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static com.atsuishio.superbwarfare.tools.ParticleTool.sendParticle;
-import static com.atsuishio.superbwarfare.tools.SeekTool.smokeFilter;
 
-public class LaserTowerEntity extends VehicleEntity implements GeoEntity, OwnableEntity, AutoAimable, DefenseEntity {
+public class LaserTowerEntity extends VehicleEntity implements GeoEntity, OwnableEntity, AutoAimable {
 
     public static final EntityDataAccessor<Integer> COOL_DOWN = SynchedEntityData.defineId(LaserTowerEntity.class, EntityDataSerializers.INT);
     public static final EntityDataAccessor<String> TARGET_UUID = SynchedEntityData.defineId(LaserTowerEntity.class, EntityDataSerializers.STRING);
@@ -150,7 +146,7 @@ public class LaserTowerEntity extends VehicleEntity implements GeoEntity, Ownabl
     public @NotNull InteractionResult interact(Player player, @NotNull InteractionHand hand) {
         ItemStack stack = player.getMainHandItem();
         if (player.isCrouching()) {
-            if (stack.is(ModTags.Items.CROWBAR) && (getOwner() == null || player == getOwner())) {
+            if (stack.is(ModTags.Items.TOOLS_CROWBAR) && (getOwner() == null || player == getOwner())) {
                 ItemStack container = ContainerBlockItem.createInstance(this);
                 if (!player.addItem(container)) {
                     player.drop(container, false);
@@ -238,7 +234,7 @@ public class LaserTowerEntity extends VehicleEntity implements GeoEntity, Ownabl
 
         Entity target = EntityFindUtil.findEntity(level(), entityData.get(TARGET_UUID));
 
-        if (target != null && smokeFilter(target)) {
+        if (target != null && SeekTool.NOT_IN_SMOKE.test(target)) {
             if (target instanceof Player player1 && (player1.isSpectator() || player1.isCreative())) {
                 this.entityData.set(TARGET_UUID, "none");
                 return;
@@ -288,7 +284,7 @@ public class LaserTowerEntity extends VehicleEntity implements GeoEntity, Ownabl
                 this.entityData.set(COOL_DOWN, VehicleConfig.LASER_TOWER_COOLDOWN.get());
 
                 if (level() instanceof ServerLevel serverLevel) {
-                    this.level().playSound(this, getOnPos(), ModSounds.LASER_TOWER_SHOOT.get(), SoundSource.PLAYERS, 2, random.nextFloat() * 0.1f + 1);
+                    SoundTool.playDistantSound(serverLevel, ModSounds.LASER_TOWER_SHOOT.get(), position(), 2, random.nextFloat() * 0.1f + 1, null);
                     sendParticle(serverLevel, ParticleTypes.END_ROD, target.getX(), target.getEyeY(), target.getZ(), 12, 0, 0, 0, 0.05, true);
                     sendParticle(serverLevel, ParticleTypes.LAVA, target.getX(), target.getEyeY(), target.getZ(), 4, 0, 0, 0, 0.15, true);
                 }
@@ -300,7 +296,7 @@ public class LaserTowerEntity extends VehicleEntity implements GeoEntity, Ownabl
                     living.setSecondsOnFire(2);
                 }
 
-                if (target instanceof Projectile) {
+                if (target instanceof Projectile && !(target instanceof DestroyableProjectile)) {
                     causeAirExplode(target.position());
                     target.discard();
                 }
@@ -327,7 +323,7 @@ public class LaserTowerEntity extends VehicleEntity implements GeoEntity, Ownabl
         if (this.getOwner() == null) return false;
         if (pEntity.getTeam() == null) return false;
 
-        return !pEntity.isAlliedTo(this.getOwner()) || (pEntity.getTeam() != null && pEntity.getTeam().getName().equals("TDM"));
+        return !pEntity.isAlliedTo(this.getOwner()) || (pEntity.getTeam() != null && TDMSavedData.enabledTDM(pEntity));
     }
 
     @Override
@@ -335,7 +331,7 @@ public class LaserTowerEntity extends VehicleEntity implements GeoEntity, Ownabl
         if (this.getOwner() == null) return false;
         if (projectile.getOwner() != null && projectile.getOwner() == this.getOwner()) return false;
         return (projectile.getOwner() != null && !projectile.getOwner().isAlliedTo(this.getOwner()))
-                || (projectile.getOwner() != null && projectile.getOwner().getTeam() != null && projectile.getOwner().getTeam().getName().equals("TDM"))
+                || (projectile.getOwner() != null && projectile.getOwner().getTeam() != null && TDMSavedData.enabledTDM(projectile.getOwner()))
                 || projectile.getOwner() == null;
     }
 
@@ -365,15 +361,5 @@ public class LaserTowerEntity extends VehicleEntity implements GeoEntity, Ownabl
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return this.cache;
-    }
-
-    @Override
-    public @Nullable ResourceLocation getVehicleItemIcon() {
-        return Mod.loc("textures/gui/vehicle/type/defense.png");
-    }
-
-    @Override
-    public boolean hasEnergyStorage() {
-        return true;
     }
 }

@@ -19,7 +19,8 @@ public class ModEntityRenderers {
         event.registerEntityRenderer(ModEntities.GUN_GRENADE.get(), GunGrenadeRenderer::new);
         event.registerEntityRenderer(ModEntities.TARGET.get(), TargetRenderer::new);
         event.registerEntityRenderer(ModEntities.DPS_GENERATOR.get(), DPSGeneratorRenderer::new);
-        event.registerEntityRenderer(ModEntities.RPG_ROCKET.get(), RpgRocketRenderer::new);
+        event.registerEntityRenderer(ModEntities.RPG_ROCKET_TBG.get(), RpgRocketTBGRenderer::new);
+        event.registerEntityRenderer(ModEntities.RPG_ROCKET_STANDARD.get(), RpgRocketStandardRenderer::new);
         event.registerEntityRenderer(ModEntities.SMALL_ROCKET.get(), SmallRocketRenderer::new);
         event.registerEntityRenderer(ModEntities.MEDIUM_ROCKET.get(), MediumRocketRenderer::new);
         event.registerEntityRenderer(ModEntities.MORTAR_SHELL.get(), MortarShellRenderer::new);
@@ -63,5 +64,10 @@ public class ModEntityRenderers {
         event.registerEntityRenderer(ModEntities.BL_132.get(), Bl132Renderer::new);
         event.registerEntityRenderer(ModEntities.GRAPESHOT.get(), GrapeshotRenderer::new);
         event.registerEntityRenderer(ModEntities.VEHICLE_ASSEMBLING_TABLE.get(), VehicleAssemblingTableVehicleRenderer::new);
+        event.registerEntityRenderer(ModEntities.WAVEFORCE_TOWER.get(), WaveforceTowerRenderer::new);
+        event.registerEntityRenderer(ModEntities.IGLA_MISSILE.get(), IglaMissileRenderer::new);
+        event.registerEntityRenderer(ModEntities.TRUCK.get(), TruckRenderer::new);
+        event.registerEntityRenderer(ModEntities.TOW.get(), TowRenderer::new);
+        event.registerEntityRenderer(ModEntities.STEEL_COIL.get(), SteelCoilRenderer::new);
     }
 }

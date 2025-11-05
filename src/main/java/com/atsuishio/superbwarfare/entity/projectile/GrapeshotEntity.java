@@ -1,9 +1,8 @@
 package com.atsuishio.superbwarfare.entity.projectile;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.particle.CustomCloudOption;
-import com.atsuishio.superbwarfare.config.server.ProjectileConfig;
 import com.atsuishio.superbwarfare.init.*;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.tools.DamageHandler;
 import com.atsuishio.superbwarfare.tools.ParticleTool;
@@ -11,29 +10,23 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.BellBlock;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
@@ -43,17 +36,17 @@ import static com.atsuishio.superbwarfare.entity.projectile.ProjectileEntity.ray
 
 public class GrapeshotEntity extends FastThrowableProjectile {
 
-    private float damage = 40.0f;
-
-    public GrapeshotEntity(EntityType<? extends GrapeshotEntity> type, Level world) {
-        super(type, world);
+    public GrapeshotEntity(EntityType<? extends GrapeshotEntity> type, Level level) {
+        super(type, level);
         this.noCulling = true;
+        this.gravity = 0.06f;
     }
 
     public GrapeshotEntity(@Nullable Entity entity, Level level, float damage) {
         super(ModEntities.GRAPESHOT.get(), entity, level);
         this.noCulling = true;
         this.damage = damage;
+        this.gravity = 0.06f;
     }
 
     public GrapeshotEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
@@ -61,36 +54,13 @@ public class GrapeshotEntity extends FastThrowableProjectile {
     }
 
     @Override
-    public void addAdditionalSaveData(@NotNull CompoundTag pCompound) {
-        super.addAdditionalSaveData(pCompound);
-        pCompound.putFloat("Damage", this.damage);
-    }
-
-    @Override
-    public void readAdditionalSaveData(@NotNull CompoundTag pCompound) {
-        super.readAdditionalSaveData(pCompound);
-        if (pCompound.contains("Damage")) {
-            this.damage = pCompound.getFloat("Damage");
-        }
-    }
-
-    @Override
-    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
-    }
-
-    @Override
     protected @NotNull Item getDefaultItem() {
-        return ModItems.GRENADE_40MM.get();
-    }
-
-    @Override
-    public boolean shouldRenderAtSqrDistance(double pDistance) {
-        return true;
+        return ModItems.GS_5_INCHES.get();
     }
 
     @Override
     protected void onHitEntity(EntityHitResult result) {
+        super.onHitEntity(result);
         Entity entity = result.getEntity();
         if (this.getOwner() != null && this.getOwner().getVehicle() != null && entity == this.getOwner().getVehicle())
             return;
@@ -101,7 +71,7 @@ public class GrapeshotEntity extends FastThrowableProjectile {
                 if (!living.level().isClientSide() && living instanceof ServerPlayer player) {
                     living.level().playSound(null, living.blockPosition(), ModSounds.INDICATION.get(), SoundSource.VOICE, 1, 1);
 
-                    Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
+                    NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
                 }
             }
 
@@ -116,46 +86,16 @@ public class GrapeshotEntity extends FastThrowableProjectile {
 
     @Override
     public void onHitBlock(BlockHitResult result) {
+        super.onHitBlock(result);
         BlockPos resultPos = result.getBlockPos();
         BlockState state = this.level().getBlockState(resultPos);
-
-        if (state.getBlock() instanceof BellBlock bell) {
-            bell.attemptToRing(this.level(), resultPos, result.getDirection());
-        }
 
         SoundEvent event = state.getBlock().getSoundType(state, this.level(), resultPos, this).getBreakSound();
         this.level().playSound(null, result.getLocation().x, result.getLocation().y, result.getLocation().z, event, SoundSource.AMBIENT, 1.0F, 1.0F);
         Vec3 hitVec = result.getLocation();
 
-        if (state.getBlock() instanceof BellBlock bell) {
-            bell.attemptToRing(this.level(), resultPos, result.getDirection());
-        }
-
-        if (ProjectileConfig.ALLOW_PROJECTILE_DESTROY_BLOCKS.get() && (state.is(ModTags.Blocks.BULLET_CAN_DESTROY) ||canDestroyBlock(state))) {
-            this.level().destroyBlock(resultPos, false, this.getOwner());
-        }
-
         this.hitBlock(hitVec, result);
-
         this.discard();
-    }
-
-    public boolean canDestroyBlock(BlockState state) {
-        return state.getSoundType() == SoundType.WOOD
-                || state.getSoundType() == SoundType.CHERRY_LEAVES
-                || state.getSoundType() == SoundType.AZALEA_LEAVES
-                || state.getSoundType() == SoundType.BAMBOO
-                || state.getSoundType() == SoundType.BAMBOO_SAPLING
-                || state.getSoundType() == SoundType.BAMBOO_WOOD
-                || state.getSoundType() == SoundType.BAMBOO_WOOD_HANGING_SIGN
-                || state.getSoundType() == SoundType.GLASS
-                || state.getSoundType() == SoundType.WOOL
-                || state.getSoundType() == SoundType.LANTERN
-                || state.getSoundType() == SoundType.CHAIN
-                || state.getSoundType() == SoundType.CHERRY_SAPLING
-                || state.getSoundType() == SoundType.CHERRY_WOOD
-                || state.getSoundType() == SoundType.CHERRY_WOOD_HANGING_SIGN
-                || state.is(BlockTags.LEAVES);
     }
 
     protected void hitBlock(Vec3 location, BlockHitResult result) {
@@ -206,9 +146,9 @@ public class GrapeshotEntity extends FastThrowableProjectile {
         }
 
         Vec3 vec31 = this.getDeltaMovement();
-        this.setDeltaMovement(vec31.multiply(0.93, 0.93, 0.93));
+        this.setDeltaMovement(vec31.multiply(0.96, 0.96, 0.96));
 
-        if (this.tickCount > 60 || this.isInWater()) {
+        if (this.tickCount > 200 || this.isInWater()) {
             this.discard();
         }
     }
@@ -254,10 +194,5 @@ public class GrapeshotEntity extends FastThrowableProjectile {
 
     public Vec3 randomVec(Vec3 vec3, double spread) {
         return vec3.normalize().add(this.random.triangle(0.0D, 0.0172275D * spread), this.random.triangle(0.0D, 0.0172275D * spread), this.random.triangle(0.0D, 0.0172275D * spread));
-    }
-
-    @Override
-    protected float getGravity() {
-        return 0.06f;
     }
 }

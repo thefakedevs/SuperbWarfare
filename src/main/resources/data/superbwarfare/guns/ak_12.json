@@ -5,7 +5,7 @@
   "Spread": 3.5,
   "RecoilX": 0.0015,
   "RecoilY": 0.01,
-  "Damage": 7.7,
+  "Damage": 8.25,
   "Headshot": 2,
   "Velocity": 44.5,
   "Magazine": 30,
@@ -13,13 +13,18 @@
   "DefaultFireMode": "Auto",
   "NormalReloadTime": 52,
   "EmptyReloadTime": 58,
-  "BypassesArmor": 0.23,
+  "BypassesArmor": 0.3,
   "SoundRadius": 12,
   "RPM": 700,
-  "AvailableFireModes": ["Semi", "Auto"],
+  "GunType": "Rifle",
+  "AvailableFireModes": [
+    "Semi",
+    "Auto"
+  ],
   "DamageReduce": {
     "Type": "Rifle"
   },
+  "Icon": "superbwarfare:textures/gun_icon/ak_12_icon.png",
   "AmmoType": "@RifleAmmo",
   "AvailablePerks": [
     "@Ammo",
@@ -29,6 +34,7 @@
     "superbwarfare:subsistence",
     "superbwarfare:powerful_attraction",
     "superbwarfare:intelligent_chip",
+    "superbwarfare:backpack_linked_magazine",
     "superbwarfare:kill_clip",
     "superbwarfare:gutshot_straight",
     "superbwarfare:monster_hunter",
@@ -37,8 +43,25 @@
     "superbwarfare:vorpal_weapon",
     "superbwarfare:firefly",
     "superbwarfare:fair_means",
+    "superbwarfare:high_impact_reserves",
     "!superbwarfare:micro_missile",
     "!superbwarfare:longer_wire",
     "!superbwarfare:cupid_arrow"
-  ]
+  ],
+  "SoundInfo": {
+    "Fire1P": "superbwarfare:ak_12_fire_1p",
+    "Fire3P": "superbwarfare:ak_12_fire_3p",
+    "Fire3PFar": "superbwarfare:ak_12_far",
+    "Fire3PVeryFar": "superbwarfare:ak_12_veryfar",
+    "Fire1PSilent": "superbwarfare:ak_12_fire_1p_s",
+    "Fire3PSilent": "superbwarfare:ak_12_fire_3p_s",
+    "Fire3PFarSilent": "superbwarfare:ak_12_far_s",
+    "Fire3PVeryFarSilent": "superbwarfare:ak_12_veryfar_s",
+    "ReloadNormal": "superbwarfare:ak_12_reload_normal",
+    "ReloadEmpty": "superbwarfare:ak_12_reload_empty",
+    "CancellableSounds": [
+      "superbwarfare:ak_12_reload_normal",
+      "superbwarfare:ak_12_reload_empty"
+    ]
+  }
 }

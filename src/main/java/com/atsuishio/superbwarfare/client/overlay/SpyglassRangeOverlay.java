@@ -16,7 +16,6 @@ import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
@@ -41,9 +40,11 @@ import static com.atsuishio.superbwarfare.item.ArtilleryIndicator.TAG_CANNON;
 public class SpyglassRangeOverlay implements IGuiOverlay {
 
     public static final String ID = Mod.MODID + "_spyglass_range";
-    public static final ResourceLocation INDICATOR = Mod.loc("textures/screens/indicator.png");
-    private static float scopeScale = 1;
 
+    private static final ResourceLocation INDICATOR = Mod.loc("textures/overlay/spyglass/indicator.png");
+    private static final ResourceLocation SPYGLASS = Mod.loc("textures/overlay/spyglass/spyglass.png");
+
+    private static float scopeScale = 1;
     private static float lerpHoldArtilleryIndicator;
 
     @Override
@@ -53,12 +54,6 @@ public class SpyglassRangeOverlay implements IGuiOverlay {
         Player player = gui.getMinecraft().player;
 
         if (player == null) return;
-
-        lerpHoldArtilleryIndicator = Mth.lerp(partialTick, lerpHoldArtilleryIndicator, ClientEventHandler.holdArtilleryIndicator);
-        if (ClientEventHandler.holdArtilleryIndicator > 0) {
-            RenderHelper.fill(guiGraphics, RenderType.guiOverlay(), (float) screenWidth / 2 - 40, (float) (screenHeight / 2 + 64), (float) screenWidth / 2 + 40, (float) screenHeight / 2 + 68, -90, -16777216);
-            RenderHelper.fill(guiGraphics, RenderType.guiOverlay(), (float) screenWidth / 2 - 40, (float) (screenHeight / 2 + 64), (float) screenWidth / 2 - 40 + 8 * lerpHoldArtilleryIndicator, (float) screenHeight / 2 + 68, -90, -1);
-        }
 
         if (((player.isUsingItem() && player.getUseItem().is(ModItems.ARTILLERY_INDICATOR.get())) || player.isScoping()) && mc.options.getCameraType() == CameraType.FIRST_PERSON) {
             if (player.getUseItem().is(ModItems.ARTILLERY_INDICATOR.get())) {
@@ -80,7 +75,7 @@ public class SpyglassRangeOverlay implements IGuiOverlay {
                 float k = ((screenWidth - i) / 2);
                 float l = ((screenHeight - j) / 2);
                 float w = i * 21 / 9;
-                preciseBlit(guiGraphics, Mod.loc("textures/screens/spyglass.png"), k - (2 * w / 7) , l, 0, 0.0F, w, j, w, j);
+                preciseBlit(guiGraphics, SPYGLASS, k - (2 * w / 7), l, 0, 0.0F, w, j, w, j);
 
                 double targetX = stack.getOrCreateTag().getDouble("TargetX");
                 double targetY = stack.getOrCreateTag().getDouble("TargetY");
@@ -96,7 +91,6 @@ public class SpyglassRangeOverlay implements IGuiOverlay {
                 }
 
                 // 火炮位置
-
                 ListTag tags = stack.getOrCreateTag().getList(TAG_CANNON, Tag.TAG_COMPOUND);
                 for (int m = 0; m < tags.size(); m++) {
                     var tag = tags.getCompound(m);
@@ -113,6 +107,21 @@ public class SpyglassRangeOverlay implements IGuiOverlay {
                 }
 
                 poseStack.popPose();
+
+                lerpHoldArtilleryIndicator = Mth.lerp(partialTick, lerpHoldArtilleryIndicator, 0.05f * ClientEventHandler.holdArtilleryIndicator);
+
+                if (lerpHoldArtilleryIndicator > 0) {
+                    float alpha = Mth.clamp(lerpHoldArtilleryIndicator * 20, 0, 5) * 0.2f;
+                    RenderHelper.renderCircularRing(
+                            guiGraphics,
+                            screenWidth / 2f, screenHeight / 2f,
+                            0.07f, 0.052f,
+                            new float[]{0f, 0f, 0f, 0.4f * alpha},
+                            new float[]{1f, 1f, 1f, 0.8f * alpha},
+                            lerpHoldArtilleryIndicator,
+                            true
+                    );
+                }
             }
 
             boolean lookAtEntity = false;

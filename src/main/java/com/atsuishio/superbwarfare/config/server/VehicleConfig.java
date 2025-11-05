@@ -20,6 +20,11 @@ public class VehicleConfig {
     public static ForgeConfigSpec.IntValue REPAIR_COOLDOWN;
     public static ForgeConfigSpec.DoubleValue REPAIR_AMOUNT;
 
+    public static ForgeConfigSpec.IntValue SELF_EXPLOSION_DAMAGE;
+    public static ForgeConfigSpec.IntValue SELF_EXPLOSION_COUNT;
+    public static ForgeConfigSpec.IntValue AIR_CRASH_EXPLOSION_DAMAGE;
+    public static ForgeConfigSpec.IntValue AIR_CRASH_EXPLOSION_COUNT;
+
     public static ForgeConfigSpec.IntValue VEHICLE_INFO_DISPLAY_DISTANCE;
 
     public static ForgeConfigSpec.IntValue MK42_AP_DAMAGE;
@@ -58,12 +63,6 @@ public class VehicleConfig {
     public static ForgeConfigSpec.DoubleValue AH_6_ROCKET_EXPLOSION_DAMAGE;
     public static ForgeConfigSpec.DoubleValue AH_6_ROCKET_EXPLOSION_RADIUS;
     public static ForgeConfigSpec.BooleanValue AH_6_CANNON_DESTROY;
-
-    public static ForgeConfigSpec.IntValue LAV_150_ENERGY_COST;
-    public static ForgeConfigSpec.IntValue LAV_150_CANNON_DAMAGE;
-    public static ForgeConfigSpec.IntValue LAV_150_CANNON_EXPLOSION_DAMAGE;
-    public static ForgeConfigSpec.DoubleValue LAV_150_CANNON_EXPLOSION_RADIUS;
-    public static ForgeConfigSpec.DoubleValue LAV_150_MACHINE_GUN_DAMAGE;
 
     public static ForgeConfigSpec.IntValue TOM_6_ENERGY_COST;
     public static ForgeConfigSpec.IntValue TOM_6_BOMB_EXPLOSION_DAMAGE;
@@ -110,6 +109,8 @@ public class VehicleConfig {
     public static void init(ForgeConfigSpec.Builder builder) {
         builder.push("vehicle");
 
+        builder.push("collision");
+
         builder.comment("Allows vehicles to destroy soft blocks via collision");
         COLLISION_DESTROY_SOFT_BLOCKS = builder.define("collision_destroy_soft_blocks", false);
 
@@ -122,16 +123,33 @@ public class VehicleConfig {
         builder.comment("Allows vehicles to destroy blocks via collision like a beast");
         COLLISION_DESTROY_BLOCKS_BEASTLY = builder.define("collision_destroy_blocks_beastly", false);
 
+        builder.comment("List of entities that can be damaged by collision");
+        COLLISION_ENTITY_WHITELIST = builder.defineList("collision_entity_whitelist",
+                DEFAULT_COLLISION_ENTITY_WHITELIST,
+                e -> e instanceof String);
+
+        builder.pop();
+
         builder.comment("Allow vehicles to pick up items");
         VEHICLE_ITEM_PICKUP = builder.define("vehicle_item_pickup", true);
 
         builder.comment("Allow vehicles to collect drops after killing other entities by crashing");
         COLLECT_DROPS_BY_CRASHING = builder.define("collect_drops_by_crashing", true);
 
-        builder.comment("List of entities that can be damaged by collision");
-        COLLISION_ENTITY_WHITELIST = builder.defineList("collision_entity_whitelist",
-                DEFAULT_COLLISION_ENTITY_WHITELIST,
-                e -> e instanceof String);
+        builder.comment("Within this distance, the vehicle info will be displayed at client side");
+        VEHICLE_INFO_DISPLAY_DISTANCE = builder.defineInRange("vehicle_info_display_distance", 512, 0, 1024);
+
+        builder.comment("The damage of self explosion when a vehicle is destroyed");
+        SELF_EXPLOSION_DAMAGE = builder.defineInRange("self_explosion_damage", 114514, 0, Integer.MAX_VALUE);
+
+        builder.comment("The damage count of self explosion when a vehicle is destroyed");
+        SELF_EXPLOSION_COUNT = builder.defineInRange("self_explosion_count", 5, 0, 100);
+
+        builder.comment("The air crash damage when an aircraft is destroyed");
+        AIR_CRASH_EXPLOSION_DAMAGE = builder.defineInRange("air_crash_explosion_damage", 114514, 0, Integer.MAX_VALUE);
+
+        builder.comment("The air crash damage count when an aircraft is destroyed");
+        AIR_CRASH_EXPLOSION_COUNT = builder.defineInRange("air_crash_explosion_count", 5, 0, 100);
 
         builder.push("repair");
 
@@ -140,9 +158,6 @@ public class VehicleConfig {
 
         builder.comment("The default amount of health restored per tick when a vehicle is self-repairing");
         REPAIR_AMOUNT = builder.defineInRange("repair_amount", 0.05d, -Integer.MAX_VALUE, Integer.MAX_VALUE);
-
-        builder.comment("Within this distance, the vehicle info will be displayed at client side");
-        VEHICLE_INFO_DISPLAY_DISTANCE = builder.defineInRange("vehicle_info_display_distance", 512, 0, 1024);
 
         builder.pop();
 
@@ -262,25 +277,6 @@ public class VehicleConfig {
 
         builder.comment("Whether to destroy the block when cannon of AH-6 hits a block");
         AH_6_CANNON_DESTROY = builder.define("ah_6_cannon_destroy", true);
-
-        builder.pop();
-
-        builder.push("LAV-150");
-
-        builder.comment("The energy cost of LAV-150 per tick");
-        LAV_150_ENERGY_COST = builder.defineInRange("lav_150_energy_cost", 64, 0, Integer.MAX_VALUE);
-
-        builder.comment("The cannon damage of LAV-150");
-        LAV_150_CANNON_DAMAGE = builder.defineInRange("lav_150_cannon_damage", 45, 1, Integer.MAX_VALUE);
-
-        builder.comment("The cannon explosion damage of LAV-150");
-        LAV_150_CANNON_EXPLOSION_DAMAGE = builder.defineInRange("lav_150_cannon_explosion_damage", 12, 1, Integer.MAX_VALUE);
-
-        builder.comment("The cannon explosion radius of LAV-150");
-        LAV_150_CANNON_EXPLOSION_RADIUS = builder.defineInRange("lav_150_cannon_explosion_radius", 4d, 1d, Integer.MAX_VALUE);
-
-        builder.comment("The machine gun damage of LAV-150");
-        LAV_150_MACHINE_GUN_DAMAGE = builder.defineInRange("lav_150_machine_gun_damage", 9.5, 1d, Integer.MAX_VALUE);
 
         builder.pop();
 

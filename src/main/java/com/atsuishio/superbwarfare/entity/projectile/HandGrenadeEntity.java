@@ -1,19 +1,16 @@
 package com.atsuishio.superbwarfare.entity.projectile;
 
-import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.ExplosionConfig;
 import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.tools.ParticleTool;
 import com.atsuishio.superbwarfare.tools.ProjectileTool;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -21,7 +18,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BellBlock;
@@ -29,7 +25,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.PlayMessages;
 import software.bernie.geckolib.animatable.GeoEntity;
@@ -37,29 +32,34 @@ import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
-public class HandGrenadeEntity extends ThrowableItemProjectile implements GeoEntity, ExplosiveProjectile {
-
-    private float damage = 1f;
-    private float explosionDamage = ExplosionConfig.M67_GRENADE_EXPLOSION_DAMAGE.get();
-    private float explosionRadius = ExplosionConfig.M67_GRENADE_EXPLOSION_RADIUS.get();
-    private int fuse = 100;
-    private float gravity = 0.07f;
+public class HandGrenadeEntity extends FastThrowableProjectile implements GeoEntity, ExplosiveProjectile {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
-    public HandGrenadeEntity(EntityType<? extends HandGrenadeEntity> type, Level world) {
-        super(type, world);
+    private int fuse = 100;
+
+    public HandGrenadeEntity(EntityType<? extends HandGrenadeEntity> type, Level level) {
+        super(type, level);
         this.noCulling = true;
+        this.damage = 1;
+        this.explosionDamage = ExplosionConfig.M67_GRENADE_EXPLOSION_DAMAGE.get();
+        this.explosionRadius = ExplosionConfig.M67_GRENADE_EXPLOSION_RADIUS.get();
     }
 
-    public HandGrenadeEntity(EntityType<? extends HandGrenadeEntity> type, double x, double y, double z, Level world) {
-        super(type, x, y, z, world);
+    public HandGrenadeEntity(EntityType<? extends HandGrenadeEntity> type, double x, double y, double z, Level level) {
+        super(type, x, y, z, level);
         this.noCulling = true;
+        this.damage = 1;
+        this.explosionDamage = ExplosionConfig.M67_GRENADE_EXPLOSION_DAMAGE.get();
+        this.explosionRadius = ExplosionConfig.M67_GRENADE_EXPLOSION_RADIUS.get();
     }
 
     public HandGrenadeEntity(LivingEntity entity, Level level, int fuse) {
         super(ModEntities.HAND_GRENADE.get(), entity, level);
         this.noCulling = true;
+        this.damage = 1;
+        this.explosionDamage = ExplosionConfig.M67_GRENADE_EXPLOSION_DAMAGE.get();
+        this.explosionRadius = ExplosionConfig.M67_GRENADE_EXPLOSION_RADIUS.get();
         this.fuse = fuse;
     }
 
@@ -68,40 +68,8 @@ public class HandGrenadeEntity extends ThrowableItemProjectile implements GeoEnt
     }
 
     @Override
-    public void addAdditionalSaveData(CompoundTag pCompound) {
-        super.addAdditionalSaveData(pCompound);
-        pCompound.putFloat("Damage", this.damage);
-        pCompound.putFloat("ExplosionDamage", this.explosionDamage);
-        pCompound.putFloat("Radius", this.explosionRadius);
-    }
-
-    @Override
-    public void readAdditionalSaveData(CompoundTag pCompound) {
-        super.readAdditionalSaveData(pCompound);
-        if (pCompound.contains("Damage")) {
-            this.damage = pCompound.getFloat("Damage");
-        }
-        if (pCompound.contains("ExplosionDamage")) {
-            this.explosionDamage = pCompound.getFloat("ExplosionDamage");
-        }
-        if (pCompound.contains("Radius")) {
-            this.explosionRadius = pCompound.getFloat("Radius");
-        }
-    }
-
-    @Override
-    public Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
-    }
-
-    @Override
     protected Item getDefaultItem() {
         return ModItems.HAND_GRENADE.get();
-    }
-
-    @Override
-    public boolean shouldRenderAtSqrDistance(double pDistance) {
-        return true;
     }
 
     @Override
@@ -133,7 +101,7 @@ public class HandGrenadeEntity extends ThrowableItemProjectile implements GeoEnt
                         if (!living.level().isClientSide() && living instanceof ServerPlayer player) {
                             living.level().playSound(null, living.blockPosition(), ModSounds.INDICATION.get(), SoundSource.VOICE, 1, 1);
 
-                            Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
+                            NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
                         }
                     }
                     entity.hurt(entity.damageSources().thrown(this, this.getOwner()), this.damage);
@@ -188,30 +156,5 @@ public class HandGrenadeEntity extends ThrowableItemProjectile implements GeoEnt
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return this.cache;
-    }
-
-    @Override
-    public void setDamage(float damage) {
-        this.damage = damage;
-    }
-
-    @Override
-    public void setExplosionDamage(float explosionDamage) {
-        this.explosionDamage = explosionDamage;
-    }
-
-    @Override
-    public void setExplosionRadius(float radius) {
-        this.explosionRadius = radius;
-    }
-
-    @Override
-    public float getGravity() {
-        return this.gravity;
-    }
-
-    @Override
-    public void setGravity(float gravity) {
-        this.gravity = gravity;
     }
 }

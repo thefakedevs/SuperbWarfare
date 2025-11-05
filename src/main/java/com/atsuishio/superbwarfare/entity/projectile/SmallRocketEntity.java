@@ -6,15 +6,13 @@ import com.atsuishio.superbwarfare.init.ModDamageTypes;
 import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.tools.CustomExplosion;
 import com.atsuishio.superbwarfare.tools.DamageHandler;
 import com.atsuishio.superbwarfare.tools.ParticleTool;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -28,8 +26,6 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
@@ -47,21 +43,25 @@ import javax.annotation.Nullable;
 public class SmallRocketEntity extends FastThrowableProjectile implements GeoEntity, ExplosiveProjectile {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
-    private float damage = 140f;
-    private float explosionDamage = 60f;
-    private float explosionRadius = 5f;
-    private float gravity = 0f;
 
-    public SmallRocketEntity(EntityType<? extends SmallRocketEntity> type, Level world) {
-        super(type, world);
+    public SmallRocketEntity(EntityType<? extends SmallRocketEntity> type, Level level) {
+        super(type, level);
         this.noCulling = true;
+        this.damage = 140f;
+        this.explosionDamage = 60f;
+        this.explosionRadius = 5f;
+        this.durability = 20;
+        this.gravity = 0;
     }
 
     public SmallRocketEntity(EntityType<? extends ThrowableItemProjectile> pEntityType, double pX, double pY, double pZ, Level pLevel) {
         super(pEntityType, pX, pY, pZ, pLevel);
         this.noCulling = true;
-
+        this.damage = 140f;
+        this.explosionDamage = 60f;
+        this.explosionRadius = 5f;
         this.durability = 20;
+        this.gravity = 0;
     }
 
     public SmallRocketEntity(LivingEntity entity, Level level, float damage, float explosionDamage, float explosionRadius) {
@@ -70,37 +70,11 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
         this.explosionDamage = explosionDamage;
         this.explosionRadius = explosionRadius;
         this.durability = 20;
+        this.gravity = 0;
     }
 
     public SmallRocketEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
         this(ModEntities.SMALL_ROCKET.get(), level);
-    }
-
-    @Override
-    public void addAdditionalSaveData(@NotNull CompoundTag pCompound) {
-        super.addAdditionalSaveData(pCompound);
-        pCompound.putFloat("Damage", this.damage);
-        pCompound.putFloat("ExplosionDamage", this.explosionDamage);
-        pCompound.putFloat("Radius", this.explosionRadius);
-    }
-
-    @Override
-    public void readAdditionalSaveData(@NotNull CompoundTag pCompound) {
-        super.readAdditionalSaveData(pCompound);
-        if (pCompound.contains("Damage")) {
-            this.damage = pCompound.getFloat("Damage");
-        }
-        if (pCompound.contains("ExplosionDamage")) {
-            this.explosionDamage = pCompound.getFloat("ExplosionDamage");
-        }
-        if (pCompound.contains("Radius")) {
-            this.explosionRadius = pCompound.getFloat("Radius");
-        }
-    }
-
-    @Override
-    public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
     }
 
     @Override
@@ -109,12 +83,8 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
     }
 
     @Override
-    public boolean shouldRenderAtSqrDistance(double pDistance) {
-        return true;
-    }
-
-    @Override
     protected void onHitEntity(EntityHitResult result) {
+        super.onHitEntity(result);
         Entity entity = result.getEntity();
         if (this.getOwner() != null && this.getOwner().getVehicle() != null && entity == this.getOwner().getVehicle())
             return;
@@ -125,7 +95,7 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
                 if (!living.level().isClientSide() && living instanceof ServerPlayer player) {
                     living.level().playSound(null, living.blockPosition(), ModSounds.INDICATION.get(), SoundSource.VOICE, 1, 1);
 
-                    Mod.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
+                    NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(0, 5));
                 }
             }
 
@@ -142,6 +112,7 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
 
     @Override
     public void onHitBlock(@NotNull BlockHitResult blockHitResult) {
+        super.onHitBlock(blockHitResult);
         if (this.level() instanceof ServerLevel) {
             BlockPos resultPos = blockHitResult.getBlockPos();
             float hardness = this.level().getBlockState(resultPos).getBlock().defaultDestroyTime();
@@ -152,7 +123,9 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
                         firstHit = false;
                         Mod.queueServerWork(3, this::discard);
                     }
-                    this.level().destroyBlock(resultPos, true);
+                    if (ExplosionConfig.EXTRA_EXPLOSION_EFFECT.get()) {
+                        this.level().destroyBlock(resultPos, true);
+                    }
                 }
             } else {
                 causeExplode(blockHitResult.getLocation());
@@ -166,31 +139,10 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
     }
 
     @Override
-    public void causeExplode(Vec3 vec3) {
-        new CustomExplosion.Builder(this)
-                .attacker(this.getOwner())
-                .damage(explosionDamage)
-                .radius(explosionRadius)
-                .position(vec3)
-                .causeVanillaExplosion()
-                .withParticleType(ParticleTool.ParticleType.MEDIUM)
-                .explode();
-    }
-
-
-    @Override
     public void tick() {
         super.tick();
 
-        if (this.level() instanceof ServerLevel serverLevel && tickCount > 1) {
-            double l = getDeltaMovement().length();
-            for (double i = 0; i < l; i++) {
-                Vec3 startPos = new Vec3(this.xo, this.yo, this.zo);
-                Vec3 pos = startPos.add(getDeltaMovement().normalize().scale(i));
-                ParticleTool.sendParticle(serverLevel, ParticleTypes.CAMPFIRE_COSY_SMOKE, pos.x, pos.y, pos.z,
-                        1, 0, 0, 0, 0.001, true);
-            }
-        }
+        mediumTrail();
 
         if (this.tickCount == 3) {
             if (!this.level().isClientSide() && this.level() instanceof ServerLevel serverLevel) {
@@ -215,7 +167,6 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
                 .damageSource(source)
                 .damage(damage)
                 .radius(radius)
-                .causeVanillaExplosion()
                 .damageMultiplier(damageMultiplier)
                 .withParticleType(ParticleTool.ParticleType.MEDIUM)
                 .explode();
@@ -253,27 +204,7 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
     }
 
     @Override
-    public void setDamage(float damage) {
-        this.damage = damage;
-    }
-
-    @Override
-    public void setExplosionDamage(float damage) {
-        this.explosionDamage = damage;
-    }
-
-    @Override
-    public void setExplosionRadius(float radius) {
-        this.explosionRadius = radius;
-    }
-
-    @Override
-    public float getGravity() {
-        return this.gravity;
-    }
-
-    @Override
-    public void setGravity(float gravity) {
-        this.gravity = gravity;
+    public boolean forceLoadChunk() {
+        return true;
     }
 }

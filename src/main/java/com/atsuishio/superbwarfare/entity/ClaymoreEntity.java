@@ -1,13 +1,14 @@
 package com.atsuishio.superbwarfare.entity;
 
 import com.atsuishio.superbwarfare.Mod;
-import com.atsuishio.superbwarfare.entity.projectile.MineEntity;
+import com.atsuishio.superbwarfare.config.server.ExplosionConfig;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModifier;
 import com.atsuishio.superbwarfare.init.*;
 import com.atsuishio.superbwarfare.tools.CustomExplosion;
 import com.atsuishio.superbwarfare.tools.EntityFindUtil;
 import com.atsuishio.superbwarfare.tools.ParticleTool;
+import com.atsuishio.superbwarfare.world.TDMSavedData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -36,7 +37,7 @@ import javax.annotation.Nullable;
 import java.util.Optional;
 import java.util.UUID;
 
-public class ClaymoreEntity extends Entity implements GeoEntity, OwnableEntity, MineEntity {
+public class ClaymoreEntity extends Entity implements GeoEntity, OwnableEntity {
 
     protected static final EntityDataAccessor<Optional<UUID>> OWNER_UUID = SynchedEntityData.defineId(ClaymoreEntity.class, EntityDataSerializers.OPTIONAL_UUID);
     protected static final EntityDataAccessor<String> LAST_ATTACKER_UUID = SynchedEntityData.defineId(ClaymoreEntity.class, EntityDataSerializers.STRING);
@@ -177,16 +178,12 @@ public class ClaymoreEntity extends Entity implements GeoEntity, OwnableEntity, 
                         && (target instanceof LivingEntity || target instanceof VehicleEntity)
                         && !(target instanceof TargetEntity)
                         && !(target instanceof Player player && (player.isCreative() || player.isSpectator()))
-                        && (this.getOwner() != null && !this.getOwner().isAlliedTo(target) || target.getTeam() == null || target.getTeam().getName().equals("TDM"))
+                        && (this.getOwner() != null && !this.getOwner().isAlliedTo(target) || target.getTeam() == null || TDMSavedData.enabledTDM(target))
                         && !target.isShiftKeyDown();
                 if (!condition) continue;
 
-                if (!level.isClientSide()) {
-                    if (!this.level().isClientSide()) {
-                        ParticleTool.spawnMediumExplosionParticles(this.level(), this.position());
-                    }
-                    this.discard();
-                }
+                ParticleTool.spawnMediumExplosionParticles(this.level(), this.position());
+                this.discard();
 
                 Mod.queueServerWork(1, () -> {
                     if (!level.isClientSide()) {
@@ -227,10 +224,9 @@ public class ClaymoreEntity extends Entity implements GeoEntity, OwnableEntity, 
             Entity attacker = EntityFindUtil.findEntity(this.level(), this.entityData.get(LAST_ATTACKER_UUID));
 
             new CustomExplosion.Builder(attacker == null ? this : attacker)
-                    .damage(25)
-                    .radius(5)
+                    .damage(ExplosionConfig.CLAYMORE_EXPLOSION_DAMAGE.get().floatValue() / 5)
+                    .radius(ExplosionConfig.CLAYMORE_EXPLOSION_RADIUS.get())
                     .position(this.position())
-                    .causeVanillaExplosion()
                     .withParticleType(ParticleTool.ParticleType.MEDIUM)
                     .explode();
 
@@ -241,9 +237,8 @@ public class ClaymoreEntity extends Entity implements GeoEntity, OwnableEntity, 
     private void triggerExplode() {
         new CustomExplosion.Builder(this)
                 .attacker(this.getOwner())
-                .damage(140)
-                .radius(4)
-                .causeVanillaExplosion()
+                .damage(ExplosionConfig.CLAYMORE_EXPLOSION_DAMAGE.get())
+                .radius(ExplosionConfig.CLAYMORE_EXPLOSION_RADIUS.get())
                 .withParticleType(ParticleTool.ParticleType.MEDIUM)
                 .explode();
     }

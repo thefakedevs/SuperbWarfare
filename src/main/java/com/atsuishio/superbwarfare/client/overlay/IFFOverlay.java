@@ -2,10 +2,9 @@ package com.atsuishio.superbwarfare.client.overlay;
 
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.client.DisplayConfig;
-import com.atsuishio.superbwarfare.entity.projectile.MineEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.*;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.ModItems;
+import com.atsuishio.superbwarfare.init.ModTags;
 import com.atsuishio.superbwarfare.tools.SeekTool;
 import com.atsuishio.superbwarfare.tools.VectorTool;
 import com.atsuishio.superbwarfare.tools.VectorUtil;
@@ -38,15 +37,18 @@ public class IFFOverlay implements IGuiOverlay {
 
     public static final String ID = Mod.MODID + "_iff";
 
-    public static final ResourceLocation FRIENDLY_INDICATOR = Mod.loc("textures/screens/teammate/friendly_indicator.png");
-    public static final ResourceLocation FRIENDLY_AIRCRAFT = Mod.loc("textures/screens/teammate/friendly_aircraft.png");
-    public static final ResourceLocation FRIENDLY_ARMOR = Mod.loc("textures/screens/teammate/friendly_armor.png");
-    public static final ResourceLocation FRIENDLY_ARTILLERY = Mod.loc("textures/screens/teammate/friendly_artillery.png");
-    public static final ResourceLocation FRIENDLY_BOAT = Mod.loc("textures/screens/teammate/friendly_boat.png");
-    public static final ResourceLocation FRIENDLY_DEFENSE = Mod.loc("textures/screens/teammate/friendly_defense.png");
-    public static final ResourceLocation FRIENDLY_DRONE = Mod.loc("textures/screens/teammate/friendly_drone.png");
-    public static final ResourceLocation FRIENDLY_HELICOPTER = Mod.loc("textures/screens/teammate/friendly_helicopter.png");
-    public static final ResourceLocation FRIENDLY_MINE = Mod.loc("textures/screens/teammate/friendly_mine.png");
+    public static final ResourceLocation FRIENDLY_INDICATOR = Mod.loc("textures/overlay/teammate/friendly_indicator.png");
+    public static final ResourceLocation FRIENDLY_AIRCRAFT = Mod.loc("textures/overlay/teammate/friendly_aircraft.png");
+    public static final ResourceLocation FRIENDLY_TANK = Mod.loc("textures/overlay/teammate/friendly_tank.png");
+    public static final ResourceLocation FRIENDLY_APC = Mod.loc("textures/overlay/teammate/friendly_apc.png");
+    public static final ResourceLocation FRIENDLY_AA = Mod.loc("textures/overlay/teammate/friendly_aa.png");
+    public static final ResourceLocation FRIENDLY_CAR = Mod.loc("textures/overlay/teammate/friendly_car.png");
+    public static final ResourceLocation FRIENDLY_ARTILLERY = Mod.loc("textures/overlay/teammate/friendly_artillery.png");
+    public static final ResourceLocation FRIENDLY_BOAT = Mod.loc("textures/overlay/teammate/friendly_boat.png");
+    public static final ResourceLocation FRIENDLY_DEFENSE = Mod.loc("textures/overlay/teammate/friendly_defense.png");
+    public static final ResourceLocation FRIENDLY_DRONE = Mod.loc("textures/overlay/teammate/friendly_drone.png");
+    public static final ResourceLocation FRIENDLY_HELICOPTER = Mod.loc("textures/overlay/teammate/friendly_helicopter.png");
+    public static final ResourceLocation FRIENDLY_MINE = Mod.loc("textures/overlay/teammate/friendly_mine.png");
 
     @Override
     public void render(ForgeGui gui, GuiGraphics guiGraphics, float partialTick, int screenWidth, int screenHeight) {
@@ -62,7 +64,10 @@ public class IFFOverlay implements IGuiOverlay {
         CuriosApi.getCuriosInventory(player).ifPresent(
                 c -> c.findFirstCurio(ModItems.IFF.get()).ifPresent(
                         s -> {
-                            List<Entity> entities = SeekTool.getTeammate(player, player.level());
+                            List<Entity> entities = new SeekTool.Builder(player)
+                                    .friendly()
+                                    .build();
+
                             for (var e : entities) {
                                 if (e != null && e != player && VectorUtil.canSee(e.position()) && e != player.getVehicle()) {
                                     Entity team = e;
@@ -96,31 +101,26 @@ public class IFFOverlay implements IGuiOverlay {
         );
     }
 
-    private static ResourceLocation getResourceLocation(Entity team) {
+    private static ResourceLocation getResourceLocation(Entity entity) {
         ResourceLocation icon = FRIENDLY_INDICATOR;
 
-        if (team instanceof BoatVehicleEntity || team instanceof Boat) {
+        if (entity instanceof Boat) {
             icon = FRIENDLY_BOAT;
-        } else if (team instanceof VehicleEntity vehicle) {
-            if (vehicle instanceof AircraftEntity) {
-                icon = FRIENDLY_AIRCRAFT;
-            }
-            if (vehicle instanceof HelicopterEntity) {
-                icon = FRIENDLY_HELICOPTER;
-            }
-            if (vehicle instanceof LandArmorEntity) {
-                icon = FRIENDLY_ARMOR;
-            }
-            if (vehicle instanceof ArtilleryEntity) {
-                icon = FRIENDLY_ARTILLERY;
-            }
-            if (vehicle instanceof DroneEntity) {
-                icon = FRIENDLY_DRONE;
-            }
-            if (vehicle instanceof DefenseEntity) {
-                icon = FRIENDLY_DEFENSE;
-            }
-        } else if (team instanceof MineEntity) {
+        } else if (entity instanceof VehicleEntity vehicle) {
+            icon = switch (vehicle.getVehicleType()) {
+                case AIRPLANE -> FRIENDLY_AIRCRAFT;
+                case HELICOPTER -> FRIENDLY_HELICOPTER;
+                case APC -> FRIENDLY_APC;
+                case CAR -> FRIENDLY_CAR;
+                case AA -> FRIENDLY_AA;
+                case TANK -> FRIENDLY_TANK;
+                case ARTILLERY -> FRIENDLY_ARTILLERY;
+                case DRONE -> FRIENDLY_DRONE;
+                case BOAT -> FRIENDLY_BOAT;
+                case DEFENSE -> FRIENDLY_DEFENSE;
+                default -> FRIENDLY_INDICATOR;
+            };
+        } else if (entity.getType().is(ModTags.EntityTypes.MINE)) {
             icon = FRIENDLY_MINE;
         }
         return icon;

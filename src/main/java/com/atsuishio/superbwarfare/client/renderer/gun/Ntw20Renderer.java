@@ -1,14 +1,14 @@
 package com.atsuishio.superbwarfare.client.renderer.gun;
 
-import com.atsuishio.superbwarfare.client.AnimationHelper;
 import com.atsuishio.superbwarfare.client.ItemModelHelper;
-import com.atsuishio.superbwarfare.client.model.item.Ntw20Model;
+import com.atsuishio.superbwarfare.client.animation.AnimationHelper;
+import com.atsuishio.superbwarfare.client.model.item.Ntw20ItemModel;
 import com.atsuishio.superbwarfare.client.renderer.CustomGunRenderer;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.value.AttachmentType;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
-import com.atsuishio.superbwarfare.item.gun.heavy.Ntw20Item;
+import com.atsuishio.superbwarfare.item.gun.sniper.Ntw20Item;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -22,7 +22,7 @@ import software.bernie.geckolib.cache.object.GeoBone;
 public class Ntw20Renderer extends CustomGunRenderer<Ntw20Item> {
 
     public Ntw20Renderer() {
-        super(new Ntw20Model());
+        super(new Ntw20ItemModel());
     }
 
     @Override
@@ -48,7 +48,7 @@ public class Ntw20Renderer extends CustomGunRenderer<Ntw20Item> {
                 }
 
                 ItemModelHelper.handleGunAttachments(bone, itemStack, name);
-                AnimationHelper.handleShootFlare(name, stack, itemStack, bone, buffer, packedLightIn, 0, 0, 3.70229375, 0.8);
+                AnimationHelper.handleShootFlare(name, stack, itemStack, bone, buffer, packedLightIn);
 
                 if (this.renderPerspective == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND) {
                     if (GunData.from(itemStack).attachment.get(AttachmentType.SCOPE) == 2
