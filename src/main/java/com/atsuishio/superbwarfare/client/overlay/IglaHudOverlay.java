@@ -97,7 +97,7 @@ public class IglaHudOverlay implements IGuiOverlay {
             RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
             RenderSystem.setShaderColor(1, 1, 1, 1);
 
-            Entity targetEntity = EntityFindUtil.findEntity(player.level(), stack.getOrCreateTag().getString("TargetEntity"));
+            Entity targetEntity = EntityFindUtil.findVehicle(player.level(), stack.getOrCreateTag().getString("TargetEntity"));
             int seekingTime = stack.getOrCreateTag().getInt("SeekTime");
             lerpSeeking = Mth.lerp(partialTick, lerpSeeking, Mth.clamp(30 - stack.getOrCreateTag().getInt("SeekTime"), 0, 30) * 0.6f);
 
