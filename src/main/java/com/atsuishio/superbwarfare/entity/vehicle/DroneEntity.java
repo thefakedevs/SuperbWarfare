@@ -99,6 +99,7 @@ public class DroneEntity extends VehicleEntity implements GeoEntity {
 
     public DroneEntity(EntityType<DroneEntity> type, Level world) {
         super(type, world);
+        this.noCulling = true;
     }
 
     public float getBodyPitch() {
@@ -115,6 +116,7 @@ public class DroneEntity extends VehicleEntity implements GeoEntity {
 
     public DroneEntity(EntityType<? extends DroneEntity> type, Level world, float moveX, float moveY, float moveZ) {
         super(type, world);
+        this.noCulling = true;
     }
 
     @Override
@@ -756,6 +758,11 @@ public class DroneEntity extends VehicleEntity implements GeoEntity {
     @Override
     public boolean canCrushEntities() {
         return false;
+    }
+
+    @Override
+    public boolean shouldRenderAtSqrDistance(double pDistance) {
+        return true;
     }
 
     @OnlyIn(Dist.CLIENT)
