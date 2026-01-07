@@ -27,10 +27,13 @@ import static com.atsuishio.superbwarfare.entity.vehicle.DroneEntity.*;
 import static com.atsuishio.superbwarfare.entity.vehicle.base.MobileVehicleEntity.AMMO;
 
 public class DroneRenderer extends GeoEntityRenderer<DroneEntity> {
+	private static final float MODEL_SCALE = 1.4f; // visual scale multiplier relative to original
+
 	public DroneRenderer(EntityRendererProvider.Context renderManager) {
 		super(renderManager, new DroneModel());
 		this.addRenderLayer(new DroneLayer(this));
-		this.shadowRadius = 0.2f;
+		// shadow adjusted to match increased entity size
+		this.shadowRadius = 0.35f;
 	}
 
 	@Override
@@ -41,6 +44,7 @@ public class DroneRenderer extends GeoEntityRenderer<DroneEntity> {
 	@Override
 	public void render(DroneEntity entityIn, float entityYaw, float partialTicks, PoseStack poseStack, @NotNull MultiBufferSource bufferIn, int packedLightIn) {
 		poseStack.pushPose();
+		poseStack.scale(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
 		poseStack.mulPose(Axis.YP.rotationDegrees(-entityIn.getYaw(partialTicks)));
 		poseStack.mulPose(Axis.XP.rotationDegrees(entityIn.getBodyPitch(partialTicks)));
 		poseStack.mulPose(Axis.ZP.rotationDegrees(entityIn.getRoll(partialTicks)));
@@ -101,6 +105,14 @@ public class DroneRenderer extends GeoEntityRenderer<DroneEntity> {
 		var xLength = displayData.get(9);
 		var yLength = displayData.get(10);
 
+		float invScale = 1.0f / MODEL_SCALE;
+
+		// Дополнительное смещение вперед для ракет
+		float rocketZOffset = 0.0f;
+		if (attached.equals("superbwarfare:rpg_rocket")) {
+			rocketZOffset = 0.5f; // смещение вперед (отрицательное Z)
+		}
+
 		for (int i = 0; i < data.get(AMMO); i++) {
 			float x, z;
 			if (data.get(MAX_AMMO) == 1) {
@@ -122,8 +134,8 @@ public class DroneRenderer extends GeoEntityRenderer<DroneEntity> {
 			}
 
 			poseStack.pushPose();
-			poseStack.translate(x + offset[0], offset[1], z + offset[2]);
-			poseStack.scale(scale[0], scale[1], scale[2]);
+			poseStack.translate(x + offset[0], offset[1], z + offset[2] + rocketZOffset);
+			poseStack.scale(scale[0] * invScale, scale[1] * invScale, scale[2] * invScale);
 			poseStack.mulPose(Axis.YP.rotationDegrees(rotation[2]));
 			poseStack.mulPose(Axis.XP.rotationDegrees(rotation[0]));
 			poseStack.mulPose(Axis.ZP.rotationDegrees(rotation[1]));

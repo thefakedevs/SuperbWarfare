@@ -100,6 +100,7 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
 
     public DroneEntity(EntityType<DroneEntity> type, Level world) {
         super(type, world);
+        this.noCulling = true;
     }
 
     public float getBodyPitch() {
@@ -116,6 +117,7 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
 
     public DroneEntity(EntityType<? extends DroneEntity> type, Level world, float moveX, float moveY, float moveZ) {
         super(type, world);
+        this.noCulling = true;
     }
 
     @Override
@@ -766,6 +768,11 @@ public class DroneEntity extends MobileVehicleEntity implements GeoEntity {
         transform.rotate(Axis.XP.rotationDegrees((float) (Mth.lerp(ticks, xRotO, getXRot()) + freeCameraPitch)));
         transform.rotate(Axis.ZP.rotationDegrees(Mth.lerp(ticks, prevRoll, getRoll())));
         return transform;
+    }
+
+    @Override
+    public boolean shouldRenderAtSqrDistance(double pDistance) {
+        return true;
     }
 
     @OnlyIn(Dist.CLIENT)

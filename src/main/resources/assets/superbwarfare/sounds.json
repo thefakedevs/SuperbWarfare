@@ -2250,7 +2250,7 @@
   "drone_sound": {
     "sounds": [
       {
-        "attenuation_distance": 48,
+        "attenuation_distance": 64,
         "stream": false,
         "name": "superbwarfare:drone_sound"
       }
