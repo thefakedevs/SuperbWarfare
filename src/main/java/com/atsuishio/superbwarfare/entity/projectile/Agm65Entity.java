@@ -3,7 +3,10 @@ package com.atsuishio.superbwarfare.entity.projectile;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.ExplosionConfig;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
-import com.atsuishio.superbwarfare.init.*;
+import com.atsuishio.superbwarfare.init.ModDamageTypes;
+import com.atsuishio.superbwarfare.init.ModItems;
+import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.init.ModTags;
 import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.tools.*;
@@ -14,6 +17,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -25,7 +29,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Math;
 import software.bernie.geckolib.animatable.GeoEntity;
@@ -39,43 +42,27 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.List;
 
-public class Agm65Entity extends MissileProjectile implements GeoEntity, ExplosiveProjectile {
+public class Agm65Entity extends MissileProjectile implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
     public Agm65Entity(EntityType<? extends Agm65Entity> type, Level level) {
         super(type, level);
         this.noCulling = true;
-        this.damage = ExplosionConfig.AGM_65_DAMAGE.get();
-        this.explosionDamage = ExplosionConfig.AGM_65_EXPLOSION_DAMAGE.get();
-        this.explosionRadius = ExplosionConfig.AGM_65_EXPLOSION_RADIUS.get().floatValue();
+        this.damage = 1100;
+        this.explosionDamage = 180;
+        this.explosionRadius = 12;
         this.distracted = false;
-        this.gravity = 0.15f;
         this.durability = 25;
-    }
-
-    public Agm65Entity(LivingEntity entity, Level level) {
-        super(ModEntities.AGM_65.get(), entity, level);
-        this.noCulling = true;
-        this.damage = ExplosionConfig.AGM_65_DAMAGE.get();
-        this.explosionDamage = ExplosionConfig.AGM_65_EXPLOSION_DAMAGE.get();
-        this.explosionRadius = ExplosionConfig.AGM_65_EXPLOSION_RADIUS.get().floatValue();
-        this.distracted = false;
-        this.gravity = 0.15f;
-        this.durability = 25;
-    }
-
-    public Agm65Entity(PlayMessages.SpawnEntity spawnEntity, Level level) {
-        this(ModEntities.AGM_65.get(), level);
     }
 
     @Override
     protected @NotNull Item getDefaultItem() {
-        return ModItems.AGM.get();
+        return ModItems.LARGE_ANTI_GROUND_MISSILE.get();
     }
 
     @Override
-    protected void onHitEntity(EntityHitResult result) {
+    protected void onHitEntity(@NotNull EntityHitResult result) {
         super.onHitEntity(result);
         Entity entity = result.getEntity();
         if (entity == this.getOwner() || (this.getOwner() != null && entity == this.getOwner().getVehicle()))
@@ -130,11 +117,6 @@ public class Agm65Entity extends MissileProjectile implements GeoEntity, Explosi
     }
 
     @Override
-    public ParticleTool.ParticleType explosionParticleType() {
-        return super.explosionParticleType();
-    }
-
-    @Override
     public void tick() {
         super.tick();
 
@@ -151,28 +133,41 @@ public class Agm65Entity extends MissileProjectile implements GeoEntity, Explosi
             }
         }
 
-        if (!entityData.get(TARGET_UUID).equals("none")) {
-            if (entity != null) {
-                if (entity.level() instanceof ServerLevel) {
-                    if ((!entity.getPassengers().isEmpty() || entity instanceof VehicleEntity) && entity.tickCount % ((int) Math.max(0.04 * this.distanceTo(entity), 2)) == 0) {
-                        entity.level().playSound(null, entity.getOnPos(), entity instanceof Pig ? SoundEvents.PIG_HURT : ModSounds.MISSILE_WARNING.get(), SoundSource.PLAYERS, 2, 1f);
-                    }
+        Vec3 toVec = getLookAngle();
 
-                    Vec3 targetPos = new Vec3(entity.getX(), entity.getY() + (entity instanceof EnderDragon ? -2 : 0), entity.getZ());
-
-                    Vec3 toVec = position().vectorTo(targetPos).normalize();
-                    if (this.tickCount > 8) {
-                        boolean lostTarget = (VectorTool.calculateAngle(getLookAngle(), toVec) > 80);
-                        if (!lostTarget) {
-                            turn(toVec, 6);
+        if (guideType == 0) {
+            if (!entityData.get(TARGET_UUID).equals("none")) {
+                if (entity != null) {
+                    if (level() instanceof ServerLevel) {
+                        if ((!entity.getPassengers().isEmpty() || entity instanceof VehicleEntity) && entity.tickCount % ((int) Math.max(0.04 * this.distanceTo(entity), 2)) == 0) {
+                            entity.level().playSound(null, entity.getOnPos(), entity instanceof Pig ? SoundEvents.PIG_HURT : ModSounds.MISSILE_WARNING.get(), SoundSource.PLAYERS, 2, 1f);
                         }
+                        double dis = entity.position().vectorTo(position()).horizontalDistance();
+                        double height = dis > 30 ? 0.4 * (dis - 30) : 0;
+                        Vec3 targetPos = new Vec3(entity.getX(), entity.getY() + (entity instanceof EnderDragon ? -2 : 0) + height, entity.getZ());
+                        toVec = RangeTool.calculateFiringSolution(position(), targetPos, entity.getDeltaMovement(), getDeltaMovement().length(), 0);
                     }
                 }
+            }
+        } else {
+            if (level() instanceof ServerLevel) {
+                double dis = targetPos.vectorTo(position()).horizontalDistance();
+                double height = dis > 30 ? 0.4 * (dis - 30) : 0;
+                Vec3 targetPos = this.targetPos.add(0, height, 0);
+                toVec = RangeTool.calculateFiringSolution(position(), targetPos, Vec3.ZERO, getDeltaMovement().length(), 0);
             }
         }
 
         if (this.tickCount > 8) {
-            this.setDeltaMovement(this.getDeltaMovement().add(getLookAngle()));
+            this.setDeltaMovement(this.getDeltaMovement().scale(0.05).add(getLookAngle().scale(8)));
+            this.setDeltaMovement(this.getDeltaMovement().multiply(0.85, 0.85, 0.85));
+            boolean lostTarget = (VectorTool.calculateAngle(getLookAngle(), toVec) > 170);
+            if (!lostTarget) {
+                turn(toVec, Mth.clamp((tickCount - 8) * 0.5f, 0, 15));
+            }
+        } else {
+            this.setDeltaMovement(this.getDeltaMovement().add(0, -0.06, 0));
+            this.setDeltaMovement(this.getDeltaMovement().multiply(0.99, 0.99, 0.99));
         }
 
         if (this.tickCount == 8) {
@@ -192,8 +187,6 @@ public class Agm65Entity extends MissileProjectile implements GeoEntity, Explosi
             this.discard();
         }
 
-        this.setDeltaMovement(this.getDeltaMovement().multiply(0.8, 0.8, 0.8));
-
         destroyBlock();
     }
 
@@ -203,7 +196,7 @@ public class Agm65Entity extends MissileProjectile implements GeoEntity, Explosi
 
     @Override
     public float getGravity() {
-        return tickCount > 8 ? 0 : this.gravity;
+        return tickCount < 8 ? 0.15F : super.getGravity();
     }
 
     @Override
@@ -216,10 +209,6 @@ public class Agm65Entity extends MissileProjectile implements GeoEntity, Explosi
         return this.cache;
     }
 
-    @Override
-    public @NotNull SoundEvent getCloseSound() {
-        return ModSounds.ROCKET_ENGINE.get();
-    }
 
     @Override
     public @NotNull SoundEvent getSound() {

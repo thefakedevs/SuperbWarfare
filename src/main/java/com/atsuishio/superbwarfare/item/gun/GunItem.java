@@ -8,13 +8,13 @@ import com.atsuishio.superbwarfare.client.particle.BulletDecalOption;
 import com.atsuishio.superbwarfare.client.screens.WeaponEditScreen;
 import com.atsuishio.superbwarfare.client.tooltip.component.GunImageComponent;
 import com.atsuishio.superbwarfare.data.CustomData;
-import com.atsuishio.superbwarfare.data.Prop;
 import com.atsuishio.superbwarfare.data.gun.*;
 import com.atsuishio.superbwarfare.data.gun.value.AttachmentType;
 import com.atsuishio.superbwarfare.data.launchable.LaunchableEntityTool;
 import com.atsuishio.superbwarfare.data.launchable.ShootData;
 import com.atsuishio.superbwarfare.entity.mixin.ICustomKnockback;
 import com.atsuishio.superbwarfare.entity.projectile.*;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
 import com.atsuishio.superbwarfare.init.ModItems;
@@ -25,10 +25,7 @@ import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.perk.Perk;
 import com.atsuishio.superbwarfare.resource.gun.GunResource;
-import com.atsuishio.superbwarfare.tools.DamageHandler;
-import com.atsuishio.superbwarfare.tools.RangeTool;
-import com.atsuishio.superbwarfare.tools.SoundTool;
-import com.atsuishio.superbwarfare.tools.VectorTool;
+import com.atsuishio.superbwarfare.tools.*;
 import com.atsuishio.superbwarfare.world.phys.EntityResult;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
@@ -76,6 +73,7 @@ import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.network.PacketDistributor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Math;
 import software.bernie.geckolib.animatable.GeoItem;
 
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -83,6 +81,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import static com.atsuishio.superbwarfare.entity.vehicle.PrismTankEntity.LASER_LENGTH;
+import static com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity.LASER_SCALE;
 import static com.atsuishio.superbwarfare.tools.EntityFindUtil.findEntity;
 import static com.atsuishio.superbwarfare.tools.ParticleTool.sendParticle;
 
@@ -91,7 +91,6 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
 
     protected static final ResourceLocation DEFAULT_ICON = Mod.loc("textures/gun_icon/default_icon.png");
 
-    protected final Map<GunProp<?>, Prop.PropModifyContext<GunData, DefaultGunData, ?>> propertyModifiers = new HashMap<>();
     protected final RandomSource random = RandomSource.create();
 
     public final Map<Integer, Consumer<GunData>> reloadTimeBehaviors = new HashMap<>();
@@ -104,24 +103,29 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
 
         addReloadTimeBehavior(this.reloadTimeBehaviors);
         addBoltTimeBehavior(this.boltTimeBehaviors);
+    }
 
-        setProperty(GunProp.DAMAGE, (data, v) -> v + getCustomDamage(data));
-        setProperty(GunProp.HEADSHOT, (data, v) -> v + getCustomHeadshot(data));
-        setProperty(GunProp.BYPASSES_ARMOR, (data, v) -> v + getCustomBypassArmor(data));
-        setProperty(GunProp.MAGAZINE, (data, v) -> v + getCustomMagazine(data));
-        setProperty(GunProp.DEFAULT_ZOOM, (data, v) -> v + getCustomZoom(data));
-        setProperty(GunProp.RPM, (data, v) -> v + getCustomRPM(data));
-        setProperty(GunProp.WEIGHT, (data, v) -> v + getCustomWeight(data));
-        setProperty(GunProp.VELOCITY, (data, v) -> v + getCustomVelocity(data));
-        setProperty(GunProp.SOUND_RADIUS, (data, v) -> v + getCustomSoundRadius(data));
+    @Override
+    public DefaultGunData computeProperties(GunData gunData, DefaultGunData rawData) {
+        rawData.damage += getCustomDamage(gunData);
+        rawData.headshot += getCustomHeadshot(gunData);
+        rawData.bypassesArmor += getCustomBypassArmor(gunData);
+        rawData.magazine += getCustomMagazine(gunData);
+        rawData.defaultZoom += getCustomZoom(gunData);
+        rawData.rpm += getCustomRPM(gunData);
+        rawData.weight += getCustomWeight(gunData);
+        rawData.velocity += getCustomVelocity(gunData);
+        rawData.soundRadius += getCustomSoundRadius(gunData);
+
+        return rawData;
     }
 
     @Override
     public @Nullable ICapabilityProvider initCapabilities(ItemStack stack, @Nullable CompoundTag nbt) {
         var cap = new ItemEnergyStorage(stack,
-                s -> GunData.from(stack).get(GunProp.MAX_ENERGY),
-                s -> GunData.from(stack).get(GunProp.MAX_RECEIVE_ENERGY),
-                s -> GunData.from(stack).get(GunProp.MAX_EXTRACT_ENERGY)
+                s -> GunData.compute(stack).maxEnergy,
+                s -> GunData.compute(stack).maxReceiveEnergy,
+                s -> GunData.compute(stack).maxExtractEnergy
         );
 
         return new ItemEnergyProvider(stack, LazyOptional.of(() -> cap));
@@ -130,7 +134,7 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
     @Override
     public boolean isBarVisible(@NotNull ItemStack stack) {
         var data = GunData.from(stack);
-        if (data.get(GunProp.MAX_DURABILITY) > 0) return super.isBarVisible(stack);
+        if (data.compute().maxDurability > 0) return super.isBarVisible(stack);
 
         return stack.getCapability(ForgeCapabilities.ENERGY)
                 .map(cap -> cap.getEnergyStored() > 0 && cap.getMaxEnergyStored() > 0)
@@ -140,15 +144,15 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
     @Override
     public int getBarWidth(@NotNull ItemStack stack) {
         var data = GunData.from(stack);
-        if (data.get(GunProp.MAX_DURABILITY) > 0) {
+        if (data.compute().maxDurability > 0) {
             return super.getBarWidth(stack);
         }
 
-        if (data.get(GunProp.MAX_ENERGY) > 0) {
+        if (GunData.compute(stack).maxEnergy > 0) {
             var energy = stack.getCapability(ForgeCapabilities.ENERGY)
                     .map(IEnergyStorage::getEnergyStored)
                     .orElse(0);
-            return Math.round((float) energy * 13.0F / GunData.from(stack).get(GunProp.MAX_ENERGY));
+            return Math.round(energy * 13F / GunData.compute(stack).maxEnergy);
         }
 
         return super.getBarWidth(stack);
@@ -157,12 +161,12 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
     @Override
     public int getBarColor(@NotNull ItemStack stack) {
         var data = GunData.from(stack);
-        if (data.get(GunProp.MAX_DURABILITY) > 0) {
+        if (data.compute().maxDurability > 0) {
             return super.getBarColor(stack);
         }
 
         var resource = GunResource.from(stack);
-        if (data.get(GunProp.MAX_ENERGY) > 0) {
+        if (data.compute().maxEnergy > 0) {
             return this.getEnergyBarColor(resource);
         }
 
@@ -176,17 +180,12 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
     public void init(GunData data) {
         if (isInitialized(data)) return;
 
-        data.data.putUUID("UUID", UUID.randomUUID());
+        data.gunDataTag.putUUID("UUID", UUID.randomUUID());
+        data.save();
     }
 
     public boolean isInitialized(GunData data) {
-        return data.data.hasUUID("UUID");
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public @NotNull Map<GunProp<?>, Prop.PropModifyContext<GunData, DefaultGunData, ?>> getPropModifiers() {
-        return this.propertyModifiers;
+        return data.gunDataTag.hasUUID("UUID");
     }
 
     @Override
@@ -222,20 +221,21 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
         if (slot != EquipmentSlot.MAINHAND) return map;
 
         var data = GunData.from(stack);
+        var computed = data.compute();
         map = HashMultimap.create(map);
 
         // 移速
         map.put(Attributes.MOVEMENT_SPEED, new AttributeModifier(
                 uuid, Mod.ATTRIBUTE_MODIFIER,
-                -0.01f - 0.005f * data.get(GunProp.WEIGHT),
+                -0.01f - 0.005f * computed.weight,
                 AttributeModifier.Operation.MULTIPLY_BASE
         ));
 
         // 近战伤害
-        if (data.get(GunProp.MELEE_DAMAGE) > 0) {
+        if (computed.meleeDamage > 0) {
             map.put(Attributes.ATTACK_DAMAGE, new AttributeModifier(
                     BASE_ATTACK_DAMAGE_UUID, Mod.ATTRIBUTE_MODIFIER,
-                    data.get(GunProp.MELEE_DAMAGE),
+                    computed.meleeDamage,
                     AttributeModifier.Operation.ADDITION
             ));
         }
@@ -252,7 +252,7 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
     }
 
     public ResourceLocation getGunIcon(GunData data) {
-        var icon = ResourceLocation.tryParse(data.get(GunProp.ICON));
+        var icon = data.compute().icon;
         return icon == null ? DEFAULT_ICON : icon;
     }
 
@@ -273,7 +273,7 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
 
     @Override
     public int getMaxDamage(@NotNull ItemStack stack) {
-        var maxDurability = GunData.from(stack).get(GunProp.MAX_DURABILITY);
+        var maxDurability = GunData.compute(stack).maxDurability;
         isDamageable = maxDurability > 0;
         return maxDurability;
     }
@@ -363,7 +363,7 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
      * 武器是否能进行近战攻击
      */
     public boolean hasMeleeAttack(GunData data) {
-        return data.get(GunProp.MELEE_DAMAGE) > 0;
+        return data.compute().meleeDamage > 0;
     }
 
     /**
@@ -492,9 +492,9 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
      * 判断武器能否开火
      */
     public boolean canShoot(GunData data, @Nullable Entity shooter) {
-        return data.get(GunProp.PROJECTILE_AMOUNT) > 0
+        return data.compute().projectileAmount > 0
                 && !data.overHeat.get()
-                && data.get(GunProp.HEAT_PER_SHOOT) <= (101 - data.heat.get())
+                && data.compute().heatPerShoot <= (100 + data.compute().heatPerShoot - data.heat.get())
                 && !data.reloading()
                 && !data.charging()
                 && !data.bolt.needed.get()
@@ -521,7 +521,7 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
         MinecraftForge.EVENT_BUS.post(new ShootEvent.Pre(parameters));
 
         // 判断是否为栓动武器（BoltActionTime > 0），并在开火后给一个需要上膛的状态
-        if (data.get(GunProp.BOLT_ACTION_TIME) > 0 && data.hasEnoughAmmoToShoot(ammoSupplier)) {
+        if (data.compute().boltActionTime > 0 && data.hasEnoughAmmoToShoot(ammoSupplier)) {
             data.bolt.needed.set(true);
         }
 
@@ -554,11 +554,12 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
 
         MinecraftForge.EVENT_BUS.post(new ShootEvent.Post(parameters));
 
+        var computed = data.compute();
         if (!data.useBackpackAmmo()) {
-            data.ammo.set(data.ammo.get() - data.get(GunProp.AMMO_COST_PER_SHOOT));
+            data.ammo.set(data.ammo.get() - computed.ammoCostPerShoot);
 //            data.item.whenNoAmmo(data);
         } else {
-            data.consumeBackupAmmo(ammoSupplier, data.get(GunProp.AMMO_COST_PER_SHOOT));
+            data.consumeBackupAmmo(ammoSupplier, computed.ammoCostPerShoot);
         }
 
         if (!data.hasEnoughAmmoToShoot(ammoSupplier)) {
@@ -568,18 +569,28 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
         var stack = data.stack();
         if (this.getMaxDamage(stack) > 0) {
             if (shooter instanceof LivingEntity living) {
-                stack.hurtAndBreak(data.get(GunProp.DURABILITY_PER_SHOOT), living, p -> p.broadcastBreakEvent(living.getUsedItemHand()));
+                stack.hurtAndBreak(computed.durabilityPerShoot, living, p -> p.broadcastBreakEvent(living.getUsedItemHand()));
             } else {
-                if (stack.hurt(data.get(GunProp.DURABILITY_PER_SHOOT), RandomSource.create(), null)) {
+                if (stack.hurt(computed.durabilityPerShoot, RandomSource.create(), null)) {
                     stack.shrink(1);
                 }
             }
         }
 
-        // 真实后座（
-        if (shooter != null && data.get(GunProp.RECOIL) != 0) {
-            shooter.setDeltaMovement(shooter.getDeltaMovement().add(shooter.getViewVector(1).scale(-data.get(GunProp.RECOIL))));
+        // 真实后坐（
+        if (shooter != null && computed.recoil != 0) {
+            shooter.setDeltaMovement(shooter.getDeltaMovement().add(shooter.getViewVector(1).scale(-computed.recoil)));
         }
+
+        int size = computed.shootPos.positions.size();
+        if (size > 0 && !computed.shootPos.boundUpWithAmmoAmount) {
+            data.fireIndex.set((data.fireIndex.get() + 1) % size);
+        } else {
+            data.fireIndex.reset();
+        }
+
+        // TODO 这样搞会在远程遥控火炮的时候，无论隔多远都会摇晃屏幕（恼
+//        data.shakePlayers(shooter);
 
         data.clearTempModifications();
     }
@@ -630,7 +641,7 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
         // 开火前事件
         data.item.beforeShoot(parameters);
 
-        int projectileAmount = data.get(GunProp.PROJECTILE_AMOUNT);
+        int projectileAmount = data.compute().projectileAmount;
 
         // 生成所有子弹
         for (int index0 = 0; index0 < projectileAmount; index0++) {
@@ -640,17 +651,24 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
         // n连发模式开火数据设置
         if (data.selectedFireModeInfo().mode == FireMode.BURST) {
             var amount = data.burstAmount.get();
-            data.burstAmount.set(amount == 0 ? data.get(GunProp.BURST_AMOUNT) - 1 : Math.max(0, amount - 1));
+            data.burstAmount.set(amount == 0 ? data.compute().burstAmount - 1 : Math.max(0, amount - 1));
         }
 
         // 添加热量
-        data.heat.set(Mth.clamp(data.heat.get() + data.get(GunProp.HEAT_PER_SHOOT), 0, 100));
+        data.heat.set(Math.max(data.heat.get() + data.compute().heatPerShoot, 0));
+
+        if (data.item.enableShootTimer()) {
+            // 射击动画时长
+            data.shootAnimationTimer.set(data.compute().shootAnimationTime);
+            // 载具射击后的一个特殊记时器
+            data.shootTimer.set(Math.min(data.shootTimer.get() + 3, 5));
+        }
 
         // 过热
         if (data.heat.get() >= 100 && !data.overHeat.get()) {
             data.overHeat.set(true);
             if (shooter instanceof ServerPlayer serverPlayer) {
-                SoundTool.playLocalSound(serverPlayer, ModSounds.MINIGUN_OVERHEAT.get(), 2f, 1f);
+                SoundTool.playLocalSound(serverPlayer, ModSounds.OVERHEAT.get(), 2f, 1f);
             }
         }
 
@@ -658,6 +676,8 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
 
         // 开火后事件
         data.item.afterShoot(parameters);
+
+        data.save();
     }
 
     @Deprecated(forRemoval = true)
@@ -687,8 +707,8 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
             shooter.playSound(ModSounds.HENG.get(), 4f, pitch);
         }
 
-        float soundRadius = data.get(GunProp.SOUND_RADIUS).floatValue();
-        var soundInfo = data.get(GunProp.SOUND_INFO);
+        float soundRadius = (float) data.compute().soundRadius;
+        var soundInfo = data.compute().soundInfo;
         boolean isSilent = data.attachment.get(AttachmentType.BARREL) == 2;
 
         SoundEvent sound3p = isSilent ? soundInfo.fire3PSilent : soundInfo.fire3P;
@@ -724,7 +744,7 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
      * 服务端处理松开开火按键时的额外行为
      */
     public void onFireKeyRelease(final GunData data, Player player, double power, boolean zoom) {
-        if (player instanceof ServerPlayer serverPlayer && data.get(GunProp.SEEK_TYPE) == SeekType.HOLD_FIRE) {
+        if (player instanceof ServerPlayer serverPlayer && data.compute().seekType == SeekType.HOLD_FIRE) {
             ItemStack stack = data.stack;
             String origin = stack.getItem().getDescriptionId();
             String name = origin.substring(origin.lastIndexOf(".") + 1);
@@ -749,10 +769,12 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
         var zoom = parameters.zoom();
         var spread = parameters.spread();
         var uuid = parameters.targetEntityUUID();
+        Vec3 targetPos = parameters.targetPos();
 
         var stack = data.stack;
 
-        var projectileInfo = data.get(GunProp.PROJECTILE);
+        var computed = data.compute();
+        var projectileInfo = computed.projectile();
         var projectileType = projectileInfo.type;
         var projectileTypeStr = projectileType.trim().toLowerCase(Locale.ROOT);
 
@@ -762,16 +784,16 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
             return this.shootRay(parameters);
         }
 
-        var headshot = data.get(GunProp.HEADSHOT);
-        var damage = data.get(GunProp.DAMAGE);
-        var velocity = data.get(GunProp.VELOCITY);
-        var bypassArmorRate = data.get(GunProp.BYPASSES_ARMOR);
+        var headshot = computed.headshot;
+        var damage = computed.damage;
+        float velocity = (float) computed.velocity;
+        var bypassArmorRate = computed.bypassesArmor;
 
         if (VectorTool.isInLiquid(level, shootPosition)) {
             velocity = 2 + 0.05f * velocity;
         }
 
-        var finalVelocity = velocity;
+        float finalVelocity = velocity;
 
         AtomicReference<Entity> entityHolder = new AtomicReference<>();
 
@@ -789,36 +811,72 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
             // SBW子弹弹射物专属属性
             if (entity instanceof ProjectileEntity projectile) {
                 projectile.shooter(shooter)
-                        .damage(damage.floatValue())
-                        .headShot(headshot.floatValue())
+                        .damage((float) damage)
+                        .headShot((float) headshot)
                         .zoom(zoom)
-                        .bypassArmorRate(bypassArmorRate.floatValue())
+                        .bypassArmorRate((float) bypassArmorRate)
                         .setGunItemId(stack)
-                        .velocity(finalVelocity.floatValue());
+                        .velocity(finalVelocity);
             }
 
             // SBW弹射物专属属性
             if (entity instanceof CustomDamageProjectile customDamageProjectile) {
-                customDamageProjectile.setDamage(damage.floatValue());
+                customDamageProjectile.setDamage((float) damage);
             }
 
-            if (entity instanceof CustomGravityEntity customGravityEntity && !data.get(GunProp.GRAVITY).isNaN()) {
-                customGravityEntity.setGravity(data.get(GunProp.GRAVITY).floatValue());
+            if (entity instanceof CustomGravityEntity customGravityEntity) {
+                customGravityEntity.setGravity((float) computed.gravity);
             }
 
             if (entity instanceof ExplosiveProjectile explosive) {
-                explosive.setExplosionDamage(data.get(GunProp.EXPLOSION_DAMAGE).floatValue());
-                explosive.setExplosionRadius(data.get(GunProp.EXPLOSION_RADIUS).floatValue());
+                explosive.setExplosionDamage((float) computed.explosionDamage);
+                explosive.setExplosionRadius((float) computed.explosionRadius);
             }
 
-            if (entity instanceof WgMissileEntity wgMissileEntity && shooter != null && shooter.getVehicle() != null) {
-                wgMissileEntity.setLauncherVehicle(shooter.getVehicle().getUUID());
+            if (entity instanceof WireGuideMissileEntity wireGuideMissileEntity && shooter != null && shooter.getVehicle() != null) {
+                wireGuideMissileEntity.setLauncherVehicle(shooter.getVehicle().getUUID());
+            }
+
+            if (entity instanceof SmallCannonShellEntity smallCannonShell && computed.isAntiAirProjectile) {
+                smallCannonShell.antiAir(true);
+            }
+
+            if (entity instanceof CannonShellEntity cannonShell) {
+                if (computed.isArmorPiercingProjectile) {
+                    cannonShell.setType(CannonShellEntity.Type.AP);
+                    cannonShell.durability(100);
+                } else if (computed.isHighExplosiveProjectile) {
+                    cannonShell.setType(CannonShellEntity.Type.HE);
+                } else if (computed.isClusterMunitionsProjectile) {
+                    cannonShell.setType(CannonShellEntity.Type.CM);
+                    cannonShell.setSparedAmount(computed.sparedAmount);
+                    cannonShell.setSparedAngle(computed.sparedAngle);
+                } else if (computed.isGrapeShotProjectile) {
+                    cannonShell.setType(CannonShellEntity.Type.GRAPE);
+                    cannonShell.setSparedAmount(computed.sparedAmount);
+                    cannonShell.setSparedAngle(computed.sparedAngle);
+                }
+            }
+
+            if (entity instanceof MissileProjectile missileProjectile && shooter != null) {
+                Entity target = EntityFindUtil.findEntity(shooter.level(), String.valueOf(uuid));
+                if (target != null) {
+                    missileProjectile.setGuideType(0);
+                    missileProjectile.setTargetUuid(String.valueOf(uuid));
+                } else if (targetPos != null) {
+                    missileProjectile.setGuideType(1);
+                    missileProjectile.setTargetVec(targetPos);
+                }
+            }
+
+            if (entity instanceof SwarmDroneEntity swarmDrone && shooter != null && shooter.getVehicle() instanceof VehicleEntity vehicle) {
+                swarmDrone.setRotate(vehicle.getTurretVector(1));
             }
 
             // 填充其他自定义NBT数据
             if (projectileInfo.data != null) {
                 var tag = LaunchableEntityTool.getModifiedTag(projectileInfo,
-                        new ShootData(shooter != null ? shooter.getUUID() : null, damage, data.get(GunProp.EXPLOSION_DAMAGE), data.get(GunProp.EXPLOSION_RADIUS), data.get(GunProp.SPREAD))
+                        new ShootData(shooter != null ? shooter.getUUID() : null, damage, computed.explosionDamage, computed.explosionRadius, computed.spread)
                 );
                 if (tag != null) {
                     entity.load(tag);
@@ -830,7 +888,7 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
 
                 var tag = LaunchableEntityTool.getModifiedTag(
                         newInfo,
-                        new ShootData(shooter != null ? shooter.getUUID() : null, damage, data.get(GunProp.EXPLOSION_DAMAGE), data.get(GunProp.EXPLOSION_RADIUS), data.get(GunProp.SPREAD))
+                        new ShootData(shooter != null ? shooter.getUUID() : null, damage, computed.explosionDamage, computed.explosionRadius, computed.spread)
                 );
                 if (tag != null) {
                     entity.load(tag);
@@ -853,6 +911,10 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
             }
         }
 
+        if (shooter != null && shooter.getVehicle() instanceof VehicleEntity vehicle && computed.addShooterDeltaMovement) {
+            velocity = (float) (vehicle.getDeltaMovement().length() * computed.velocity);
+        }
+
         // 发射任意实体
         entity.setPos(shootPosition.x - 0.1 * shootDirection.x, shootPosition.y - 0.1 - 0.1 * shootDirection.y, shootPosition.z + -0.1 * shootDirection.z);
 
@@ -868,7 +930,7 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
                 Vec3 targetVec = target.getEyePosition();
                 Vec3 playerVec = shooter.getEyePosition();
                 var hasGravity = gunData.perk.getLevel(ModPerks.MICRO_MISSILE) <= 0;
-                Vec3 toVec = RangeTool.calculateFiringSolution(playerVec, targetVec, Vec3.ZERO, data.get(GunProp.VELOCITY), hasGravity ? 0.03 : 0);
+                Vec3 toVec = RangeTool.calculateFiringSolution(playerVec, targetVec, Vec3.ZERO, computed.velocity, hasGravity ? 0.03 : 0);
                 x = toVec.x;
                 y = toVec.y;
                 z = toVec.z;
@@ -876,23 +938,23 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
         }
 
         if (entity instanceof Projectile projectile) {
-            projectile.shoot(x, y, z, velocity.floatValue(), (float) spread);
+            projectile.shoot(x, y, z, velocity, (float) spread);
         } else {
             var random = RandomSource.create();
             Vec3 vec3 = new Vec3(x, y, z)
                     .normalize()
                     .add(
-                            random.triangle(0.0, 0.0172275 * spread),
-                            random.triangle(0.0, 0.0172275 * spread),
-                            random.triangle(0.0, 0.0172275 * spread)
+                            random.triangle(0, 0.0172275 * spread),
+                            random.triangle(0, 0.0172275 * spread),
+                            random.triangle(0, 0.0172275 * spread)
                     )
                     .scale(velocity);
 
             entity.setDeltaMovement(vec3);
             entity.hasImpulse = true;
             double d0 = vec3.horizontalDistance();
-            entity.setYRot((float) (Mth.atan2(vec3.x, vec3.z) * 180.0F / (float) Math.PI));
-            entity.setXRot((float) (Mth.atan2(vec3.y, d0) * 180.0F / (float) Math.PI));
+            entity.setYRot((float) (Mth.atan2(vec3.x, vec3.z) * 180F / (float) Math.PI));
+            entity.setXRot((float) (Mth.atan2(vec3.y, d0) * 180F / (float) Math.PI));
             entity.yRotO = entity.getYRot();
             entity.xRotO = entity.getXRot();
         }
@@ -927,15 +989,14 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
             return false;
         }
 
-        int range = data.get(GunProp.RANGE);
+        int range = data.compute().range;
 
         Entity target = null;
 
         double distance = range * range;
-        Vec3 eyePos = shooter.getEyePosition(1.0f);
 
         BlockHitResult blockHitResult = shooter.level().clip(new ClipContext(shootPosition, shootPosition.add(shootDirection.scale(range)),
-                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, shooter));
+                ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, shooter));
 
         BlockPos blockPos = blockHitResult.getBlockPos();
         BlockState state = level.getBlockState(blockPos);
@@ -946,10 +1007,9 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
             pos = blockHitResult.getLocation();
         }
 
-        Vec3 viewVec = shooter.getViewVector(1.0F);
-        Vec3 toVec = eyePos.add(viewVec.x * range, viewVec.y * range, viewVec.z * range);
-        AABB aabb = shooter.getBoundingBox().expandTowards(viewVec.scale(range)).inflate(1.0D, 1.0D, 1.0D);
-        EntityHitResult entityHitResult = ProjectileUtil.getEntityHitResult(shooter, eyePos, toVec, aabb, p -> !p.isSpectator() && p.isAlive(), distance);
+        Vec3 toVec = shootPosition.add(shootDirection.x * range, shootDirection.y * range, shootDirection.z * range);
+        AABB aabb = shooter.getBoundingBox().expandTowards(shootDirection.scale(range)).inflate(1);
+        EntityHitResult entityHitResult = ProjectileUtil.getEntityHitResult(shooter, shootPosition, toVec, aabb, p -> !p.isSpectator() && p.isAlive(), distance);
 
         Vec3 hitPos = null;
 
@@ -959,12 +1019,15 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
         }
 
         if (pos != null && hitPos != null) {
-            if (eyePos.distanceToSqr(pos) < eyePos.distanceToSqr(hitPos)) {
+            if (shootPosition.distanceToSqr(pos) < shootPosition.distanceToSqr(hitPos)) {
                 this.onRayHitBlock(shooter, level, target, data, shootDirection, blockHitResult, pos);
             } else {
                 this.rayHitEntity(shooter, target, level, data, hitPos, shootPosition, shootDirection);
             }
             return true;
+        } else if (shooter.getVehicle() instanceof VehicleEntity vehicle) {
+            vehicle.getEntityData().set(LASER_LENGTH, (float) range);
+            vehicle.getEntityData().set(LASER_SCALE, (float) data.compute().shootAnimationTime);
         }
 
         if (hitPos != null) {
@@ -976,6 +1039,7 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
             this.onRayHitBlock(shooter, level, target, data, shootDirection, blockHitResult, pos);
             return true;
         }
+
 
         return true;
     }
@@ -1025,15 +1089,19 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
 
     public void onRayHitEntity(Entity shooter, ServerLevel level, @NotNull GunData data, EntityResult result, Vec3 shootPosition, Vec3 shootDirection) {
         var target = result.getEntity();
+
+        float damage = (float) data.compute().damage;
+        float headshot = (float) data.compute().headshot;
+
+        int type = 0;
+
         if (target instanceof LivingEntity living) {
             ICustomKnockback iCustomKnockback = ICustomKnockback.getInstance(living);
             iCustomKnockback.superbWarfare$setKnockbackStrength(0);
 
-            float damage = data.get(GunProp.DAMAGE).floatValue();
-            float headshot = data.get(GunProp.HEADSHOT).floatValue();
-
             if (result.isHeadshot()) {
                 DamageHandler.doDamage(living, ModDamageTypes.causeLaserHeadshotDamage(level.registryAccess(), null, shooter), damage * headshot);
+                type = 1;
             } else if (result.isLegShot()) {
                 DamageHandler.doDamage(living, ModDamageTypes.causeLaserDamage(level.registryAccess(), null, shooter), damage * 0.5f);
             } else {
@@ -1043,31 +1111,48 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
             target.invulnerableTime = 0;
 
             iCustomKnockback.superbWarfare$resetKnockbackStrength();
-
-            if (shooter instanceof ServerPlayer player) {
-                player.level().playSound(null, player.blockPosition(), result.isHeadshot() ? ModSounds.HEADSHOT.get() : ModSounds.INDICATION.get(), SoundSource.VOICE, 0.1f, 1);
-                NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(result.isHeadshot() ? 1 : 0, 5));
+        } else {
+            if (result.isHeadshot()) {
+                DamageHandler.doDamage(target, ModDamageTypes.causeLaserHeadshotDamage(level.registryAccess(), null, shooter), damage * headshot);
+                type = 1;
+            } else if (result.isLegShot()) {
+                DamageHandler.doDamage(target, ModDamageTypes.causeLaserDamage(level.registryAccess(), null, shooter), damage * 0.5f);
+            } else {
+                DamageHandler.doDamage(target, ModDamageTypes.causeLaserDamage(level.registryAccess(), null, shooter), damage);
             }
+
+            if (target instanceof VehicleEntity) {
+                type = 3;
+            }
+        }
+
+        if (shooter instanceof ServerPlayer player) {
+            player.level().playSound(null, player.blockPosition(), result.isHeadshot() ? ModSounds.HEADSHOT.get() : ModSounds.INDICATION.get(), SoundSource.VOICE, 0.1f, 1);
+            NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> player), new ClientIndicatorMessage(type, 5));
         }
 
         level.playSound(null, result.getHitPos().x, result.getHitPos().y, result.getHitPos().z, this.getRayHitEntitySound(data), SoundSource.PLAYERS, 0.7F, (float) ((2 * Math.random() - 1) * 0.05f + 1.0f));
     }
 
     protected Vec3 randomVec(Vec3 vec3, double spread) {
-        return vec3.normalize().add(random.triangle(0.0D, 0.0172275D * spread), this.random.triangle(0.0D, 0.0172275D * spread), this.random.triangle(0.0D, 0.0172275D * spread));
+        return vec3.normalize().add(random.triangle(0, 0.0172275 * spread), this.random.triangle(0, 0.0172275 * spread), this.random.triangle(0, 0.0172275 * spread));
     }
 
     public boolean canEditAttachments(GunData data) {
-        return data.get(GunProp.AMMO_CONSUMER).size() > 1;
+        return data.compute().getAmmoConsumers().size() > 1;
+    }
+
+    public boolean enableShootTimer() {
+        return false;
     }
 
     /**
      * 在切枪之后触发
-     *
-     * @param stack  被切走的枪
-     * @param player 玩家
      */
-    public void onChangeSlot(ItemStack stack, Player player) {
+    public void onChangeSlot(GunData data, Entity ammoSupplier) {
+        if (data.compute().withdrawAmmoWhenChangeSlot) {
+            data.withdrawAmmo(ammoSupplier);
+        }
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -1081,5 +1166,9 @@ public abstract class GunItem extends Item implements ItemScreenProvider, GunPro
 
     public DefaultGunData getDefaultData(GunData data) {
         return GunData.getDefault(data.id);
+    }
+
+    public LazyOptional<IEnergyStorage> getEnergyProvider(@NotNull GunData data, @Nullable Entity ammoSupplier) {
+        return data.stack.getCapability(ForgeCapabilities.ENERGY);
     }
 }

@@ -1,6 +1,7 @@
 package com.atsuishio.superbwarfare.client.model.entity;
 
 import com.atsuishio.superbwarfare.Mod;
+import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.resource.vehicle.DefaultVehicleResource;
@@ -9,6 +10,7 @@ import com.atsuishio.superbwarfare.tools.ResourceOnceLogger;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EntityType;
 import org.jetbrains.annotations.Nullable;
 import oshi.util.tuples.Pair;
 import software.bernie.geckolib.core.animatable.GeoAnimatable;
@@ -20,8 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import static com.atsuishio.superbwarfare.entity.vehicle.PrismTankEntity.CANNON_RECOIL_FORCE;
-import static com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity.YAW_WHILE_SHOOT;
+import static com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity.*;
 
 public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoModel<T> {
 
@@ -36,7 +37,8 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
     protected float turretXRot;
     protected float turretYaw;
     protected float recoilShake;
-    protected boolean hideFor1stPassengerWhileZooming;
+    protected boolean hideForTurretControllerWhileZooming;
+    protected boolean hideForPassengerWeaponStationControllerWhileZooming;
 
     private final ResourceOnceLogger LOGGER = new ResourceOnceLogger();
 
@@ -49,6 +51,10 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
 
     @Override
     public ResourceLocation getModelResource(T vehicle) {
+        if (RenderHelper.isInGui()) {
+            return getDefault(vehicle).getModel().model;
+        }
+
         int lodLevel = getLODLevel(vehicle);
         var lodModel = getDefault(vehicle).getModel().getLODModel(lodLevel);
 
@@ -58,7 +64,7 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
             }
 
             LOGGER.log(vehicle, logger -> logger.error("failed to load model for {}!", vehicle));
-            var loc = Mod.loc("geo/" + VehicleResource.getRegistryId(vehicle.getType()) + ".geo.json");
+            var loc = Mod.loc("geo/" + EntityType.getKey(vehicle.getType()).getPath() + ".geo.json");
             modelCache = loc;
             return loc;
         }
@@ -71,6 +77,10 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
 
     @Override
     public ResourceLocation getTextureResource(T vehicle) {
+        if (RenderHelper.isInGui()) {
+            return getDefault(vehicle).getModel().texture;
+        }
+
         int lodLevel = getLODLevel(vehicle);
         var lodTexture = getDefault(vehicle).getModel().getLODTexture(lodLevel);
 
@@ -80,7 +90,7 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
             }
 
             LOGGER.log(vehicle, logger -> logger.error("failed to load texture for {}!", vehicle));
-            var loc = Mod.loc("textures/entity/" + VehicleResource.getRegistryId(vehicle.getType()) + ".png");
+            var loc = Mod.loc("textures/entity/" + EntityType.getKey(vehicle.getType()).getPath() + ".png");
             textureCache = loc;
             return loc;
         }
@@ -126,8 +136,23 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
     @Nullable
     public TransformContext<T> collectTransform(String boneName) {
         // 瞄准时隐藏车体
-        if (boneName.equals("root") && hideFor1stPassengerWhileZooming()) {
-            return (bone, vehicle, state) -> bone.setHidden(hideFor1stPassengerWhileZooming);
+        if (boneName.equals("root") && hideForTurretControllerWhileZooming()) {
+            return (bone, vehicle, state) -> bone.setHidden(hideForTurretControllerWhileZooming);
+        }
+
+        // 瞄准时隐藏乘客武器站
+        if (boneName.equals("passengerWeaponStation") && hideForTurretControllerWhileZooming()) {
+            return (bone, vehicle, state) -> bone.setHidden(hideForPassengerWeaponStationControllerWhileZooming);
+        }
+
+        if (boneName.equals("laser")) {
+            return (bone, vehicle, state) -> {
+                bone.setScaleZ(10 * vehicle.getEntityData().get(LASER_LENGTH));
+                float scale = Math.min(Mth.lerp(state.getPartialTick(), vehicle.getEntityData().get(LASER_SCALE_O), vehicle.getEntityData().get(LASER_SCALE)), 1.2f);
+
+                bone.setScaleX(scale);
+                bone.setScaleY(scale);
+            };
         }
 
         //射击时带来的车体摇晃视觉效果
@@ -149,19 +174,16 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
                         }
                     }
 
-                    float force = 0.4f * (float) Math.sqrt(Mth.abs(vehicle.getEntityData().get(CANNON_RECOIL_FORCE)));
-
-                    bone.setPosX(r2 * recoilShake * 0.5f * force);
-                    bone.setPosZ(r * recoilShake * 1f * force);
-                    bone.setRotX(r * recoilShake * Mth.DEG_TO_RAD * 1f * force);
-                    bone.setRotZ(r2 * recoilShake * Mth.DEG_TO_RAD * 2f * force);
+                    bone.setPosX(r2 * recoilShake * 0.5f);
+                    bone.setPosZ(r * recoilShake * 1f);
+                    bone.setRotX(r * recoilShake * Mth.DEG_TO_RAD);
+                    bone.setRotZ(r2 * recoilShake * Mth.DEG_TO_RAD);
                 };
             }
 
             // turret
             case "turret" -> {
                 return (bone, vehicle, state) -> {
-                    bone.setHidden(hideFor1stPassengerWhileZooming);
                     bone.setRotY(turretYRot * Mth.DEG_TO_RAD);
 
                     var turretLaser = getAnimationProcessor().getBone("turretLaser");
@@ -190,7 +212,7 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
                         }
                     }
 
-                    bone.setRotX(-turretXRot * Mth.DEG_TO_RAD - r * pitch * Mth.DEG_TO_RAD - r2 * roll * Mth.DEG_TO_RAD);
+                    bone.setRotX(Mth.clamp(-turretXRot - r * pitch - r2 * roll, vehicle.getTurretMinPitch(), vehicle.getTurretMaxPitch()) * Mth.DEG_TO_RAD);
 
                     var barrelLaser = getAnimationProcessor().getBone("barrelLaser");
                     if (barrelLaser != null) {
@@ -230,11 +252,6 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
                     );
                 };
             }
-
-            // flare
-            case "flare" -> {
-                return (bone, vehicle, state) -> bone.setRotZ((float) (0.5 * (Math.random() - 0.5)));
-            }
         }
 
         // track(Mov|Rot)[RL]\d+
@@ -247,25 +264,25 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
             if (isRot) {
                 if (isL) {
                     return (bone, vehicle, state) -> {
-                        float t = wrap(leftTrack + 2 * index);
+                        float t = wrap(leftTrack + 2 * index, vehicle);
                         bone.setRotX(-getBoneRotX(t) * Mth.DEG_TO_RAD);
                     };
                 } else {
                     return (bone, vehicle, state) -> {
-                        float t2 = wrap(rightTrack + 2 * index);
+                        float t2 = wrap(rightTrack + 2 * index, vehicle);
                         bone.setRotX(-getBoneRotX(t2) * Mth.DEG_TO_RAD);
                     };
                 }
             } else {
                 if (isL) {
                     return (bone, vehicle, state) -> {
-                        float t = wrap(leftTrack + 2 * index);
+                        float t = wrap(leftTrack + 2 * index, vehicle);
                         bone.setPosY(getBoneMoveY(t));
                         bone.setPosZ(getBoneMoveZ(t));
                     };
                 } else {
                     return (bone, vehicle, state) -> {
-                        float t2 = wrap(rightTrack + 2 * index);
+                        float t2 = wrap(rightTrack + 2 * index, vehicle);
                         bone.setPosY(getBoneMoveY(t2));
                         bone.setPosZ(getBoneMoveZ(t2));
                     };
@@ -326,8 +343,8 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
 
         recoilShake = Mth.lerp(partialTick, (float) vehicle.recoilShakeO, (float) vehicle.getRecoilShake());
 
-        hideFor1stPassengerWhileZooming = ClientEventHandler.zoomVehicle && vehicle.getFirstPassenger() == Minecraft.getInstance().player;
-
+        hideForTurretControllerWhileZooming = ClientEventHandler.zoomVehicle && vehicle.getNthEntity(vehicle.getTurretControllerIndex()) == Minecraft.getInstance().player;
+        hideForPassengerWeaponStationControllerWhileZooming = ClientEventHandler.zoomVehicle && vehicle.getNthEntity(vehicle.getPassengerWeaponStationControllerIndex()) == Minecraft.getInstance().player;
 
         TRANSFORMS.forEach(pair -> {
             var name = pair.getA();
@@ -341,7 +358,7 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
 
     }
 
-    public boolean hideFor1stPassengerWhileZooming() {
+    public boolean hideForTurretControllerWhileZooming() {
         return false;
     }
 
@@ -361,11 +378,11 @@ public class VehicleModel<T extends VehicleEntity & GeoAnimatable> extends GeoMo
         return ((value % range) + range) % range;
     }
 
-    protected float wrap(float value) {
-        return wrap(value, getDefaultWrapRange());
+    protected float wrap(float value, VehicleEntity vehicle) {
+        return wrap(value, getDefaultWrapRange(vehicle));
     }
 
-    public int getDefaultWrapRange() {
-        return 100;
+    public int getDefaultWrapRange(VehicleEntity vehicle) {
+        return vehicle.getTrackAnimationLength();
     }
 }

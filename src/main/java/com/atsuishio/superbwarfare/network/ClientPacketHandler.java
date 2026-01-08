@@ -23,7 +23,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.List;
 import java.util.Objects;
@@ -105,6 +104,7 @@ public class ClientPacketHandler {
             Minecraft minecraft = Minecraft.getInstance();
             Player player = minecraft.player;
             if (player != null) {
+                player.setPos(message.position().x, message.position().y, message.position().z);
                 player.setDeltaMovement(message.motion().x, message.motion().y, message.motion().z);
             }
         }
@@ -136,8 +136,7 @@ public class ClientPacketHandler {
                     && (Minecraft.getInstance().options.getCameraType() == CameraType.FIRST_PERSON || zoomVehicle)
             ) return;
 
-            SoundEvent sound = ForgeRegistries.SOUND_EVENTS.getValue(message.location());
-            if (sound == null) return;
+            SoundEvent sound = SoundEvent.createVariableRangeEvent(message.location());
 
             double distance = player.position().distanceTo(new Vec3(message.x(), message.y(), message.z()));
             int time = (int) (distance / 17);

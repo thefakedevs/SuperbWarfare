@@ -19,6 +19,8 @@ public abstract class MissileProjectile extends DestroyableProjectile implements
 
     public static final EntityDataAccessor<String> TARGET_UUID = SynchedEntityData.defineId(MissileProjectile.class, EntityDataSerializers.STRING);
 
+    public Vec3 targetPos;
+    public int guideType = 0;
     public boolean distracted = false;
     public boolean lost = false;
     public boolean lostTarget = false;
@@ -33,11 +35,20 @@ public abstract class MissileProjectile extends DestroyableProjectile implements
         if (pShooter != null) {
             this.setPos(pShooter.getX(), pShooter.getEyeY() - (double) 0.1F, pShooter.getZ());
         }
-        this.gravity = 0;
     }
 
     public void setTargetUuid(String uuid) {
         this.entityData.set(TARGET_UUID, uuid);
+    }
+
+    public void setGuideType(int guideType) {
+        this.guideType = guideType;
+    }
+
+    public void setTargetVec(Vec3 targetPos) {
+        if (targetPos != null) {
+            this.targetPos = targetPos;
+        }
     }
 
     @Override
@@ -82,7 +93,7 @@ public abstract class MissileProjectile extends DestroyableProjectile implements
 
     @Override
     public void shoot(double pX, double pY, double pZ, float pVelocity, float pInaccuracy) {
-        Vec3 vec3 = (new Vec3(pX, pY, pZ)).normalize().add(this.random.triangle(0.0D, 0.0172275D * (double) pInaccuracy), this.random.triangle(0.0D, 0.0172275D * (double) pInaccuracy), this.random.triangle(0.0D, 0.0172275D * (double) pInaccuracy)).scale((double) pVelocity);
+        Vec3 vec3 = (new Vec3(pX, pY, pZ)).normalize().add(this.random.triangle(0, 0.0172275 * (double) pInaccuracy), this.random.triangle(0, 0.0172275 * (double) pInaccuracy), this.random.triangle(0, 0.0172275 * (double) pInaccuracy)).scale((double) pVelocity);
         this.setDeltaMovement(vec3);
         double d0 = vec3.horizontalDistance();
         this.setYRot((float) (-Mth.atan2(vec3.x, vec3.z) * (double) (180F / (float) java.lang.Math.PI)));
@@ -104,5 +115,10 @@ public abstract class MissileProjectile extends DestroyableProjectile implements
     @Override
     public boolean isNoGravity() {
         return true;
+    }
+
+    @Override
+    public float getGravity() {
+        return 0;
     }
 }

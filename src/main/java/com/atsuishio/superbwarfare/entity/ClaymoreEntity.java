@@ -194,7 +194,7 @@ public class ClaymoreEntity extends Entity implements GeoEntity, OwnableEntity {
             }
         }
 
-        this.setDeltaMovement(this.getDeltaMovement().add(0.0, -0.03, 0.0));
+        this.setDeltaMovement(this.getDeltaMovement().add(0, -0.03, 0));
 
         if (!this.level().noCollision(this.getBoundingBox())) {
             this.moveTowardsClosestSpace(this.getX(), (this.getBoundingBox().minY + this.getBoundingBox().maxY) / 2.0, this.getZ());
@@ -209,7 +209,7 @@ public class ClaymoreEntity extends Entity implements GeoEntity, OwnableEntity {
 
         this.setDeltaMovement(this.getDeltaMovement().multiply(f, 0.98, f));
         if (this.onGround()) {
-            this.setDeltaMovement(this.getDeltaMovement().multiply(1.0, -0.9, 1.0));
+            this.setDeltaMovement(this.getDeltaMovement().multiply(1, -0.9, 1));
         }
 
         if (this.entityData.get(HEALTH) <= 0) {
@@ -245,7 +245,7 @@ public class ClaymoreEntity extends Entity implements GeoEntity, OwnableEntity {
 
     @Override
     public @NotNull EntityDimensions getDimensions(@NotNull Pose p_33597_) {
-        return super.getDimensions(p_33597_).scale((float) 0.5);
+        return super.getDimensions(p_33597_).scale(0.5F);
     }
 
     @Override

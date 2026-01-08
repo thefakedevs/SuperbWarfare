@@ -1,13 +1,14 @@
 package com.atsuishio.superbwarfare.data.gun;
 
 import com.atsuishio.superbwarfare.data.ModColor;
-import com.atsuishio.superbwarfare.data.Prop;
 import net.minecraft.util.Mth;
 
 import java.util.List;
 import java.util.Set;
 
-public final class GunProp<T> extends Prop<GunData, DefaultGunData, T> {
+@Deprecated(forRemoval = true)
+@SuppressWarnings({"unused", "removal"})
+public final class GunProp<T> extends com.atsuishio.superbwarfare.data.Prop<GunData, DefaultGunData, T> {
 
     public static final GunProp<Integer> MAX_DURABILITY = new GunProp<Integer>("MaxDurability")
             .withLimiter(v -> Math.max(0, v));
@@ -75,6 +76,8 @@ public final class GunProp<T> extends Prop<GunData, DefaultGunData, T> {
 
     public static final GunProp<Boolean> AUTO_RELOAD = new GunProp<>("AutoReload");
 
+    public static final GunProp<Boolean> WITHDRAW_AMMO_WHEN_CHANGE_SLOT = new GunProp<>("WithdrawAmmoWhenChangeSlot");
+
     public static final GunProp<Boolean> ZOOM_RELOAD = new GunProp<>("ZoomReload");
     public static final GunProp<Boolean> CLEAR_HOLD_PROGRESS_AFTER_SHOOT = new GunProp<>("ClearHoldProgressAfterShoot");
 
@@ -99,6 +102,7 @@ public final class GunProp<T> extends Prop<GunData, DefaultGunData, T> {
     public static final GunProp<Integer> ITERATIVE_LOAD_AMOUNT = new GunProp<>("IterativeLoadAmount");
     public static final GunProp<Integer> FINISH_TIME = new GunProp<>("FinishTime");
     public static final GunProp<Integer> BURST_COOLDOWN = new GunProp<>("BurstCooldown");
+//    public static final GunProp<Boolean> AUTO_LOAD_WHILE_EMPTY = new GunProp<>("AutoLoadWhileEmpty");
 
     public static final GunProp<Double> SOUND_RADIUS = new GunProp<>("SoundRadius");
 
@@ -119,11 +123,10 @@ public final class GunProp<T> extends Prop<GunData, DefaultGunData, T> {
 
     public static final GunProp<List<String>> AVAILABLE_PERKS = new GunProp<>("AvailablePerks");
 
-    public static final GunProp<Integer> SEEK_TIME = new GunProp<>("SeekTime");
-    public static final GunProp<Double> SEEK_ANGLE = new GunProp<>("SeekAngle");
-    public static final GunProp<Double> SEEK_RANGE = new GunProp<>("SeekRange");
+//    public static final GunProp<Integer> SEEK_TIME = new GunProp<>("SeekTime");
+//    public static final GunProp<Double> SEEK_ANGLE = new GunProp<>("SeekAngle");
+//    public static final GunProp<Double> SEEK_RANGE = new GunProp<>("SeekRange");
 
-    // TODO 这几个换到 gun assets里面
     public static final GunProp<String> ICON = new GunProp<>("Icon");
     public static final GunProp<String> CROSSHAIR = new GunProp<>("Crosshair");
     public static final GunProp<ModColor> CROSSHAIR_COLOR = new GunProp<>("CrosshairColor");

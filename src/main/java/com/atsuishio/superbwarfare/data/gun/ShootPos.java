@@ -12,11 +12,26 @@ public class ShootPos {
     public String transform = "Default";
 
     // 注意这个是复数
+    // TODO 允许普通枪使用Positions
     @SerializedName("Positions")
     public List<Vec3> positions = List.of(Vec3.ZERO);
 
+    // TODO 允许普通枪使用Directions
     @SerializedName("Directions")
     public List<StringOrVec3> directions = List.of(new StringOrVec3("Default"));
+
+    @SerializedName("ShootPositionForHud")
+    public Vec3 shootPositionForHud = null;
+
+    @SerializedName("ShootDirectionForHud")
+    public StringOrVec3 shootDirectionForHud = null;
+
+    @SerializedName("BoundUpWithAmmoAmount")
+    public boolean boundUpWithAmmoAmount = false;
+
+
+    @SerializedName("ViewPosition")
+    public Vec3 viewPosition = null;
 
     @SerializedName("ViewDirection")
     public StringOrVec3 viewDirection = null;

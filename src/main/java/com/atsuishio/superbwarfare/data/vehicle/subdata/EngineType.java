@@ -4,7 +4,12 @@ import com.google.gson.annotations.SerializedName;
 
 public enum EngineType {
     @SerializedName("Empty") EMPTY,
+    @SerializedName("Fixed") FIXED,
     @SerializedName("Wheel") WHEEL,
     @SerializedName("Track") TRACK,
-    @SerializedName("Helicopter") HELICOPTER
+    @SerializedName("Helicopter") HELICOPTER,
+    @SerializedName("Ship") SHIP,
+    @SerializedName("Aircraft") AIRCRAFT,
+    @SerializedName("WheelChair") WHEELCHAIR,
+    @SerializedName("Tom6") TOM6
 }

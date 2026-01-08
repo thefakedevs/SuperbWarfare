@@ -12,7 +12,9 @@ public interface OBBEntity {
 
     List<OBB> getOBBs();
 
-    void updateOBB();
+    default boolean enableAABB() {
+        return this.getOBBs().isEmpty();
+    }
 
     default boolean isInObb(BlockPos pos, Vec3 vec3) {
         var obbList = this.getOBBs();
@@ -30,7 +32,7 @@ public interface OBBEntity {
         var obbList = this.getOBBs();
         for (var obb : obbList) {
             obb = obb.move(vec3);
-            if (entity instanceof OBBEntity obbEntity2) {
+            if (entity instanceof OBBEntity obbEntity2 && !obbEntity2.enableAABB()) {
                 var obbList2 = obbEntity2.getOBBs();
                 for (var obb2 : obbList2) {
                     if (OBB.isColliding(obb, obb2)) {

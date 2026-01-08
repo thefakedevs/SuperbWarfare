@@ -11,8 +11,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -29,9 +27,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
@@ -62,10 +58,6 @@ public class M18SmokeGrenadeEntity extends FastThrowableProjectile implements Ge
         super(ModEntities.M18_SMOKE_GRENADE.get(), entity, level);
         this.noCulling = true;
         this.fuse = fuse;
-    }
-
-    public M18SmokeGrenadeEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
-        this(ModEntities.M18_SMOKE_GRENADE.get(), level);
     }
 
     @Override
@@ -99,18 +91,8 @@ public class M18SmokeGrenadeEntity extends FastThrowableProjectile implements Ge
     }
 
     @Override
-    public Packet<ClientGamePacketListener> getAddEntityPacket() {
-        return NetworkHooks.getEntitySpawningPacket(this);
-    }
-
-    @Override
-    protected Item getDefaultItem() {
+    protected @NotNull Item getDefaultItem() {
         return ModItems.M18_SMOKE_GRENADE.get();
-    }
-
-    @Override
-    public boolean shouldRenderAtSqrDistance(double pDistance) {
-        return true;
     }
 
     @Override
@@ -123,7 +105,7 @@ public class M18SmokeGrenadeEntity extends FastThrowableProjectile implements Ge
                 SoundEvent event = state.getBlock().getSoundType(state, this.level(), resultPos, this).getBreakSound();
                 double speed = this.getDeltaMovement().length();
                 if (speed > 0.1) {
-                    this.level().playSound(null, result.getLocation().x, result.getLocation().y, result.getLocation().z, event, SoundSource.AMBIENT, 1.0F, 1.0F);
+                    this.level().playSound(null, result.getLocation().x, result.getLocation().y, result.getLocation().z, event, SoundSource.AMBIENT, 1, 1);
                 }
                 this.bounce(blockResult.getDirection());
 
@@ -148,7 +130,7 @@ public class M18SmokeGrenadeEntity extends FastThrowableProjectile implements Ge
                     entity.hurt(entity.damageSources().thrown(this, this.getOwner()), 1);
                 }
                 this.bounce(Direction.getNearest(this.getDeltaMovement().x(), this.getDeltaMovement().y(), this.getDeltaMovement().z()).getOpposite());
-                this.setDeltaMovement(this.getDeltaMovement().multiply(0.25, 1.0, 0.25));
+                this.setDeltaMovement(this.getDeltaMovement().multiply(0.25, 1, 0.25));
                 break;
             default:
                 break;
@@ -244,5 +226,10 @@ public class M18SmokeGrenadeEntity extends FastThrowableProjectile implements Ge
         this.gColor = g;
         this.bColor = b;
         return this;
+    }
+
+    @Override
+    public boolean isFastMoving() {
+        return false;
     }
 }

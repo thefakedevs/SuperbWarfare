@@ -13,6 +13,7 @@ public class VehicleResource implements DefaultDataSupplier<DefaultVehicleResour
 
     public static final LoadingCache<VehicleEntity, VehicleResource> RESOURCE_CACHE = CacheBuilder.newBuilder()
             .weakKeys()
+            .weakValues()
             .build(new CacheLoader<>() {
                 public @NotNull VehicleResource load(@NotNull VehicleEntity vehicle) {
                     return new VehicleResource(vehicle);
@@ -22,9 +23,30 @@ public class VehicleResource implements DefaultDataSupplier<DefaultVehicleResour
     public final VehicleEntity vehicle;
     public final String id;
 
+    private DefaultVehicleResource cache = null;
+
     private VehicleResource(VehicleEntity vehicle) {
         this.vehicle = vehicle;
         this.id = getRegistryId(vehicle.getType());
+    }
+
+    public static DefaultVehicleResource compute(VehicleEntity vehicle) {
+        return from(vehicle).compute();
+    }
+
+    public DefaultVehicleResource compute() {
+        if (cache != null) return cache;
+
+        var defaultResource = getDefault().copy();
+        // TODO 正确实现属性计算
+
+        cache = defaultResource;
+
+        return defaultResource;
+    }
+
+    public void update() {
+        this.cache = null;
     }
 
     public DefaultVehicleResource getDefault() {

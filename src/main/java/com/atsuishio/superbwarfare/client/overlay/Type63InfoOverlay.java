@@ -23,7 +23,7 @@ import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 import static com.atsuishio.superbwarfare.entity.vehicle.Type63Entity.SHOOT_PITCH;
 import static com.atsuishio.superbwarfare.entity.vehicle.Type63Entity.SHOOT_YAW;
-import static com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity.getXRotFromVector;
+import static com.atsuishio.superbwarfare.entity.vehicle.utils.VehicleVecUtils.getXRotFromVector;
 import static com.atsuishio.superbwarfare.tools.RangeTool.calculateLaunchVector;
 
 @OnlyIn(Dist.CLIENT)
@@ -68,7 +68,7 @@ public class Type63InfoOverlay implements IGuiOverlay {
                     default -> ItemStack.EMPTY;
                 };
 
-                Vec3 pos = new Vec3(type63Entity.barrel[i].center());
+                Vec3 pos = OBB.vector3dToVec3(type63Entity.barrel[i].center());
                 Vec3 point = VectorUtil.worldToScreen(pos);
 
                 poseStack.pushPose();
@@ -116,7 +116,7 @@ public class Type63InfoOverlay implements IGuiOverlay {
             Vec3 vec3 = EntityAnchorArgument.Anchor.EYES.apply(lookingEntity);
             double d0 = (targetPos.x - vec3.x) * 0.2;
             double d2 = (targetPos.z - vec3.z) * 0.2;
-            double targetYaw = Mth.wrapDegrees((float) (Mth.atan2(d2, d0) * 57.2957763671875) - 90.0F);
+            double targetYaw = Mth.wrapDegrees((float) (Mth.atan2(d2, d0) * 57.2957763671875) - 90F);
 
             float angle;
 

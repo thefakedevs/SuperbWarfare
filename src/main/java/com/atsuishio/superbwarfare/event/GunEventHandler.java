@@ -5,9 +5,9 @@ import com.atsuishio.superbwarfare.api.event.ReloadEvent;
 import com.atsuishio.superbwarfare.capability.player.PlayerVariable;
 import com.atsuishio.superbwarfare.data.gun.AmmoConsumer;
 import com.atsuishio.superbwarfare.data.gun.GunData;
-import com.atsuishio.superbwarfare.data.gun.GunProp;
 import com.atsuishio.superbwarfare.data.gun.ReloadType;
 import com.atsuishio.superbwarfare.data.gun.value.ReloadState;
+import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
 import com.atsuishio.superbwarfare.perk.Perk;
@@ -15,6 +15,7 @@ import com.atsuishio.superbwarfare.tools.InventoryTool;
 import com.atsuishio.superbwarfare.tools.SoundTool;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -55,7 +56,7 @@ public class GunEventHandler {
      */
     public static void playGunBoltSounds(@Nullable Entity shooter, @NotNull GunData data) {
         if (shooter instanceof ServerPlayer serverPlayer) {
-            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var soundInfo = data.compute().soundInfo;
             var sound = soundInfo.bolt;
 
             if (sound != null) {
@@ -109,7 +110,7 @@ public class GunEventHandler {
         if (!data.initialized()) {
             data.initialize();
             if (shooter instanceof Player player && player.isCreative()) {
-                data.ammo.set(data.get(GunProp.MAGAZINE));
+                data.ammo.set(data.compute().magazine);
             }
         }
     }
@@ -126,8 +127,8 @@ public class GunEventHandler {
         }
     }
 
-    public static void autoReload(@Nullable Entity shooter, GunData data) {
-        if (data.get(GunProp.AUTO_RELOAD) && !data.hasEnoughAmmoToShoot(shooter)) {
+    public static void autoReload(@Nullable Entity shooter, GunData data, boolean inMainHand) {
+        if (inMainHand && data.compute().autoReload && !data.hasEnoughAmmoToShoot(shooter)) {
             tryStartReload(shooter, data);
         }
     }
@@ -145,26 +146,28 @@ public class GunEventHandler {
             if (!data.hasBackupAmmo(shooter)) return;
 
             // Clip > Magazine > Iterative
-            var reloadTypes = data.get(GunProp.RELOAD_TYPES);
+            var computed = data.compute();
+            var reloadTypes = computed.reloadTypes;
             boolean canMagazineReload = reloadTypes.contains(ReloadType.MAGAZINE) && !reloadTypes.contains(ReloadType.CLIP);
             boolean canClipLoad = !data.hasEnoughAmmoToShoot(shooter) && reloadTypes.contains(ReloadType.CLIP);
             boolean canSingleReload = reloadTypes.contains(ReloadType.ITERATIVE);
 
             if (canMagazineReload || canClipLoad) {
-                int magazine = data.get(GunProp.MAGAZINE);
+                int magazine = computed.magazine;
                 var extra = (data.item.isOpenBolt(data) && data.item.hasBulletInBarrel(data)) ? 1 : 0;
                 var maxAmmo = magazine + extra;
 
                 if (data.ammo.get() < maxAmmo) {
                     data.startReload();
                 }
-            } else if (canSingleReload && data.ammo.get() < data.get(GunProp.MAGAZINE)) {
+            } else if (canSingleReload && data.ammo.get() < computed.magazine) {
                 data.reload.singleReloadStarter.markStart();
             } else {
                 return;
             }
 
             data.burstAmount.reset();
+            data.save();
         }
     }
 
@@ -173,19 +176,20 @@ public class GunEventHandler {
      */
     public static void handleCooldown(@Nullable Entity shooter, @NotNull GunData data) {
         double rate = 1;
+        var computed = data.compute();
         if (shooter != null) {
             if (shooter.wasInPowderSnow) {
-                rate = data.get(GunProp.IN_SNOW_COOLDOWN_RATE);
+                rate = computed.inSnowCooldownRate;
             } else if (shooter.isInWaterOrRain()) {
-                rate = data.get(GunProp.IN_WATER_COOLDOWN_RATE);
+                rate = computed.inWaterCooldownRate;
             } else if (shooter.isOnFire()) {
-                rate = data.get(GunProp.IN_FIRE_COOLDOWN_RATE);
+                rate = computed.inFireCooldownRate;
             } else if (shooter.isInLava()) {
-                rate = data.get(GunProp.IN_LAVA_COOLDOWN_RATE);
+                rate = computed.inLavaCooldownRate;
             }
         }
 
-        data.heat.set(Mth.clamp(data.heat.get() - data.get(GunProp.NATURAL_COOLDOWN) * rate, 0, 100));
+        data.heat.set(Math.max(data.heat.get() - computed.naturalCooldown * rate, 0));
 
         if (data.heat.get() < 80 && data.overHeat.get()) {
             data.overHeat.set(false);
@@ -198,7 +202,7 @@ public class GunEventHandler {
     public static void redrawExtraAmmo(@Nullable Entity shooter, @NotNull GunData data) {
         var hasBulletInBarrel = data.item.hasBulletInBarrel(data);
         var ammoCount = data.ammo.get();
-        var magazine = data.get(GunProp.MAGAZINE);
+        var magazine = data.compute().magazine;
 
         // TODO 修改为更正确的退弹药方式？
         if (((hasBulletInBarrel && ammoCount > magazine + 1) || (!hasBulletInBarrel && ammoCount > magazine))) {
@@ -219,10 +223,13 @@ public class GunEventHandler {
 
     public static void gunTick(@Nullable Entity shooter, @NotNull GunData data, boolean inMainHand) {
         init(shooter, data);
-        autoReload(shooter, data);
+        autoReload(shooter, data, inMainHand);
         tickPerk(shooter, data);
         handleCooldown(shooter, data);
         redrawExtraAmmo(shooter, data);
+        data.shootAnimationTimer.set(Math.max(data.shootAnimationTimer.get() - 1, 0));
+        data.shootTimer.set(Math.max(data.shootTimer.get() - 1, 0));
+        var computed = data.compute();
 
         if (inMainHand) {
             handleGunBolt(data);
@@ -231,6 +238,26 @@ public class GunEventHandler {
             if (data.reload.reloadStarter.start()) {
                 MinecraftForge.EVENT_BUS.post(new ReloadEvent.Pre(shooter, data));
                 startReload(shooter, data);
+            }
+
+            var soundInfo = computed.soundInfo;
+            var sound1p = soundInfo.vehicleReload;
+
+            if (data.reload.time() == (soundInfo.vehicleReloadSoundTime != 0 ? Mth.clamp(soundInfo.vehicleReloadSoundTime, 1, data.compute().emptyReloadTime - 1) : data.compute().emptyReloadTime - 1)) {
+                if (shooter instanceof VehicleEntity vehicle) {
+                    if (sound1p != null) {
+                        for (Entity passenger: vehicle.getPassengers()) {
+                            if (passenger instanceof ServerPlayer serverPlayer) {
+                                SoundTool.playLocalSound(serverPlayer, sound1p, 3, 1);
+                            }
+                        }
+                    }
+
+                    var sound = soundInfo.vehicleReload3p;
+                    if (sound != null) {
+                        vehicle.level().playSound(vehicle, vehicle.getOnPos(), sound, SoundSource.PLAYERS, 2, 1);
+                    }
+                }
             }
 
             // 减少换弹剩余时间
@@ -260,24 +287,25 @@ public class GunEventHandler {
             }
         }
 
-        data.update();
+        data.save();
     }
 
     private static void startReload(@Nullable Entity shooter, @NotNull GunData data) {
         var reload = data.reload;
 
+        var computed = data.compute();
         if (data.item.isOpenBolt(data)) {
             if (!data.hasEnoughAmmoToShoot(shooter)) {
-                reload.setTime(data.get(GunProp.EMPTY_RELOAD_TIME) + 1);
+                reload.setTime(computed.emptyReloadTime + 1);
                 reload.setState(ReloadState.EMPTY_RELOADING);
                 playGunEmptyReloadSounds(shooter, data);
             } else {
-                reload.setTime(data.get(GunProp.NORMAL_RELOAD_TIME) + 1);
+                reload.setTime(computed.normalReloadTime + 1);
                 reload.setState(ReloadState.NORMAL_RELOADING);
                 playGunNormalReloadSounds(shooter, data);
             }
         } else {
-            reload.setTime(data.get(GunProp.EMPTY_RELOAD_TIME) + 2);
+            reload.setTime(computed.emptyReloadTime + 2);
             reload.setState(ReloadState.EMPTY_RELOADING);
             playGunEmptyReloadSounds(shooter, data);
         }
@@ -296,22 +324,22 @@ public class GunEventHandler {
 
     public static void playGunEmptyReloadSounds(@Nullable Entity shooter, @NotNull GunData data) {
         if (shooter instanceof ServerPlayer serverPlayer) {
-            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var soundInfo = data.compute().soundInfo;
             var sound = soundInfo.reloadEmpty;
 
             if (sound != null) {
-                SoundTool.playLocalSound(serverPlayer, sound, 10f, 1f);
+                SoundTool.playLocalSound(serverPlayer, sound, 8f, 1f);
             }
         }
     }
 
     public static void playGunNormalReloadSounds(@Nullable Entity shooter, @NotNull GunData data) {
         if (shooter instanceof ServerPlayer serverPlayer) {
-            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var soundInfo = data.compute().soundInfo;
             var sound = soundInfo.reloadNormal;
 
             if (sound != null) {
-                SoundTool.playLocalSound(serverPlayer, sound, 10f, 1f);
+                SoundTool.playLocalSound(serverPlayer, sound, 8f, 1f);
             }
         }
     }
@@ -330,22 +358,23 @@ public class GunEventHandler {
         reload.finishTimer.reduce();
 
         // 一阶段
+        var computed = data.compute();
         if (reload.singleReloadStarter.start()) {
             MinecraftForge.EVENT_BUS.post(new ReloadEvent.Pre(shooter, data));
 
-            if (data.get(GunProp.PREPARE_LOAD_TIME) != 0 && (!data.hasEnoughAmmoToShoot(shooter) || stack.is(ModItems.SECONDARY_CATACLYSM.get()))) {
+            if (computed.prepareLoadTime != 0 && (!data.hasEnoughAmmoToShoot(shooter) || stack.is(ModItems.SECONDARY_CATACLYSM.get()))) {
                 // 此处判断空仓换弹的时候，是否在准备阶段就需要装填一发，如M870
                 playGunPrepareLoadReloadSounds(shooter, data);
-                int prepareLoadTime = data.get(GunProp.PREPARE_LOAD_TIME);
+                int prepareLoadTime = computed.prepareLoadTime;
                 reload.prepareLoadTimer.set(prepareLoadTime + 1);
-            } else if (data.get(GunProp.PREPARE_EMPTY_TIME) != 0 && !data.hasEnoughAmmoToShoot(shooter)) {
+            } else if (computed.prepareEmptyTime != 0 && !data.hasEnoughAmmoToShoot(shooter)) {
                 // 此处判断空仓换弹，如莫辛纳甘
                 playGunEmptyPrepareSounds(shooter, data);
-                int prepareEmptyTime = data.get(GunProp.PREPARE_EMPTY_TIME);
+                int prepareEmptyTime = computed.prepareEmptyTime;
                 reload.prepareTimer.set(prepareEmptyTime + 1);
             } else {
                 playGunPrepareReloadSounds(shooter, data);
-                int prepareTime = data.get(GunProp.PREPARE_TIME);
+                int prepareTime = computed.prepareTime;
                 reload.prepareTimer.set(prepareTime + 1);
             }
 
@@ -355,13 +384,13 @@ public class GunEventHandler {
             reload.setState(ReloadState.NORMAL_RELOADING);
         }
 
-        if (reload.prepareLoadTimer.get() == data.get(GunProp.PREPARE_AMMO_LOAD_TIME)) {
+        if (reload.prepareLoadTimer.get() == computed.prepareAmmoLoadTime) {
             iterativeLoad(shooter, data);
         }
 
         // 一阶段结束，检查备弹，如果有则二阶段启动，无则直接跳到三阶段
         if ((reload.prepareTimer.get() == 1 || reload.prepareLoadTimer.get() == 1)) {
-            if (!data.hasBackupAmmo(shooter) || data.ammo.get() >= data.get(GunProp.MAGAZINE)) {
+            if (!data.hasBackupAmmo(shooter) || data.ammo.get() >= computed.magazine) {
                 reload.stage3Starter.markStart();
             } else {
                 reload.setStage(2);
@@ -378,10 +407,10 @@ public class GunEventHandler {
                 && reload.stage() == 2
                 && reload.iterativeLoadTimer.get() == 0
                 && !data.stopped.get()
-                && data.ammo.get() < data.get(GunProp.MAGAZINE)
+                && data.ammo.get() < computed.magazine
         ) {
             playGunLoopReloadSounds(shooter, data);
-            int iterativeTime = data.get(GunProp.ITERATIVE_TIME);
+            int iterativeTime = data.compute().iterativeTime;
             reload.iterativeLoadTimer.set(iterativeTime);
 
             // 动画播放nbt
@@ -389,14 +418,14 @@ public class GunEventHandler {
         }
 
         // 装填
-        if (data.get(GunProp.ITERATIVE_AMMO_LOAD_TIME) == reload.iterativeLoadTimer.get()) {
+        if (computed.iterativeAmmoLoadTime == reload.iterativeLoadTimer.get()) {
             iterativeLoad(shooter, data);
         }
 
         // 二阶段打断
         if (reload.iterativeLoadTimer.get() == 1) {
             // 装满或备弹耗尽结束
-            if (!data.hasBackupAmmo(shooter) || data.ammo.get() >= data.get(GunProp.MAGAZINE)) {
+            if (!data.hasBackupAmmo(shooter) || data.ammo.get() >= computed.magazine) {
                 reload.setStage(3);
             }
 
@@ -413,7 +442,7 @@ public class GunEventHandler {
             reload.setStage(3);
             reload.stage3Starter.finish();
 
-            int finishTime = data.get(GunProp.FINISH_TIME);
+            int finishTime = data.compute().finishTime;
             reload.finishTimer.set(finishTime + 2);
 
             playGunEndReloadSounds(shooter, data);
@@ -426,7 +455,7 @@ public class GunEventHandler {
         // 三阶段结束
         if (reload.finishTimer.get() == 1) {
             reload.setStage(0);
-            if (data.get(GunProp.BOLT_ACTION_TIME) > 0) {
+            if (computed.boltActionTime > 0) {
                 data.bolt.needed.set(false);
             }
             reload.setState(ReloadState.NOT_RELOADING);
@@ -437,18 +466,17 @@ public class GunEventHandler {
     }
 
     public static void iterativeLoad(@Nullable Entity shooter, @NotNull GunData data) {
-        var required = Math.min(data.get(GunProp.MAGAZINE) - data.ammo.get(), data.get(GunProp.ITERATIVE_LOAD_AMOUNT));
+        var required = Math.min(data.compute().magazine - data.ammo.get(), data.compute().iterativeLoadAmount);
         var available = Math.min(required, data.countBackupAmmo(shooter));
         data.ammo.add(available);
-
         if (!InventoryTool.hasCreativeAmmoBox(shooter)) {
-            data.consumeBackupAmmo(shooter, 1);
+            data.consumeBackupAmmo(shooter, available);
         }
     }
 
     public static void playGunPrepareReloadSounds(@Nullable Entity shooter, @NotNull GunData data) {
         if (shooter instanceof ServerPlayer serverPlayer) {
-            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var soundInfo = data.compute().soundInfo;
             var sound = soundInfo.reloadPrepare;
 
             if (sound != null) {
@@ -459,7 +487,7 @@ public class GunEventHandler {
 
     public static void playGunEmptyPrepareSounds(@Nullable Entity shooter, @NotNull GunData data) {
         if (shooter instanceof ServerPlayer serverPlayer) {
-            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var soundInfo = data.compute().soundInfo;
             var sound = soundInfo.reloadPrepareEmpty;
 
             if (sound != null) {
@@ -469,7 +497,7 @@ public class GunEventHandler {
             double shooterHeight = shooter.getEyePosition().distanceTo((Vec3.atLowerCornerOf(shooter.level().clip(new ClipContext(shooter.getEyePosition(), shooter.getEyePosition().add(new Vec3(0, -1, 0).scale(10)),
                     ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, shooter)).getBlockPos())));
 
-            Mod.queueServerWork((int) (data.get(GunProp.PREPARE_EMPTY_TIME) / 2.0 + 3 + 1.5 * shooterHeight), () -> {
+            Mod.queueServerWork((int) (data.compute().prepareEmptyTime / 2.0 + 3 + 1.5 * shooterHeight), () -> {
                 if (data.selectedAmmoConsumer().type == AmmoConsumer.AmmoConsumeType.PLAYER_AMMO) {
                     var ammoType = data.selectedAmmoConsumer().getPlayerAmmoType();
                     switch (ammoType) {
@@ -489,7 +517,7 @@ public class GunEventHandler {
 
     public static void playGunPrepareLoadReloadSounds(@Nullable Entity shooter, @NotNull GunData data) {
         if (shooter instanceof ServerPlayer serverPlayer) {
-            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var soundInfo = data.compute().soundInfo;
             var sound = soundInfo.reloadPrepareLoad;
 
             if (sound != null) {
@@ -519,7 +547,7 @@ public class GunEventHandler {
 
     public static void playGunLoopReloadSounds(@Nullable Entity shooter, @NotNull GunData data) {
         if (shooter instanceof ServerPlayer serverPlayer) {
-            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var soundInfo = data.compute().soundInfo;
             var sound = soundInfo.reloadLoop;
 
             if (sound != null) {
@@ -530,7 +558,7 @@ public class GunEventHandler {
 
     public static void playGunEndReloadSounds(@Nullable Entity shooter, @NotNull GunData data) {
         if (shooter instanceof ServerPlayer serverPlayer) {
-            var soundInfo = data.get(GunProp.SOUND_INFO);
+            var soundInfo = data.compute().soundInfo;
             var sound = soundInfo.reloadEnd;
 
             if (sound != null) {
@@ -601,17 +629,13 @@ public class GunEventHandler {
         for (MissingMappingsEvent.Mapping<Item> mapping : event.getAllMappings(Registries.ITEM)) {
             if (Mod.MODID.equals(mapping.getKey().getNamespace())) {
                 var item = mapping.getKey().getPath();
-                if (item.equals("abekiri")) {
-                    mapping.remap(ModItems.HOMEMADE_SHOTGUN.get());
-                }
-                if (item.equals("m2hb_blueprint")) {
-                    mapping.remap(ModItems.M_2_HB_BLUEPRINT.get());
-                }
-                if (item.equals("rocket_70")) {
-                    mapping.remap(ModItems.SMALL_ROCKET.get());
-                }
-                if (item.equals("us_helmet_pastg")) {
-                    mapping.remap(ModItems.US_HELMET_PASGT.get());
+                switch (item) {
+                    case "abekiri" -> mapping.remap(ModItems.HOMEMADE_SHOTGUN.get());
+                    case "m2hb_blueprint" -> mapping.remap(ModItems.M_2_HB_BLUEPRINT.get());
+                    case "rocket_70" -> mapping.remap(ModItems.SMALL_ROCKET.get());
+                    case "us_helmet_pastg" -> mapping.remap(ModItems.US_HELMET_PASGT.get());
+                    case "agm" -> mapping.remap(ModItems.LARGE_ANTI_GROUND_MISSILE.get());
+                    case "wire_guide_missile" -> mapping.remap(ModItems.MEDIUM_ANTI_GROUND_MISSILE.get());
                 }
             }
         }

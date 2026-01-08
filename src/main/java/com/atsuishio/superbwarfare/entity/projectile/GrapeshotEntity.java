@@ -28,7 +28,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -39,18 +38,12 @@ public class GrapeshotEntity extends FastThrowableProjectile {
     public GrapeshotEntity(EntityType<? extends GrapeshotEntity> type, Level level) {
         super(type, level);
         this.noCulling = true;
-        this.gravity = 0.06f;
     }
 
     public GrapeshotEntity(@Nullable Entity entity, Level level, float damage) {
         super(ModEntities.GRAPESHOT.get(), entity, level);
         this.noCulling = true;
         this.damage = damage;
-        this.gravity = 0.06f;
-    }
-
-    public GrapeshotEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
-        this(ModEntities.GRAPESHOT.get(), level);
     }
 
     @Override
@@ -59,7 +52,7 @@ public class GrapeshotEntity extends FastThrowableProjectile {
     }
 
     @Override
-    protected void onHitEntity(EntityHitResult result) {
+    protected void onHitEntity(@NotNull EntityHitResult result) {
         super.onHitEntity(result);
         Entity entity = result.getEntity();
         if (this.getOwner() != null && this.getOwner().getVehicle() != null && entity == this.getOwner().getVehicle())
@@ -85,13 +78,13 @@ public class GrapeshotEntity extends FastThrowableProjectile {
     }
 
     @Override
-    public void onHitBlock(BlockHitResult result) {
+    public void onHitBlock(@NotNull BlockHitResult result) {
         super.onHitBlock(result);
         BlockPos resultPos = result.getBlockPos();
         BlockState state = this.level().getBlockState(resultPos);
 
         SoundEvent event = state.getBlock().getSoundType(state, this.level(), resultPos, this).getBreakSound();
-        this.level().playSound(null, result.getLocation().x, result.getLocation().y, result.getLocation().z, event, SoundSource.AMBIENT, 1.0F, 1.0F);
+        this.level().playSound(null, result.getLocation().x, result.getLocation().y, result.getLocation().z, event, SoundSource.AMBIENT, 1, 1);
         Vec3 hitVec = result.getLocation();
 
         this.hitBlock(hitVec, result);
@@ -111,7 +104,7 @@ public class GrapeshotEntity extends FastThrowableProjectile {
             summonVectorParticle(serverLevel, state, location, dir);
 
             this.discard();
-            serverLevel.playSound(null, new BlockPos((int) location.x, (int) location.y, (int) location.z), ModSounds.LAND.get(), SoundSource.BLOCKS, 1.0F, 1.0F);
+            serverLevel.playSound(null, new BlockPos((int) location.x, (int) location.y, (int) location.z), ModSounds.LAND.get(), SoundSource.BLOCKS, 1, 1);
         }
     }
 
@@ -173,7 +166,7 @@ public class GrapeshotEntity extends FastThrowableProjectile {
                     }
 
                     ParticleTool.spawnBulletHitWaterParticles(serverLevel, location);
-                    serverLevel.playSound(null, new BlockPos((int) location.x, (int) location.y, (int) location.z), ModSounds.HIT_WATER.get(), SoundSource.BLOCKS, 1.0F, 1.0F);
+                    serverLevel.playSound(null, new BlockPos((int) location.x, (int) location.y, (int) location.z), ModSounds.HIT_WATER.get(), SoundSource.BLOCKS, 1, 1);
                     this.discard();
                 }
             } else if (state.getBlock() == Blocks.LAVA) {
@@ -185,7 +178,7 @@ public class GrapeshotEntity extends FastThrowableProjectile {
                     }
                     ParticleTool.sendParticle(serverLevel, ParticleTypes.LAVA, location.x, location.y, location.z,
                             4, 0, 0, 0, 0.6, true);
-                    serverLevel.playSound(null, new BlockPos((int) location.x, (int) location.y, (int) location.z), SoundEvents.LAVA_POP, SoundSource.BLOCKS, 1.0F, 1.0F);
+                    serverLevel.playSound(null, new BlockPos((int) location.x, (int) location.y, (int) location.z), SoundEvents.LAVA_POP, SoundSource.BLOCKS, 1, 1);
                     this.discard();
                 }
             }
@@ -193,6 +186,11 @@ public class GrapeshotEntity extends FastThrowableProjectile {
     }
 
     public Vec3 randomVec(Vec3 vec3, double spread) {
-        return vec3.normalize().add(this.random.triangle(0.0D, 0.0172275D * spread), this.random.triangle(0.0D, 0.0172275D * spread), this.random.triangle(0.0D, 0.0172275D * spread));
+        return vec3.normalize().add(this.random.triangle(0, 0.0172275 * spread), this.random.triangle(0, 0.0172275 * spread), this.random.triangle(0, 0.0172275 * spread));
+    }
+
+    @Override
+    public boolean isFastMoving() {
+        return false;
     }
 }

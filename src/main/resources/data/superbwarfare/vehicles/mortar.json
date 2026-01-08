@@ -1,7 +1,0 @@
-{
-  "ID": "superbwarfare:mortar",
-  "MaxHealth": 40,
-  "Mass": 0.05,
-  "VehicleContainerType": "One",
-  "Type": "Artillery"
-}

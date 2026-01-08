@@ -5,7 +5,6 @@ import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.compat.realcamera.RealCameraCompatHolder;
 import com.atsuishio.superbwarfare.config.client.DisplayConfig;
 import com.atsuishio.superbwarfare.data.gun.GunData;
-import com.atsuishio.superbwarfare.data.gun.GunProp;
 import com.atsuishio.superbwarfare.entity.vehicle.Ah6Entity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
@@ -39,6 +38,8 @@ import static com.atsuishio.superbwarfare.client.RenderHelper.preciseBlit;
 public class CrossHairOverlay implements IGuiOverlay {
 
     public static final String ID = Mod.MODID + "_cross_hair";
+
+    public static final String CROSSHAIR_EMPTY = "@Empty";
     public static final String CROSSHAIR_CUSTOM = "@Custom";
     public static final String CROSSHAIR_GUN_DEFAULT = "@GunDefault";
     public static final String CROSSHAIR_GUN_REPAIR_TOOL = "@GunRepairTool";
@@ -78,10 +79,9 @@ public class CrossHairOverlay implements IGuiOverlay {
             return;
 
         var data = GunData.from(stack);
-        var resource = GunResource.from(stack);
 
-        var crosshair = resource.compute().crosshair;
-        if (crosshair.equals(CROSSHAIR_CUSTOM)) return;
+        var crosshair = data.compute().crosshair;
+        if (crosshair.equals(CROSSHAIR_EMPTY) || crosshair.equals(CROSSHAIR_CUSTOM)) return;
 
         double spread = ClientEventHandler.gunSpread + 1 * ClientEventHandler.firePos;
         float deltaFrame = Minecraft.getInstance().getDeltaFrameTime();
@@ -135,7 +135,7 @@ public class CrossHairOverlay implements IGuiOverlay {
 
         // 在开启伤害指示器时才进行渲染
         if (DisplayConfig.KILL_INDICATION.get() && !(player.getVehicle() instanceof Ah6Entity ah6Entity && ah6Entity.getFirstPassenger() == player)) {
-            renderKillIndicator(guiGraphics, screenWidth, screenHeight, moveX, moveY);
+            renderKillIndicatorDynamic(guiGraphics, screenWidth, screenHeight, moveX, moveY);
         }
 
         RenderSystem.depthMask(true);
@@ -166,7 +166,7 @@ public class CrossHairOverlay implements IGuiOverlay {
      * 渲染圆形准星
      */
     public static void shotgunCrossHair(GuiGraphics guiGraphics, float finPosX, float finPosY, float finLength) {
-        preciseBlit(guiGraphics, SHOTGUN, finPosX, finPosY, 0, 0.0F, finLength, finLength, finLength, finLength);
+        preciseBlit(guiGraphics, SHOTGUN, finPosX, finPosY, 0, 0, finLength, finLength, finLength, finLength);
     }
 
     public static void renderGunDefaultCrosshair(GuiGraphics guiGraphics, ItemStack stack, Player player, int screenWidth, int screenHeight,
@@ -179,7 +179,7 @@ public class CrossHairOverlay implements IGuiOverlay {
 
         preciseBlit(guiGraphics, POINT, screenWidth / 2f - 7.5f + moveX, screenHeight / 2f - 7.5f + moveY, 0, 0, 16, 16, 16, 16);
         if (!player.isSprinting() || ClientEventHandler.noSprintTicks > 0) {
-            if (data.get(GunProp.PROJECTILE_AMOUNT) > 1) {
+            if (data.compute().projectileAmount > 1) {
                 shotgunCrossHair(guiGraphics, finPosX, finPosY, finLength);
             } else {
                 normalCrossHair(guiGraphics, screenWidth, screenHeight, spread, moveX, moveY);
@@ -188,7 +188,7 @@ public class CrossHairOverlay implements IGuiOverlay {
     }
 
     public static void renderRepairToolCrosshair(GuiGraphics guiGraphics, GunData data, Player player, int screenWidth, int screenHeight, float moveX, float moveY) {
-        int range = data.get(GunProp.RANGE);
+        int range = data.compute().range;
         Entity lookingEntity = TraceTool.findLookingEntity(player, range);
 
         float health = 0;
@@ -233,7 +233,7 @@ public class CrossHairOverlay implements IGuiOverlay {
         guiGraphics.blit(REX, screenWidth / 2 - 16, screenHeight / 2 - 16, 0, 0, 32, 32, 32, 32);
     }
 
-    private static void renderKillIndicator(GuiGraphics guiGraphics, int w, int h, float moveX, float moveY) {
+    private static void renderKillIndicatorDynamic(GuiGraphics guiGraphics, int w, int h, float moveX, float moveY) {
         float posX = w / 2f - 7.5f + (float) (2 * (Math.random() - 0.5f));
         float posY = h / 2f - 7.5f + (float) (2 * (Math.random() - 0.5f));
         float rate = (40 - killIndicator * 5) / 5.5f;

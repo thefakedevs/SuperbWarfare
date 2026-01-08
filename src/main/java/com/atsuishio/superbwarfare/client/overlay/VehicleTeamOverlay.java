@@ -6,12 +6,11 @@ import com.atsuishio.superbwarfare.config.client.DisplayConfig;
 import com.atsuishio.superbwarfare.config.server.VehicleConfig;
 import com.atsuishio.superbwarfare.entity.projectile.SmokeDecoyEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
+import com.atsuishio.superbwarfare.entity.vehicle.base.AutoAimableEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.ModItems;
-import com.atsuishio.superbwarfare.tools.EntityFindUtil;
-import com.atsuishio.superbwarfare.tools.FormatTool;
-import com.atsuishio.superbwarfare.tools.TraceTool;
-import com.atsuishio.superbwarfare.tools.VectorUtil;
+import com.atsuishio.superbwarfare.init.ModTags;
+import com.atsuishio.superbwarfare.tools.*;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -24,12 +23,15 @@ import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.world.scores.Team;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.gui.overlay.ForgeGui;
 import net.minecraftforge.client.gui.overlay.IGuiOverlay;
 
 import static com.atsuishio.superbwarfare.entity.vehicle.DroneEntity.CONTROLLER;
+import static com.atsuishio.superbwarfare.entity.vehicle.base.AutoAimableEntity.ACTIVE;
 
 @OnlyIn(Dist.CLIENT)
 public class VehicleTeamOverlay implements IGuiOverlay {
@@ -55,6 +57,16 @@ public class VehicleTeamOverlay implements IGuiOverlay {
 
         double entityRange = 0;
         Entity lookingEntity = TraceTool.camerafFindLookingEntity(player, cameraPos, viewVec, VehicleConfig.VEHICLE_INFO_DISPLAY_DISTANCE.get());
+
+        if (player.getVehicle() instanceof VehicleEntity vehicle) {
+            lookingEntity = vehicle.getPlayerLookAtEntityOnVehicle(player, 512, partialTick);
+            viewVec = vehicle.getViewVec(player, partialTick);
+        }
+
+        Entity decoy = TraceTool.findLookDecoy(player, cameraPos, viewVec, 512);
+
+        if (decoy != null && decoy.getType().is(ModTags.EntityTypes.DECOY)) return;
+
         if (lookingEntity instanceof SmokeDecoyEntity) return;
 
         if (lookingEntity != null) {
@@ -68,8 +80,10 @@ public class VehicleTeamOverlay implements IGuiOverlay {
         if (lookAtEntity && lookingEntity instanceof VehicleEntity vehicle && !usingDrone && !outOfRange) {
             if (entityRange > VehicleConfig.VEHICLE_INFO_DISPLAY_DISTANCE.get()) return;
 
-            Vec3 pos = new Vec3(Mth.lerp(partialTick, lookingEntity.xo, lookingEntity.getX()), Mth.lerp(partialTick, lookingEntity.yo, lookingEntity.getY()) + lookingEntity.getBbHeight() / 2, Mth.lerp(partialTick, lookingEntity.zo, lookingEntity.getZ()))
+            Vec3 pos = VectorTool.lerpGetEntityBoundingBoxCenter(lookingEntity, partialTick)
                     .add(new Vec3(0, lookingEntity.getBbHeight() / 2 + 0.5, 0));
+
+            Vec3 centerPos = VectorTool.lerpGetEntityBoundingBoxCenter(lookingEntity, partialTick);
 
             if (VectorUtil.canSee(pos)) {
                 Vec3 point = VectorUtil.worldToScreen(pos);
@@ -90,8 +104,12 @@ public class VehicleTeamOverlay implements IGuiOverlay {
                     Player controller = EntityFindUtil.findPlayer(drone.level(), drone.getEntityData().get(CONTROLLER));
                     if (controller != null) {
                         color = controller.getTeamColor();
-                        String info = controller.getDisplayName().getString() + (controller.getTeam() == null ? "" : " <" + (controller.getTeam().getName()) + ">");
-                        guiGraphics.drawString(font, Component.literal(info), -font.width(info) / 2, -13, color, false);
+
+                        Team team = player.getTeam();
+                        if (team instanceof PlayerTeam playerTeam) {
+                            String info = vehicle.getDisplayName().getString() + " " + controller.getDisplayName().getString() + (controller.getTeam() == null ? "" : " <" + playerTeam.getDisplayName().getString() + ">");
+                            guiGraphics.drawString(font, Component.literal(info), -font.width(info) / 2, -13, color, false);
+                        }
                     } else {
                         String info = lookingEntity.getDisplayName().getString();
                         guiGraphics.drawString(font, Component.literal(info), -font.width(info) / 2, -13, color, false);
@@ -99,8 +117,12 @@ public class VehicleTeamOverlay implements IGuiOverlay {
                 } else if (vehicle instanceof OwnableEntity ownableEntity) {
                     if (ownableEntity.getOwner() instanceof Player player1) {
                         color = player1.getTeamColor();
-                        String info = player1.getDisplayName().getString() + (player1.getTeam() == null ? "" : " <" + (player1.getTeam().getName()) + ">");
-                        guiGraphics.drawString(font, Component.literal(info), -font.width(info) / 2, -13, color, false);
+                        Team team = player.getTeam();
+                        if (team instanceof PlayerTeam playerTeam) {
+                            String info = vehicle.getDisplayName().getString() + " " + player1.getDisplayName().getString() + (player1.getTeam() == null ? "" : " <" + playerTeam.getDisplayName().getString() + ">");
+                            guiGraphics.drawString(font, Component.literal(info), -font.width(info) / 2, -13, color, false);
+                        }
+
                     } else {
                         String info = lookingEntity.getDisplayName().getString();
                         guiGraphics.drawString(font, Component.literal(info), -font.width(info) / 2, -13, color, false);
@@ -108,8 +130,12 @@ public class VehicleTeamOverlay implements IGuiOverlay {
                 } else {
                     if (vehicle.getMaxPassengers() > 0 && vehicle.getFirstPassenger() instanceof Player player1) {
                         color = player1.getTeamColor();
-                        String info = player1.getDisplayName().getString() + (player1.getTeam() == null ? "" : " <" + (player1.getTeam().getName()) + ">");
-                        guiGraphics.drawString(font, Component.literal(info), -font.width(info) / 2, -13, color, false);
+                        Team team = player.getTeam();
+                        if (team instanceof PlayerTeam playerTeam) {
+                            String info = vehicle.getDisplayName().getString() + " " + player1.getDisplayName().getString() + (player1.getTeam() == null ? "" : " <" + playerTeam.getDisplayName().getString() + ">");
+                            guiGraphics.drawString(font, Component.literal(info), -font.width(info) / 2, -13, color, false);
+                        }
+
                     } else {
                         String info = vehicle.getDisplayName().getString();
                         guiGraphics.drawString(font, Component.literal(info), -font.width(info) / 2, -13, color, false);
@@ -127,6 +153,33 @@ public class VehicleTeamOverlay implements IGuiOverlay {
                 RenderHelper.fill(guiGraphics, RenderType.guiOverlay(), -40.5f, 2, 40.5f, 3, 0, argb);
                 RenderHelper.fill(guiGraphics, RenderType.guiOverlay(), 40.5f, -3, 41.5f, 3, 0, argb);
                 RenderHelper.fill(guiGraphics, RenderType.guiOverlay(), -40, -1.5f, -40 + 80 * (vehicle.getHealth() / vehicle.getMaxHealth()), 1.5f, 0, argb);
+
+                poseStack.popPose();
+            }
+
+            if (vehicle instanceof AutoAimableEntity autoAimableEntity && VectorUtil.canSee(centerPos) && player.distanceTo(autoAimableEntity) < 4) {
+                Vec3 point = VectorUtil.worldToScreen(centerPos);
+
+                float x = (float) point.x;
+                float y = (float) point.y;
+
+                poseStack.pushPose();
+                poseStack.translate(x, y - 12, 0);
+
+                var font = gui.getMinecraft().font;
+                Entity entity = autoAimableEntity.getOwner();
+
+                if (entity != null) {
+                    int color = autoAimableEntity.getOwner().getTeamColor();
+                    boolean active = autoAimableEntity.getEntityData().get(ACTIVE);
+
+                    String info = active ? "tips.superbwarfare.auto_aimable_entity.active" : "tips.superbwarfare.auto_aimable_entity.inactive";
+                    Component component = Component.translatable(info);
+                    guiGraphics.drawString(font, component, -font.width(component) / 2, -5, color, false);
+
+                    Component ownerInfo = Component.literal("[" + entity.getDisplayName().getString() + "]");
+                    guiGraphics.drawString(font, ownerInfo, -font.width(ownerInfo) / 2, 5, color, false);
+                }
 
                 poseStack.popPose();
             }

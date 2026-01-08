@@ -5,7 +5,7 @@ import com.atsuishio.superbwarfare.data.drone_attachment.DroneAttachmentData;
 import com.atsuishio.superbwarfare.entity.C4Entity;
 import com.atsuishio.superbwarfare.entity.projectile.LaserEntity;
 import com.atsuishio.superbwarfare.entity.projectile.ProjectileEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
+import com.atsuishio.superbwarfare.entity.vehicle.base.GeoVehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientMouseHandler;
 import com.atsuishio.superbwarfare.init.*;
 import com.atsuishio.superbwarfare.item.Monitor;
@@ -21,7 +21,6 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -46,18 +45,13 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.items.ItemHandlerHelper;
-import net.minecraftforge.network.PlayMessages;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Math;
-import org.joml.Matrix4f;
+import org.joml.Matrix4d;
 import org.joml.Vector3f;
-import org.joml.Vector4f;
-import software.bernie.geckolib.animatable.GeoEntity;
-import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
-import software.bernie.geckolib.core.animation.AnimatableManager;
-import software.bernie.geckolib.util.GeckoLibUtil;
+import org.joml.Vector4d;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -65,7 +59,7 @@ import java.util.stream.Collectors;
 import static com.atsuishio.superbwarfare.event.ClientMouseHandler.freeCameraPitch;
 import static com.atsuishio.superbwarfare.event.ClientMouseHandler.freeCameraYaw;
 
-public class DroneEntity extends VehicleEntity implements GeoEntity {
+public class DroneEntity extends GeoVehicleEntity {
 
     public static final EntityDataAccessor<Boolean> LINKED = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.BOOLEAN);
     public static final EntityDataAccessor<String> CONTROLLER = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.STRING);
@@ -77,8 +71,6 @@ public class DroneEntity extends VehicleEntity implements GeoEntity {
     // scale[3], offset[3], rotation[3], xLength, zLength, tickCount
     public static final EntityDataAccessor<List<Float>> DISPLAY_DATA = SynchedEntityData.defineId(DroneEntity.class, ModSerializers.FLOAT_LIST_SERIALIZER.get());
     public static final EntityDataAccessor<Integer> MAX_AMMO = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.INT);
-
-    private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
     public boolean fire;
     public int collisionCoolDown;
@@ -92,10 +84,6 @@ public class DroneEntity extends VehicleEntity implements GeoEntity {
     public int holdTickX;
     public int holdTickY;
     public int holdTickZ;
-
-    public DroneEntity(PlayMessages.SpawnEntity packet, Level world) {
-        this(ModEntities.DRONE.get(), world);
-    }
 
     public DroneEntity(EntityType<DroneEntity> type, Level world) {
         super(type, world);
@@ -146,11 +134,6 @@ public class DroneEntity extends VehicleEntity implements GeoEntity {
     }
 
     @Override
-    public boolean shouldSendHitParticles() {
-        return false;
-    }
-
-    @Override
     public boolean shouldSendHitSounds() {
         return false;
     }
@@ -170,11 +153,6 @@ public class DroneEntity extends VehicleEntity implements GeoEntity {
         CompoundTag item = new CompoundTag();
         this.currentItem.save(item);
         compound.put("Item", item);
-    }
-
-    @Override
-    public boolean hasEnergyStorage() {
-        return false;
     }
 
     @Override
@@ -581,11 +559,6 @@ public class DroneEntity extends VehicleEntity implements GeoEntity {
     }
 
     @Override
-    public SoundEvent getEngineSound() {
-        return ModSounds.DRONE_SOUND.get();
-    }
-
-    @Override
     public float getEngineSoundVolume() {
         if (Math.abs(this.entityData.get(POWER)) <= 0.05) {
             return 0;
@@ -747,15 +720,6 @@ public class DroneEntity extends VehicleEntity implements GeoEntity {
     }
 
     @Override
-    public void registerControllers(AnimatableManager.ControllerRegistrar data) {
-    }
-
-    @Override
-    public AnimatableInstanceCache getAnimatableInstanceCache() {
-        return this.cache;
-    }
-
-    @Override
     public boolean canCrushEntities() {
         return false;
     }
@@ -774,8 +738,8 @@ public class DroneEntity extends VehicleEntity implements GeoEntity {
     @OnlyIn(Dist.CLIENT)
     @Override
     public Vec3 getCameraPosition(float partialTicks, Player player, boolean zoom, boolean isFirstPerson) {
-        Matrix4f transform = getClientVehicleTransform(partialTicks);
-        Vector4f maxCameraPosition = transformPosition(transform, 0, 0.75f, -2 - 0.2f * (float) ClientMouseHandler.custom3pDistanceLerp);
+        Matrix4d transform = getClientVehicleTransform(partialTicks);
+        Vector4d maxCameraPosition = transformPosition(transform, 0, 0.75, -2 - 0.2 * ClientMouseHandler.custom3pDistanceLerp);
         return CameraTool.getMaxZoom(transform, maxCameraPosition);
     }
 

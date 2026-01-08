@@ -6,13 +6,10 @@ import com.atsuishio.superbwarfare.compat.clothconfig.ClothConfigHelper;
 import com.atsuishio.superbwarfare.config.client.ReloadConfig;
 import com.atsuishio.superbwarfare.data.gun.FireMode;
 import com.atsuishio.superbwarfare.data.gun.GunData;
-import com.atsuishio.superbwarfare.data.gun.GunProp;
+import com.atsuishio.superbwarfare.data.gun.SeekType;
 import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.MortarEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ArmedVehicleEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.CannonEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.WeaponVehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.event.ClientMouseHandler;
 import com.atsuishio.superbwarfare.init.*;
@@ -96,7 +93,7 @@ public class ClickHandler {
 
     private static boolean cancelZoomKey(Player player, ItemStack stack) {
         return stack.getItem() instanceof GunItem
-                || (player.getVehicle() instanceof ArmedVehicleEntity iArmedVehicle && iArmedVehicle.isDriver(player) && !stack.getItem().isEdible());
+                || (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player) && !stack.getItem().isEdible());
     }
 
     @SubscribeEvent
@@ -160,7 +157,7 @@ public class ClickHandler {
         if (stack.getItem() instanceof GunItem
                 || stack.is(ModItems.MONITOR.get())
                 || stack.is(ModItems.LUNGE_MINE.get())
-                || (player.getVehicle() instanceof ArmedVehicleEntity)
+                || player.getVehicle() instanceof VehicleEntity
                 || (stack.is(Items.SPYGLASS) && player.isScoping() && player.getOffhandItem().is(ModItems.FIRING_PARAMETERS.get()))
                 || (stack.is(ModItems.ARTILLERY_INDICATOR.get()))
         ) {
@@ -215,12 +212,14 @@ public class ClickHandler {
         // 未按下shift时，为有武器的载具切换武器
         if (!Screen.hasShiftDown()
                 && player.getVehicle() instanceof VehicleEntity vehicle
-                && vehicle instanceof WeaponVehicleEntity weaponVehicle
-                && weaponVehicle.hasWeapon(vehicle.getSeatIndex(player))
+                && vehicle.hasWeapon(vehicle.getSeatIndex(player))
                 && vehicle.banHand(player)
         ) {
-            int index = vehicle.getSeatIndex(player);
-            NetworkRegistry.PACKET_HANDLER.sendToServer(new SwitchVehicleWeaponMessage(index, -scroll, true));
+            if (switchVehicleWeaponCooldown <= 0) {
+                int index = vehicle.getSeatIndex(player);
+                NetworkRegistry.PACKET_HANDLER.sendToServer(new SwitchVehicleWeaponMessage(index, -scroll, true));
+                switchVehicleWeaponCooldown = 3;
+            }
             event.setCanceled(true);
         }
 
@@ -258,12 +257,16 @@ public class ClickHandler {
         var mc = Minecraft.getInstance();
         Player player = mc.player;
         if (player == null) return;
-        if (player.isSpectator()) return;
-
-        ItemStack stack = player.getMainHandItem();
-
         int key = event.getKey();
         if (key < 0) return;
+
+        if (key == ModKeyMappings.DISMOUNT.getKey().getValue()) {
+            handleDismountPress(player);
+        }
+
+        if (player.isSpectator()) return;
+
+        var stack = player.getMainHandItem();
 
         if (event.getAction() == GLFW.GLFW_PRESS) {
             if (player.hasEffect(ModMobEffects.SHOCK.get())) {
@@ -290,9 +293,11 @@ public class ClickHandler {
             }
             if (key == ModKeyMappings.FIRE_MODE.getKey().getValue() || key == ModKeyMappings.CHANGE_FIRE_MODE_BACKWARD.getKey().getValue()) {
                 NetworkRegistry.PACKET_HANDLER.sendToServer(new FireModeMessage(false));
+                burstFireAmount = 0;
             }
             if (key == ModKeyMappings.CHANGE_FIRE_MODE_FORWARD.getKey().getValue()) {
                 NetworkRegistry.PACKET_HANDLER.sendToServer(new FireModeMessage(true));
+                burstFireAmount = 0;
             }
             if (key == ModKeyMappings.INTERACT.getKey().getValue()) {
                 if (stack.getItem() instanceof GunItem) {
@@ -302,25 +307,42 @@ public class ClickHandler {
                 }
             }
 
+            // 玩家手持枪械时，处理卸弹/切换弹种
             if (stack.getItem() instanceof GunItem) {
                 var data = GunData.from(stack);
                 if (key == ModKeyMappings.UNLOAD.getKey().getValue()) {
                     if (data.useBackpackAmmo() || data.ammo.get() + data.virtualAmmo.get() <= 0) return;
                     NetworkRegistry.PACKET_HANDLER.sendToServer(UnloadMessage.INSTANCE);
+                    burstFireAmount = 0;
                 }
-                if (data.get(GunProp.AMMO_CONSUMER).size() > 1) {
+                if (data.compute().getAmmoConsumers().size() > 1) {
                     if (key == ModKeyMappings.CHANGE_AMMO_FORWARD.getKey().getValue()) {
                         NetworkRegistry.PACKET_HANDLER.sendToServer(new EditMessage(5, false));
+                        burstFireAmount = 0;
                     }
                     if (key == ModKeyMappings.CHANGE_AMMO_BACKWARD.getKey().getValue()) {
                         NetworkRegistry.PACKET_HANDLER.sendToServer(new EditMessage(5, true));
+                        burstFireAmount = 0;
                     }
                 }
             }
 
-            if (key == ModKeyMappings.DISMOUNT.getKey().getValue()) {
-                handleDismountPress(player);
+            // 玩家位于载具上时，处理切换弹种
+            if (player.getVehicle() instanceof VehicleEntity vehicle) {
+                var data = vehicle.getGunData(player);
+                if (data != null && data.getDefault().getAmmoConsumers().size() > 1) {
+                    if (key == ModKeyMappings.CHANGE_AMMO_FORWARD.getKey().getValue()) {
+                        NetworkRegistry.PACKET_HANDLER.sendToServer(new EditMessage(5, false, true));
+                        burstFireAmount = 0;
+                    }
+                    if (key == ModKeyMappings.CHANGE_AMMO_BACKWARD.getKey().getValue() ||
+                            key == ModKeyMappings.FIRE_MODE.getKey().getValue()) {
+                        NetworkRegistry.PACKET_HANDLER.sendToServer(new EditMessage(5, true, true));
+                        burstFireAmount = 0;
+                    }
+                }
             }
+
             if (key == ModKeyMappings.EDIT_MODE.getKey().getValue()) {
                 if (stack.getItem() instanceof ItemScreenProvider provider) {
                     var screen = provider.getItemScreen(stack, player, InteractionHand.MAIN_HAND);
@@ -354,7 +376,7 @@ public class ClickHandler {
 
             if (stack.getItem() instanceof GunItem
                     || stack.is(ModItems.MONITOR.get())
-                    || (player.getVehicle() instanceof ArmedVehicleEntity iVehicle && iVehicle.isDriver(player))
+                    || (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.getFirstPassenger() == player)
                     || (stack.is(Items.SPYGLASS) && player.isScoping() && player.getOffhandItem().is(ModItems.FIRING_PARAMETERS.get()))
                     || (stack.is(ModItems.ARTILLERY_INDICATOR.get()))
             ) {
@@ -414,8 +436,8 @@ public class ClickHandler {
 
         if (player.hasEffect(ModMobEffects.SHOCK.get())) return;
 
-        if (player.getVehicle() instanceof VehicleEntity pVehicle && pVehicle.banHand(player)) {
-            if (player.getVehicle() instanceof WeaponVehicleEntity iVehicle && iVehicle.hasWeapon(pVehicle.getSeatIndex(player))) {
+        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player)) {
+            if (vehicle.hasWeapon(vehicle.getSeatIndex(player))) {
                 ClientEventHandler.holdFireVehicle = true;
             }
             return;
@@ -438,10 +460,10 @@ public class ClickHandler {
         }
 
         if (stack.is(ModItems.LUNGE_MINE.get())) {
-            ClientEventHandler.holdingFireKey = true;
+            ClientEventHandler.usingLunge = true;
         }
 
-        if (stack.getItem() instanceof GunItem gunItem && !(player.getVehicle() instanceof CannonEntity)
+        if (stack.getItem() instanceof GunItem gunItem
                 && clientTimer.getProgress() == 0
                 && !notInGame()
         ) {
@@ -495,7 +517,7 @@ public class ClickHandler {
                         if (ClientEventHandler.burstFireAmount == 0) {
                             noSprintTicks = 8;
                             player.setSprinting(false);
-                            ClientEventHandler.burstFireAmount = data.get(GunProp.BURST_AMOUNT);
+                            ClientEventHandler.burstFireAmount = data.compute().burstAmount;
                         }
                     } else if (fireMode == FireMode.SEMI) {
                         if (ClientEventHandler.burstFireAmount == 0) {
@@ -529,6 +551,14 @@ public class ClickHandler {
         if (stack.is(ModItems.BOCEK.get())) {
             NetworkRegistry.PACKET_HANDLER.sendToServer(ReloadMessage.INSTANCE);
         }
+
+        if (stack.getItem() instanceof GunItem) {
+            var data = GunData.from(stack);
+            var computed = data.compute();
+            if (computed.seekType == SeekType.HOLD_FIRE) {
+                ClientEventHandler.stopWeaponSeekSound(Minecraft.getInstance().player);
+            }
+        }
     }
 
     public static void handleWeaponZoomPress(Player player, ItemStack stack) {
@@ -536,7 +566,7 @@ public class ClickHandler {
 
         isEditing = false;
 
-        if (player.getVehicle() instanceof VehicleEntity pVehicle && player.getVehicle() instanceof WeaponVehicleEntity iVehicle && iVehicle.hasWeapon(pVehicle.getSeatIndex(player)) && pVehicle.banHand(player)) {
+        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.hasWeapon(vehicle.getSeatIndex(player)) && vehicle.banHand(player)) {
             ClientEventHandler.zoomVehicle = true;
             return;
         }
@@ -565,6 +595,7 @@ public class ClickHandler {
         ClientEventHandler.zoom = false;
         ClientEventHandler.zoomVehicle = false;
         ClientEventHandler.lockedEntity = null;
+        ClientEventHandler.stopWeaponSeekSound(Minecraft.getInstance().player);
         breath = false;
     }
 
@@ -601,7 +632,7 @@ public class ClickHandler {
     private static void handleDismountPress(Player player) {
         if (player.getVehicle() instanceof VehicleEntity vehicle) {
             if ((!vehicle.onGround() || vehicle.getDeltaMovement().length() >= 0.1) && ClientEventHandler.dismountCountdown <= 0) {
-                if (vehicle.allowEjection()) {
+                if (vehicle.allowEjection(vehicle.getSeatIndex(player))) {
                     player.displayClientMessage(Component.translatable("tips.superbwarfare.mount.onboard", ModKeyMappings.DISMOUNT.getTranslatedKeyMessage()), true);
                 } else {
                     player.displayClientMessage(Component.translatable("mount.onboard", ModKeyMappings.DISMOUNT.getTranslatedKeyMessage()), true);
@@ -611,6 +642,7 @@ public class ClickHandler {
                 return;
             }
             NetworkRegistry.PACKET_HANDLER.sendToServer(new PlayerStopRidingMessage(false));
+            ClientEventHandler.stopVehicleReloadSound(player);
         }
 
     }

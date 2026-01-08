@@ -3,11 +3,11 @@ package com.atsuishio.superbwarfare.client.overlay;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.data.gun.GunData;
-import com.atsuishio.superbwarfare.data.gun.GunProp;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.tools.FormatTool;
+import com.atsuishio.superbwarfare.tools.TraceTool;
 import com.atsuishio.superbwarfare.tools.VectorTool;
 import com.atsuishio.superbwarfare.tools.VectorUtil;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -99,44 +99,51 @@ public class IglaHudOverlay implements IGuiOverlay {
             RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ZERO);
             RenderSystem.setShaderColor(1, 1, 1, 1);
 
-            Entity targetEntity = ClientEventHandler.lockOn ? ClientEventHandler.lockingEntity : ClientEventHandler.seekingEntity;
-            int seekingTime = ClientEventHandler.seekingTime;
-            lerpSeeking = Mth.lerp(partialTick, lerpSeeking, Mth.clamp(data.get(GunProp.SEEK_TIME) - seekingTime, 0, data.get(GunProp.SEEK_TIME)) * 0.6f);
+            Minecraft mc = Minecraft.getInstance();
+            Vec3 cameraPos = camera.getPosition();
 
-            if (targetEntity != null) {
-                Vec3 pos = VectorTool.lerpGetEntityBoundingBoxCenter(targetEntity, partialTick);
-                Vec3 point = VectorUtil.worldToScreen(pos);
-                float x = (float) point.x;
-                float y = (float) point.y;
-                poseStack.pushPose();
+            Entity decoy = TraceTool.findLookDecoy(player, cameraPos, player.getViewVector(partialTick), 512);
 
-                poseStack.translate(x, y, 0);
-                //我去这框
-                RenderHelper.blit(poseStack, FRAME, -12, -12, 0, 0, 24, 24, 24, 24, 1f);
+            if (decoy == null) {
+                Entity targetEntity = ClientEventHandler.lockOn ? ClientEventHandler.lockingEntity : ClientEventHandler.seekingEntity;
+                int seekingTime = ClientEventHandler.seekingTime;
+                lerpSeeking = Mth.lerp(partialTick, lerpSeeking, Mth.clamp(data.compute().seekTime - seekingTime, 0, data.compute().seekTime) * 0.6f);
 
-                //锁定进度
-                RenderHelper.blit(poseStack, PART_1, -12 - lerpSeeking, -12 - lerpSeeking, 0, 0, 24, 24, 24, 24, 1f);
-                RenderHelper.blit(poseStack, PART_2, -12 + lerpSeeking, -12 - lerpSeeking, 0, 0, 24, 24, 24, 24, 1f);
-                RenderHelper.blit(poseStack, PART_3, -12 - lerpSeeking, -12 + lerpSeeking, 0, 0, 24, 24, 24, 24, 1f);
-                RenderHelper.blit(poseStack, PART_4, -12 + lerpSeeking, -12 + lerpSeeking, 0, 0, 24, 24, 24, 24, 1f);
+                if (targetEntity != null) {
+                    Vec3 pos = VectorTool.lerpGetEntityBoundingBoxCenter(targetEntity, partialTick);
+                    Vec3 point = VectorUtil.worldToScreen(pos);
+                    float x = (float) point.x;
+                    float y = (float) point.y;
+                    poseStack.pushPose();
 
-                //状态
-                if (seekingTime >= data.get(GunProp.SEEK_TIME) && data.ammo.get() > 0) {
-                    RenderHelper.blit(poseStack, SHOOT, -12, -26, 0, 0, 24, 24, 24, 24, 1f);
-                } else {
-                    RenderHelper.blit(poseStack, HOLD, -12, -26, 0, 0, 24, 24, 24, 24, 1f);
+                    poseStack.translate(x, y, 0);
+                    //框
+                    RenderHelper.blit(poseStack, FRAME, -12, -12, 0, 0, 24, 24, 24, 24, 1f);
+
+                    //锁定进度
+                    RenderHelper.blit(poseStack, PART_1, -12 - lerpSeeking, -12 - lerpSeeking, 0, 0, 24, 24, 24, 24, 1f);
+                    RenderHelper.blit(poseStack, PART_2, -12 + lerpSeeking, -12 - lerpSeeking, 0, 0, 24, 24, 24, 24, 1f);
+                    RenderHelper.blit(poseStack, PART_3, -12 - lerpSeeking, -12 + lerpSeeking, 0, 0, 24, 24, 24, 24, 1f);
+                    RenderHelper.blit(poseStack, PART_4, -12 + lerpSeeking, -12 + lerpSeeking, 0, 0, 24, 24, 24, 24, 1f);
+
+                    //状态
+                    if (seekingTime >= data.compute().seekTime && data.ammo.get() > 0) {
+                        RenderHelper.blit(poseStack, SHOOT, -12, -26, 0, 0, 24, 24, 24, 24, 1f);
+                    } else {
+                        RenderHelper.blit(poseStack, HOLD, -12, -26, 0, 0, 24, 24, 24, 24, 1f);
+                    }
+
+                    //测距
+                    poseStack.pushPose();
+                    String range = FormatTool.format0D(player.distanceTo(targetEntity));
+                    int width = Minecraft.getInstance().font.width(range);
+                    poseStack.scale(0.8f, 0.8f, 1);
+                    poseStack.translate(0.1f, 0, 0);
+                    guiGraphics.drawString(Minecraft.getInstance().font, Component.literal(range), (int) (-(float) width / 2), 14, 0xFFD6B6, false);
+                    poseStack.popPose();
+
+                    poseStack.popPose();
                 }
-
-                //测距
-                poseStack.pushPose();
-                String range = FormatTool.format0D(player.distanceTo(targetEntity));
-                int width = Minecraft.getInstance().font.width(range);
-                poseStack.scale(0.8f, 0.8f, 1);
-                poseStack.translate(0.1f, 0, 0);
-                guiGraphics.drawString(Minecraft.getInstance().font, Component.literal(range), (int) (-(float) width / 2), 14, 0xFFD6B6, false);
-                poseStack.popPose();
-
-                poseStack.popPose();
             }
             poseStack.popPose();
         } else {

@@ -3,7 +3,6 @@ package com.atsuishio.superbwarfare.entity.projectile;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.ExplosionConfig;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
-import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
 import com.atsuishio.superbwarfare.network.NetworkRegistry;
@@ -27,7 +26,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
@@ -40,7 +38,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import javax.annotation.Nullable;
 
-public class SmallRocketEntity extends FastThrowableProjectile implements GeoEntity, ExplosiveProjectile {
+public class SmallRocketEntity extends FastThrowableProjectile implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -51,7 +49,6 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
         this.explosionDamage = 60f;
         this.explosionRadius = 5f;
         this.durability = 20;
-        this.gravity = 0;
     }
 
     public SmallRocketEntity(EntityType<? extends ThrowableItemProjectile> pEntityType, double pX, double pY, double pZ, Level pLevel) {
@@ -61,20 +58,6 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
         this.explosionDamage = 60f;
         this.explosionRadius = 5f;
         this.durability = 20;
-        this.gravity = 0;
-    }
-
-    public SmallRocketEntity(LivingEntity entity, Level level, float damage, float explosionDamage, float explosionRadius) {
-        super(ModEntities.SMALL_ROCKET.get(), entity, level);
-        this.damage = damage;
-        this.explosionDamage = explosionDamage;
-        this.explosionRadius = explosionRadius;
-        this.durability = 20;
-        this.gravity = 0;
-    }
-
-    public SmallRocketEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
-        this(ModEntities.SMALL_ROCKET.get(), level);
     }
 
     @Override
@@ -83,7 +66,7 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
     }
 
     @Override
-    protected void onHitEntity(EntityHitResult result) {
+    protected void onHitEntity(@NotNull EntityHitResult result) {
         super.onHitEntity(result);
         Entity entity = result.getEntity();
         if (this.getOwner() != null && this.getOwner().getVehicle() != null && entity == this.getOwner().getVehicle())
@@ -194,22 +177,12 @@ public class SmallRocketEntity extends FastThrowableProjectile implements GeoEnt
     }
 
     @Override
-    public @NotNull SoundEvent getCloseSound() {
-        return ModSounds.ROCKET_ENGINE.get();
-    }
-
-    @Override
     public @NotNull SoundEvent getSound() {
         return ModSounds.ROCKET_FLY.get();
     }
 
     @Override
     public float getVolume() {
-        return 0.1f;
-    }
-
-    @Override
-    public boolean forceLoadChunk() {
-        return true;
+        return 0.2f;
     }
 }

@@ -29,7 +29,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.network.PlayMessages;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 import software.bernie.geckolib.animatable.GeoEntity;
@@ -41,7 +40,7 @@ import java.util.Collection;
 import java.util.Objects;
 import java.util.Set;
 
-public class MortarShellEntity extends FastThrowableProjectile implements GeoEntity, ExplosiveProjectile {
+public class MortarShellEntity extends FastThrowableProjectile implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -52,32 +51,26 @@ public class MortarShellEntity extends FastThrowableProjectile implements GeoEnt
     public MortarShellEntity(EntityType<? extends MortarShellEntity> type, Level level) {
         super(type, level);
         this.noCulling = true;
-        this.damage = 50;
-        this.explosionDamage = ExplosionConfig.MORTAR_SHELL_EXPLOSION_DAMAGE.get();
-        this.explosionRadius = ExplosionConfig.MORTAR_SHELL_EXPLOSION_RADIUS.get();
-        this.gravity = 0.13f;
+        this.damage = 60;
+        this.explosionDamage = 100;
+        this.explosionRadius = 8;
     }
 
-    public MortarShellEntity(EntityType<? extends MortarShellEntity> type, double x, double y, double z, Level level) {
+    public MortarShellEntity(EntityType<? extends MortarShellEntity> type, double x, double y, double z, Level level, float gravity) {
         super(type, x, y, z, level);
         this.noCulling = true;
-        this.damage = 50;
-        this.explosionDamage = ExplosionConfig.MORTAR_SHELL_EXPLOSION_DAMAGE.get();
-        this.explosionRadius = ExplosionConfig.MORTAR_SHELL_EXPLOSION_RADIUS.get();
-        this.gravity = 0.13f;
+        this.damage = 60;
+        this.explosionDamage = 100;
+        this.explosionRadius = 8;
+        this.gravity = gravity;
     }
 
-    public MortarShellEntity(LivingEntity entity, Level level) {
+    public MortarShellEntity(LivingEntity entity, Level level, float damage, float explosionDamage, float explosionRadius) {
         super(ModEntities.MORTAR_SHELL.get(), entity, level);
         this.noCulling = true;
-        this.damage = 50;
-        this.explosionDamage = ExplosionConfig.MORTAR_SHELL_EXPLOSION_DAMAGE.get();
-        this.explosionRadius = ExplosionConfig.MORTAR_SHELL_EXPLOSION_RADIUS.get();
-        this.gravity = 0.13f;
-    }
-
-    public MortarShellEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
-        this(ModEntities.MORTAR_SHELL.get(), level);
+        this.damage = damage;
+        this.explosionDamage = explosionDamage;
+        this.explosionRadius = explosionRadius;
     }
 
     public void setEffectsFromItem(ItemStack pStack) {
@@ -150,7 +143,7 @@ public class MortarShellEntity extends FastThrowableProjectile implements GeoEnt
     }
 
     @Override
-    public void onHitBlock(BlockHitResult blockHitResult) {
+    public void onHitBlock(@NotNull BlockHitResult blockHitResult) {
         super.onHitBlock(blockHitResult);
         BlockPos resultPos = blockHitResult.getBlockPos();
         BlockState state = this.level().getBlockState(resultPos);

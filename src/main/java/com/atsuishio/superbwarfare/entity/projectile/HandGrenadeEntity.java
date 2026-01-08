@@ -26,13 +26,13 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.PlayMessages;
+import org.jetbrains.annotations.NotNull;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
-public class HandGrenadeEntity extends FastThrowableProjectile implements GeoEntity, ExplosiveProjectile {
+public class HandGrenadeEntity extends FastThrowableProjectile implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -63,12 +63,8 @@ public class HandGrenadeEntity extends FastThrowableProjectile implements GeoEnt
         this.fuse = fuse;
     }
 
-    public HandGrenadeEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
-        this(ModEntities.HAND_GRENADE.get(), level);
-    }
-
     @Override
-    protected Item getDefaultItem() {
+    protected @NotNull Item getDefaultItem() {
         return ModItems.HAND_GRENADE.get();
     }
 
@@ -82,7 +78,7 @@ public class HandGrenadeEntity extends FastThrowableProjectile implements GeoEnt
                 SoundEvent event = state.getBlock().getSoundType(state, this.level(), resultPos, this).getBreakSound();
                 double speed = this.getDeltaMovement().length();
                 if (speed > 0.1) {
-                    this.level().playSound(null, result.getLocation().x, result.getLocation().y, result.getLocation().z, event, SoundSource.AMBIENT, 1.0F, 1.0F);
+                    this.level().playSound(null, result.getLocation().x, result.getLocation().y, result.getLocation().z, event, SoundSource.AMBIENT, 1, 1);
                 }
                 this.bounce(blockResult.getDirection());
 
@@ -107,7 +103,7 @@ public class HandGrenadeEntity extends FastThrowableProjectile implements GeoEnt
                     entity.hurt(entity.damageSources().thrown(this, this.getOwner()), this.damage);
                 }
                 this.bounce(Direction.getNearest(this.getDeltaMovement().x(), this.getDeltaMovement().y(), this.getDeltaMovement().z()).getOpposite());
-                this.setDeltaMovement(this.getDeltaMovement().multiply(0.25, 1.0, 0.25));
+                this.setDeltaMovement(this.getDeltaMovement().multiply(0.25, 1, 0.25));
                 break;
             default:
                 break;
@@ -156,5 +152,10 @@ public class HandGrenadeEntity extends FastThrowableProjectile implements GeoEnt
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return this.cache;
+    }
+
+    @Override
+    public boolean isFastMoving() {
+        return false;
     }
 }

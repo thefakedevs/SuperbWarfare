@@ -1,7 +1,6 @@
 package com.atsuishio.superbwarfare.entity.projectile;
 
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
-import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModMobEffects;
 import com.atsuishio.superbwarfare.init.ModSounds;
 import com.atsuishio.superbwarfare.network.NetworkRegistry;
@@ -33,7 +32,6 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.network.NetworkHooks;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
@@ -50,18 +48,6 @@ public class TaserBulletEntity extends AbstractArrow implements GeoEntity, Custo
     private int volt = 0;
     private int wireLength = 0;
     private boolean stopped = false;
-
-    public TaserBulletEntity(PlayMessages.SpawnEntity packet, Level level) {
-        super(ModEntities.TASER_BULLET.get(), level);
-        this.pickup = AbstractArrow.Pickup.DISALLOWED;
-    }
-
-    public TaserBulletEntity(LivingEntity entity, Level level, float damage, int volt, int wireLength) {
-        super(ModEntities.TASER_BULLET.get(), entity, level);
-        this.damage = damage;
-        this.volt = volt;
-        this.wireLength = wireLength;
-    }
 
     public TaserBulletEntity(EntityType<? extends TaserBulletEntity> type, Level level) {
         super(type, level);

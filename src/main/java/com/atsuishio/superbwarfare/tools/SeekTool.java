@@ -1,6 +1,5 @@
 package com.atsuishio.superbwarfare.tools;
 
-import com.atsuishio.superbwarfare.config.server.SeekConfig;
 import com.atsuishio.superbwarfare.entity.projectile.SmokeDecoyEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
@@ -24,7 +23,7 @@ import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.common.util.TriPredicate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -220,6 +219,11 @@ public class SeekTool {
         return VectorTool.calculateAngle(start, end);
     }
 
+    private static double calculateAngle(Vec3 pos, Vec3 vec3, Entity entityA) {
+        Vec3 start = pos.vectorTo(entityA.position());
+        return VectorTool.calculateAngle(start, vec3);
+    }
+
     /**
      * 判断实体是否存活
      */
@@ -233,11 +237,7 @@ public class SeekTool {
     /**
      * 判定实体是否位于黑名单中
      */
-    public static final Predicate<Entity> IN_BLACKLIST = e -> {
-        var type = ForgeRegistries.ENTITY_TYPES.getKey(e.getType());
-        if (type == null) return false;
-        return SeekConfig.SEEK_BLACKLIST.get().contains(type.toString());
-    };
+    public static final Predicate<Entity> IN_BLACKLIST = e -> e.getType().is(ModTags.EntityTypes.SEEK_BLACKLIST);
 
     /**
      * 判断实体的类型是否属于被排除的默认类型
@@ -284,6 +284,36 @@ public class SeekTool {
      * 判定实体是否在地面上
      */
     public static final Predicate<Entity> ON_GROUND = e -> ON_GROUND_HEIGHT.test(e, 0D);
+
+    /**
+     * 判断实体是否在离地面的一定高度范围内
+     */
+    public static final TriPredicate<Entity, Double, Double> IN_HEIGHT_RANGE = (entity, min, max) -> {
+        Level level = entity.level();
+
+        var pos = entity.getOnPos();
+        double y = pos.getY();
+        int minY = level.getMinBuildHeight();
+        int maxY = level.getMaxBuildHeight();
+
+        // 如果实体已低于世界底部或高于顶部
+        if (y < minY || y > maxY) {
+            return true;
+        }
+
+        int height = 0;
+        while (true) {
+            height++;
+
+            if (height < minY || height > maxY) return false;
+
+            var state = level.getBlockState(pos.offset(0, -height, 0));
+            if (!state.isAir()) {
+                break;
+            }
+        }
+        return height >= min && height <= max;
+    };
 
     /**
      * 判断两个实体是否在同一队伍
@@ -340,7 +370,7 @@ public class SeekTool {
      */
     public static final Predicate<Entity> NOT_IN_SMOKE = e -> {
         var box = e.getBoundingBox().inflate(8);
-        var entities = e.level().getEntities(EntityTypeTest.forClass(Entity.class), box, entity -> entity instanceof SmokeDecoyEntity).stream().toList();
+        var entities = e.level().getEntities(EntityTypeTest.forClass(Entity.class), box, entity -> entity instanceof SmokeDecoyEntity && !(e instanceof SmokeDecoyEntity)).stream().toList();
         return entities.isEmpty();
     };
 
@@ -375,6 +405,11 @@ public class SeekTool {
             return true;
         }
     };
+
+    /**
+     * 判断实体是否无敌
+     */
+    public static final Predicate<Entity> IS_INVULNERABLE = e -> e.isInvulnerable() || (e instanceof Player player && (player.isCreative() || player.isSpectator()));
 
     public static class Builder {
 
@@ -417,6 +452,19 @@ public class SeekTool {
                     .orElse(null);
         }
 
+        @Nullable
+        public Entity buildWithClosest(Vec3 pos, Vec3 vec3) {
+            return StreamSupport.stream(EntityFindUtil.getEntities(entity.level()).getAll().spliterator(), false)
+                    .filter(e -> {
+                        for (var f : this.filters) {
+                            if (!f.test(e)) return false;
+                        }
+                        return true;
+                    })
+                    .min(Comparator.comparingDouble(e -> calculateAngle(pos, vec3, e)))
+                    .orElse(null);
+        }
+
         public Builder notItsVehicle() {
             this.filters.add(e -> e.getVehicle() != this.entity);
             return this;
@@ -424,6 +472,11 @@ public class SeekTool {
 
         public Builder withinRange(double range) {
             this.filters.add(e -> e.position().distanceTo(this.entity.getEyePosition()) <= range);
+            return this;
+        }
+
+        public Builder withinRange(Vec3 vec3, double range) {
+            this.filters.add(e -> e.position().distanceTo(vec3) <= range);
             return this;
         }
 
@@ -477,6 +530,11 @@ public class SeekTool {
             return this;
         }
 
+        public Builder withinAngle(Vec3 pos, Vec3 vec3, double angle) {
+            this.filters.add(e -> SeekTool.calculateAngle(pos, vec3, e) < angle);
+            return this;
+        }
+
         public Builder is(Class<? extends Entity> clazz) {
             this.filters.add(clazz::isInstance);
             return this;
@@ -520,7 +578,7 @@ public class SeekTool {
             this.filters.add(e -> {
                         if (this.entity instanceof VehicleEntity vehicle) {
                             return this.entity.level()
-                                    .clip(new ClipContext(vehicle.zoomPos(entity, 1), vehicle.zoomPos(entity, 1), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, vehicle))
+                                    .clip(new ClipContext(vehicle.getZoomPos(entity, 1), vehicle.getZoomPos(entity, 1), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, vehicle))
                                     .getType() != HitResult.Type.BLOCK;
                         }
                         return false;
@@ -561,6 +619,11 @@ public class SeekTool {
 
         public Builder custom(BiPredicate<Entity, Entity> predicate) {
             this.filters.add(e -> predicate.test(entity, e));
+            return this;
+        }
+
+        public Builder heightRange(double min, double max) {
+            this.filters.add(e -> IN_HEIGHT_RANGE.test(e, min, max));
             return this;
         }
     }

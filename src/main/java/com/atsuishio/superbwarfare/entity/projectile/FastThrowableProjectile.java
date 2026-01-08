@@ -42,11 +42,11 @@ import java.util.function.Consumer;
 
 import static com.atsuishio.superbwarfare.tools.TraceTool.getBlocksAlongRay;
 
-public abstract class FastThrowableProjectile extends ThrowableItemProjectile implements CustomSyncMotionEntity, IEntityAdditionalSpawnData {
+public abstract class FastThrowableProjectile extends ThrowableItemProjectile implements CustomSyncMotionEntity, IEntityAdditionalSpawnData, ExplosiveProjectile {
 
-    public static Consumer<FastThrowableProjectile> flySound = projectile -> {
+    public static Consumer<FastThrowableProjectile> playFlySound = projectile -> {
     };
-    public static Consumer<FastThrowableProjectile> nearFlySound = projectile -> {
+    public static Consumer<FastThrowableProjectile> playNearFlySound = projectile -> {
     };
 
     private static final int CHUNK_RADIUS = 1; // 3x3区块
@@ -118,8 +118,8 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
         super.tick();
 
         if (!this.isFastMoving && this.isFastMoving() && this.level().isClientSide) {
-            flySound.accept(this);
-            nearFlySound.accept(this);
+            playFlySound.accept(this);
+            playNearFlySound.accept(this);
         }
         this.isFastMoving = this.isFastMoving();
 
@@ -150,7 +150,7 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
     }
 
     @Override
-    protected void onHitEntity(EntityHitResult pResult) {
+    protected void onHitEntity(@NotNull EntityHitResult pResult) {
         super.onHitEntity(pResult);
         MinecraftForge.EVENT_BUS.post(
                 new ProjectileHitEvent.HitEntity(
@@ -163,7 +163,7 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
     }
 
     @Override
-    protected void onHitBlock(BlockHitResult pResult) {
+    protected void onHitBlock(@NotNull BlockHitResult pResult) {
         super.onHitBlock(pResult);
         MinecraftForge.EVENT_BUS.post(
                 new ProjectileHitEvent.HitBlock(
@@ -213,7 +213,7 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
                 .radius(explosionRadius)
                 .blockIgniteChance(blockIgniteChance())
                 .position(vec3)
-                .withParticleType(explosionParticleType());
+                .withParticleType(explosionParticleType(explosionRadius));
     }
 
     public void causeExplode(Vec3 vec3) {
@@ -224,8 +224,20 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
         }
     }
 
-    public ParticleTool.ParticleType explosionParticleType() {
-        return ParticleTool.ParticleType.MEDIUM;
+    public ParticleTool.ParticleType explosionParticleType(float radius) {
+        ParticleTool.ParticleType particleType;
+
+        if (radius <= 4) {
+            particleType = ParticleTool.ParticleType.SMALL;
+        } else if (radius > 4 && radius < 10) {
+            particleType = ParticleTool.ParticleType.MEDIUM;
+        } else if (radius >= 10 && radius < 20) {
+            particleType = ParticleTool.ParticleType.HUGE;
+        } else {
+            particleType = ParticleTool.ParticleType.GIANT;
+        }
+
+        return particleType;
     }
 
     public float blockIgniteChance() {
@@ -272,7 +284,7 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
     }
 
     @Override
-    public void remove(Entity.RemovalReason reason) {
+    public void remove(Entity.@NotNull RemovalReason reason) {
         if (!level().isClientSide && level() instanceof ServerLevel serverLevel) {
             // 释放所有加载的区块
             for (ChunkPos pos : currentChunks) {
@@ -289,7 +301,7 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
         if (!shouldSyncMotion()) return;
 
         if (this.tickCount % this.getType().updateInterval() == 0) {
-            NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.ALL.noArg(), new ClientMotionSyncMessage(this));
+            NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.TRACKING_ENTITY.with(() -> this), new ClientMotionSyncMessage(this));
         }
     }
 
@@ -312,11 +324,6 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
     @Override
     public void readSpawnData(FriendlyByteBuf additionalData) {
         this.setDeltaMovement(additionalData.readFloat(), additionalData.readFloat(), additionalData.readFloat());
-    }
-
-    @NotNull
-    public SoundEvent getCloseSound() {
-        return SoundEvents.EMPTY;
     }
 
     @NotNull
@@ -363,7 +370,7 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
     }
 
     public void largeTrail() {
-        if (level().isClientSide && tickCount > 1) {
+        if (level().isClientSide && tickCount > 2) {
             double l = getDeltaMovement().length();
             for (double i = 0; i < l; i += 2) {
                 Vec3 startPos = new Vec3(xo, yo, zo);
@@ -374,7 +381,7 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
     }
 
     public void mediumTrail() {
-        if (level().isClientSide && tickCount > 1) {
+        if (level().isClientSide && tickCount > 2) {
             double l = getDeltaMovement().length();
             for (double i = 0; i < l; i += 2) {
                 Vec3 startPos = new Vec3(xo, yo, zo);
@@ -386,7 +393,7 @@ public abstract class FastThrowableProjectile extends ThrowableItemProjectile im
     }
 
     public void smallTrail() {
-        if (level().isClientSide && tickCount > 1) {
+        if (level().isClientSide && tickCount > 2) {
             double l = getDeltaMovement().length();
             for (double i = 0; i < l; i += 2) {
                 Vec3 startPos = new Vec3(xo, yo, zo);

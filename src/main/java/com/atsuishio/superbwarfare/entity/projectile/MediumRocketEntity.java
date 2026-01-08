@@ -4,7 +4,6 @@ import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.ExplosionConfig;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
-import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
 import com.atsuishio.superbwarfare.network.NetworkRegistry;
@@ -30,7 +29,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
@@ -43,7 +41,7 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import javax.annotation.ParametersAreNonnullByDefault;
 
-public class MediumRocketEntity extends FastThrowableProjectile implements GeoEntity, ExplosiveProjectile {
+public class MediumRocketEntity extends FastThrowableProjectile implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -55,13 +53,14 @@ public class MediumRocketEntity extends FastThrowableProjectile implements GeoEn
     private float fireProbability = 0;
     private int fireTime = 0;
     private int sparedAmount = 50;
+    private int sparedAngle = 15;
 
     public MediumRocketEntity(EntityType<? extends MediumRocketEntity> type, Level world) {
         super(type, world);
         this.noCulling = true;
     }
 
-    public MediumRocketEntity(EntityType<? extends ThrowableItemProjectile> pEntityType, double pX, double pY, double pZ, Level pLevel, float damage, float radius, float explosionDamage, float fireProbability, int fireTime, Type type, int sparedAmount) {
+    public MediumRocketEntity(EntityType<? extends ThrowableItemProjectile> pEntityType, double pX, double pY, double pZ, Level pLevel, float damage, float radius, float explosionDamage, float fireProbability, int fireTime, Type type, int sparedAmount, int sparedAngle) {
         super(pEntityType, pX, pY, pZ, pLevel);
         this.noCulling = true;
         this.damage = damage;
@@ -71,24 +70,7 @@ public class MediumRocketEntity extends FastThrowableProjectile implements GeoEn
         this.fireTime = fireTime;
         this.type = type;
         this.sparedAmount = sparedAmount;
-        this.gravity = 0.05f;
-    }
-
-    public MediumRocketEntity(LivingEntity entity, Level level, float damage, float radius, float explosionDamage, float fireProbability, int fireTime, Type type, int sparedAmount) {
-        super(ModEntities.MEDIUM_ROCKET.get(), entity, level);
-        this.noCulling = true;
-        this.damage = damage;
-        this.explosionRadius = radius;
-        this.explosionDamage = explosionDamage;
-        this.fireProbability = fireProbability;
-        this.fireTime = fireTime;
-        this.type = type;
-        this.sparedAmount = sparedAmount;
-        this.gravity = 0.05f;
-    }
-
-    public MediumRocketEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
-        this(ModEntities.MEDIUM_ROCKET.get(), level);
+        this.sparedAngle = sparedAngle;
     }
 
     public MediumRocketEntity durability(int durability) {
@@ -224,13 +206,8 @@ public class MediumRocketEntity extends FastThrowableProjectile implements GeoEn
     @Override
     public void syncMotion() {
         if (!this.level().isClientSide) {
-            NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.ALL.noArg(), new ClientMotionSyncMessage(this));
+            NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.TRACKING_ENTITY.with(() -> this), new ClientMotionSyncMessage(this));
         }
-    }
-
-    @Override
-    public ParticleTool.ParticleType explosionParticleType() {
-        return explosionRadius > 9 ? ParticleTool.ParticleType.HUGE : ParticleTool.ParticleType.MEDIUM;
     }
 
     @Override
@@ -250,7 +227,7 @@ public class MediumRocketEntity extends FastThrowableProjectile implements GeoEn
 
                 gunGrenadeEntity.setPos(position().x, position().y, position().z);
                 gunGrenadeEntity.shoot(getDeltaMovement().x, getDeltaMovement().y, getDeltaMovement().z, (float) (random.nextFloat() * 0.2f + 0.4f * getDeltaMovement().length()),
-                        20);
+                        sparedAngle);
                 serverLevel.addFreshEntity(gunGrenadeEntity);
             }
             discard();
@@ -269,11 +246,6 @@ public class MediumRocketEntity extends FastThrowableProjectile implements GeoEn
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return this.cache;
-    }
-
-    @Override
-    public @NotNull SoundEvent getCloseSound() {
-        return ModSounds.ROCKET_ENGINE.get();
     }
 
     @Override

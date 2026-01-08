@@ -4,14 +4,13 @@ import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.ClickHandler;
 import com.atsuishio.superbwarfare.client.animation.AnimationCurves;
 import com.atsuishio.superbwarfare.client.overlay.CrossHairOverlay;
+import com.atsuishio.superbwarfare.client.overlay.VehicleMainWeaponHudOverlay;
 import com.atsuishio.superbwarfare.config.client.DisplayConfig;
 import com.atsuishio.superbwarfare.config.server.MiscConfig;
 import com.atsuishio.superbwarfare.data.gun.*;
 import com.atsuishio.superbwarfare.data.gun.value.AttachmentType;
 import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ArmedVehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.WeaponVehicleEntity;
 import com.atsuishio.superbwarfare.init.*;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.network.NetworkRegistry;
@@ -20,13 +19,17 @@ import com.atsuishio.superbwarfare.perk.Perk;
 import com.atsuishio.superbwarfare.resource.gun.GunResource;
 import com.atsuishio.superbwarfare.tools.*;
 import com.atsuishio.superbwarfare.world.TDMSavedData;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
@@ -47,13 +50,12 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.RenderGuiOverlayEvent;
-import net.minecraftforge.client.event.RenderHandEvent;
-import net.minecraftforge.client.event.RenderPlayerEvent;
-import net.minecraftforge.client.event.ViewportEvent;
+import net.minecraftforge.client.event.*;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
@@ -127,6 +129,9 @@ public class ClientEventHandler {
     public static double lookDistance = 0;
     public static double cameraLocation = 0.6;
 
+    // 切换载具武器的冷却时间
+    public static int switchVehicleWeaponCooldown = 0;
+
     public static double drawTime = 1;
 
     public static int shellIndex = 0;
@@ -159,6 +164,7 @@ public class ClientEventHandler {
     public static int burstFireAmount = 0;
 
     public static int customRpm = 0;
+    public static int gunMelee;
 
     public static double chamberRot = 0;
     public static double actionMove = 0;
@@ -175,9 +181,10 @@ public class ClientEventHandler {
     public static double shakeAmplitude = 0;
     public static double[] shakePos = {0, 0, 0};
     public static double shakeType = 0;
+
+    public static boolean usingLunge;
     public static int lungeAttack;
     public static int lungeDraw;
-    public static int gunMelee;
     public static int lungeSprint;
 
     // 智慧芯片锁定的实体
@@ -202,7 +209,7 @@ public class ClientEventHandler {
     public static boolean isEditing = false;
 
     // 锁定类武器用
-    public static Entity naerestEntity;
+    public static Entity nearestEntity;
     public static Entity seekingEntity;
     public static Entity lockingEntity;
     public static Vec3 seekingPos;
@@ -210,6 +217,15 @@ public class ClientEventHandler {
     public static int seekingTime;
     public static int guideType;
     public static boolean lockOn;
+
+    // 锁定类载具用
+    public static Entity nearestEntityVehicle;
+    public static Entity seekingEntityVehicle;
+    public static Entity lockingEntityVehicle;
+    public static Vec3 seekingPosVehicle;
+    public static Vec3 lockingPosVehicle;
+    public static int seekingTimeVehicle;
+    public static boolean lockOnVehicle;
 
     public static UUID lastOperatingGunUUID = null;
 
@@ -272,23 +288,29 @@ public class ClientEventHandler {
 
             UUID uuid = null;
             try {
-                uuid = data.data.getUUID("UUID");
+                uuid = data.gunDataTag.getUUID("UUID");
             } catch (Exception ignored) {
+            }
+
+            if (notInGame()) {
+                burstFireAmount = 0;
             }
 
             // 切枪时记得重置状态
             if (uuid == null || !uuid.equals(lastOperatingGunUUID)) {
                 resetGunStatus();
+                resetLungeMineStatus();
             }
             lastOperatingGunUUID = uuid;
 
             if ((holdingFireKey || (zoom && stack.is(ModItems.MINIGUN.get()))) && gunItem.canShoot(data, player)) {
-                holdingFireKeyTicks = Math.min(holdingFireKeyTicks + 1, data.get(GunProp.SHOOT_DELAY) + 1);
+                var computed = data.compute();
+                holdingFireKeyTicks = Math.min(holdingFireKeyTicks + 1, computed.shootDelay + 1);
 
                 // 加特林特有的旋转音效
                 if (stack.is(ModItems.MINIGUN.get())) {
-                    float rpm = (float) data.get(GunProp.RPM) / 3600;
-                    player.playSound(ModSounds.MINIGUN_ROT.get(), 1, 0.7f + rpm);
+                    float rpm = (float) computed.rpm / 3600;
+                    player.playSound(ModSounds.MINIGUN_ROTATE.get(), 1, 0.7f + rpm);
                 }
 
                 // QL特有的樱花特效
@@ -360,10 +382,11 @@ public class ClientEventHandler {
             holdArtilleryIndicator = 0;
         }
 
-        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.allowEjection() && ModKeyMappings.DISMOUNT.isDown()) {
+        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.allowEjection(vehicle.getSeatIndex(player)) && ModKeyMappings.DISMOUNT.isDown()) {
             holdToEjection = Mth.clamp(holdToEjection + 1, 0, 10);
             if (holdToEjection >= 10) {
                 NetworkRegistry.PACKET_HANDLER.sendToServer(new PlayerStopRidingMessage(true));
+                stopVehicleReloadSound(player);
             }
         } else {
             holdToEjection = 0;
@@ -379,25 +402,42 @@ public class ClientEventHandler {
         handleGunMelee(player, stack);
         weaponZooming(stack);
         lockWeaponSeeking(player, stack);
+        vehicleWeaponSeeking(player);
     }
 
     public static void lockWeaponSeeking(Player player, ItemStack stack) {
         if (stack.getItem() instanceof GunItem) {
             var data = GunData.from(stack);
-            //锁定所需时间
-            int lockTime = data.get(GunProp.SEEK_TIME);
+            var computed = data.compute();
+            int lockTime = computed.seekTime;
             //搜寻角度
             float fovAdjust = (float) Minecraft.getInstance().options.fov().get() / 80;
-            float seekAngle = data.get(GunProp.SEEK_ANGLE).floatValue() * fovAdjust;
-            double range = data.get(GunProp.SEEK_RANGE);
+            float seekAngle = (float) (computed.seekAngle * fovAdjust);
+            double range = computed.seekRange;
+            Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
 
             if (zoomTime > 0.7) {
-                naerestEntity = SeekTool.seekVehicleEntity(player, player.level(), range, seekAngle);
-                if (data.get(GunProp.SEEK_TYPE) == SeekType.HOLD_FIRE) {
-                    if (naerestEntity == null || player.isShiftKeyDown()) {
+                nearestEntity = new SeekTool.Builder(player)
+                        .withinRange(range)
+                        .withinAngle(seekAngle)
+                        .baseFilter()
+                        .heightRange(computed.minTargetHeight, computed.maxTargetHeight)
+                        .smokeFilter()
+                        .noVehicle()
+                        .noClip()
+                        .buildWithClosest();
+
+                Entity decoy = TraceTool.findLookDecoy(player, cameraPos, player.getViewVector(1), range);
+                if (decoy != null && decoy.getType().is(ModTags.EntityTypes.DECOY)) {
+                    nearestEntity = decoy;
+                    seekFailure(player);
+                }
+
+                if (computed.seekType == SeekType.HOLD_FIRE) {
+                    if (nearestEntity == null || player.isShiftKeyDown()) {
                         // 锁定方块
                         BlockHitResult result = player.level().clip(new ClipContext(player.getEyePosition(), player.getEyePosition().add(player.getViewVector(1).scale(512)),
-                                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+                                ClipContext.Block.VISUAL, ClipContext.Fluid.ANY, player));
                         seekingPos = result.getLocation();
 
                         if (seekingTime > lockTime + 2 && !lockOn) {
@@ -407,8 +447,7 @@ public class ClientEventHandler {
                         //锁定失败
                         if (lockingPos != null && (VectorTool.calculateAngle(player.getLookAngle(), player.getEyePosition().vectorTo(lockingPos)) > seekAngle || !noClip(player, lockingPos))) {
                             seekingTime = 0;
-                            lockOn = false;
-                            lockingPos = null;
+                            seekFailure(player);
                         }
 
                         if (holdingFireKey) {
@@ -429,8 +468,7 @@ public class ClientEventHandler {
                                 }
                                 lockOn = false;
                             }
-                            seekingTime = 0;
-                            lockingPos = null;
+                            seekFailure(player);
                         }
 
                     } else {
@@ -444,17 +482,14 @@ public class ClientEventHandler {
                         if (seekingEntity != null && (VectorTool.calculateAngle(player.getLookAngle(), player.getEyePosition().vectorTo(VectorTool.lerpGetEntityBoundingBoxCenter(seekingEntity, 1))) > seekAngle
                                 || !SeekTool.NOT_IN_SMOKE.test(seekingEntity)
                                 || !noClip(player, seekingEntity))) {
-                            seekingTime = 0;
-                            lockingEntity = null;
-                            seekingEntity = null;
-                            lockOn = false;
+                            seekFailure(player);
                         }
 
                         if (holdingFireKey) {
                             if (seekingEntity == null) {
-                                seekingEntity = naerestEntity;
+                                seekingEntity = nearestEntity;
                             }
-                            if (naerestEntity != null && lockingPos == null) {
+                            if (nearestEntity != null && lockingPos == null) {
                                 seekingTime++;
                                 if ((!seekingEntity.getPassengers().isEmpty() || seekingEntity instanceof VehicleEntity) && player.tickCount % 3 == 0 && !lockOn) {
                                     NetworkRegistry.PACKET_HANDLER.sendToServer(new SeekingWeaponWarningMessage(false, seekingEntity.getUUID()));
@@ -468,12 +503,10 @@ public class ClientEventHandler {
                                 }
                                 lockOn = false;
                             }
-                            seekingTime = 0;
-                            lockingEntity = null;
-                            seekingEntity = null;
+                            seekFailure(player);
                         }
                     }
-                } else if (data.get(GunProp.SEEK_TYPE) == SeekType.HOLD_ZOOM) {
+                } else if (computed.seekType == SeekType.HOLD_ZOOM) {
                     // 瞄准锁定只能锁实体
                     if (seekingTime > lockTime + 2 && !lockOn) {
                         lockingEntity = seekingEntity;
@@ -484,26 +517,21 @@ public class ClientEventHandler {
                     if (seekingEntity != null && (VectorTool.calculateAngle(player.getLookAngle(), player.getEyePosition().vectorTo(VectorTool.lerpGetEntityBoundingBoxCenter(seekingEntity, 1))) > seekAngle
                             || !SeekTool.NOT_IN_SMOKE.test(seekingEntity)
                             || !noClip(player, seekingEntity))) {
-                        seekingTime = 0;
-                        lockingEntity = null;
-                        seekingEntity = null;
-                        lockOn = false;
+                        seekFailure(player);
                     }
 
                     if (zoomTime > 0.7) {
                         if (seekingEntity == null) {
-                            seekingEntity = naerestEntity;
+                            seekingEntity = nearestEntity;
                         }
-                        if (naerestEntity != null && data.hasEnoughAmmoToShoot(player)) {
+                        if (nearestEntity != null && data.hasEnoughAmmoToShoot(player)) {
                             seekingTime++;
                             if ((!seekingEntity.getPassengers().isEmpty() || seekingEntity instanceof VehicleEntity) && player.tickCount % 3 == 0 && !lockOn) {
                                 NetworkRegistry.PACKET_HANDLER.sendToServer(new SeekingWeaponWarningMessage(false, seekingEntity.getUUID()));
                             }
                         }
                     } else {
-                        seekingTime = 0;
-                        lockingEntity = null;
-                        seekingEntity = null;
+                        seekFailure(player);
                     }
 
                     if (lockOn && holdingFireKey && lockingEntity != null) {
@@ -512,19 +540,15 @@ public class ClientEventHandler {
                     }
                 }
             } else {
-                seekingTime = 0;
-                lockOn = false;
-                lockingEntity = null;
-                seekingEntity = null;
-                lockingPos = null;
+                seekFailure(player);
+            }
+
+            if (nearestEntity != null && nearestEntity.getType().is(ModTags.EntityTypes.DECOY)) {
+                seekFailure(player);
             }
 
             if (lockingEntity != null && !lockingEntity.isAlive()) {
-                seekingTime = 0;
-                lockOn = false;
-                lockingEntity = null;
-                seekingEntity = null;
-                lockingPos = null;
+                seekFailure(player);
             }
 
             if (seekingTime == 2) {
@@ -540,19 +564,150 @@ public class ClientEventHandler {
         }
     }
 
+    public static void vehicleWeaponSeeking(Player player) {
+        if (!(player.getVehicle() instanceof VehicleEntity vehicle)) return;
+
+        var data = vehicle.getGunData(player);
+        if (data == null) return;
+
+        var seekWeaponInfo = data.compute().seekWeaponInfo;
+        if (seekWeaponInfo == null) return;
+
+        // 锁定所需时间
+        int lockTime = seekWeaponInfo.seekTime;
+        // 搜寻角度
+        float seekAngle = (float) seekWeaponInfo.seekAngle;
+        // 搜索范围
+        double seekRange = seekWeaponInfo.seekRange;
+        // 视角位置
+        Vec3 cameraPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        // 搜寻方向
+        Vec3 seekVec = vehicle.getSeekVec(player, 1);
+        // 最小目标高度
+        double minTargetHeight = seekWeaponInfo.minTargetHeight;
+        // 最大目标高度
+        double maxTargetHeight = seekWeaponInfo.maxTargetHeight;
+        // 最小目标碰撞箱大小
+        double minTargetSize = seekWeaponInfo.minTargetSize;
+
+        nearestEntityVehicle = new SeekTool.Builder(player)
+                .withinRange(seekRange)
+                .withinAngle(cameraPos, seekVec, seekAngle)
+                .baseFilter()
+                .heightRange(minTargetHeight, maxTargetHeight)
+                .sizeBiggerThan(minTargetSize)
+                .smokeFilter()
+                .noVehicle()
+                .noClip()
+                .notFriendly()
+                .buildWithClosest(cameraPos, seekVec);
+
+        Entity decoy = TraceTool.findLookDecoy(player, cameraPos, seekVec, seekRange);
+        if (decoy != null && decoy.getType().is(ModTags.EntityTypes.DECOY)) {
+            nearestEntityVehicle = decoy;
+            seekFailure(player);
+        }
+
+        if (seekWeaponInfo.onlyLockBlock) {
+            // 锁定方块
+            BlockHitResult result = player.level().clip(new ClipContext(cameraPos, cameraPos.add(seekVec.scale(seekRange)),
+                    ClipContext.Block.VISUAL, ClipContext.Fluid.ANY, player));
+            seekingPosVehicle = result.getLocation();
+
+            if (seekingTimeVehicle > lockTime + 2 && !lockOnVehicle) {
+                lockOnVehicle = true;
+            }
+
+            // 锁定失败
+            if (lockingPosVehicle != null && (VectorTool.calculateAngle(seekVec, cameraPos.vectorTo(lockingPosVehicle)) > seekAngle || !noClip(player, lockingPosVehicle))) {
+                seekFailure(player);
+            }
+
+            if (ModKeyMappings.VEHICLE_SEEK.isDown()) {
+                if (seekingPosVehicle.distanceToSqr(cameraPos) < seekRange * seekRange) {
+                    seekingTimeVehicle++;
+                    if (seekingTimeVehicle == 1) {
+                        lockingPosVehicle = seekingPosVehicle;
+                    }
+                } else {
+                    seekFailure(player);
+                }
+            } else {
+                seekFailure(player);
+            }
+        } else if (seekWeaponInfo.onlyLockEntity) {
+            // 锁定实体
+            if (seekingTimeVehicle > lockTime + 2 && !lockOnVehicle) {
+                lockingEntityVehicle = seekingEntityVehicle;
+                lockOnVehicle = true;
+            }
+
+            if (ModKeyMappings.VEHICLE_SEEK.isDown()) {
+                if (seekingEntityVehicle == null) {
+                    seekingEntityVehicle = nearestEntityVehicle;
+                }
+                if (nearestEntityVehicle != null && lockingPosVehicle == null) {
+                    seekingTimeVehicle++;
+                    if ((!seekingEntityVehicle.getPassengers().isEmpty() || seekingEntityVehicle instanceof VehicleEntity) && player.tickCount % 3 == 0 && !lockOnVehicle) {
+                        NetworkRegistry.PACKET_HANDLER.sendToServer(new SeekingWeaponWarningMessage(false, seekingEntityVehicle.getUUID()));
+                    }
+                }
+            } else {
+                seekFailure(player);
+            }
+        }
+
+        // 锁定失败
+        if (seekingEntityVehicle != null && (VectorTool.calculateAngle(seekVec, cameraPos.vectorTo(VectorTool.lerpGetEntityBoundingBoxCenter(seekingEntityVehicle, 1))) > seekAngle
+                || !SeekTool.NOT_IN_SMOKE.test(seekingEntityVehicle)
+                || !noClip(player, seekingEntityVehicle))) {
+            seekFailure(player);
+        }
+
+        if (lockingEntityVehicle != null && !lockingEntityVehicle.isAlive()) {
+            seekFailure(player);
+        }
+
+        if (seekingTimeVehicle == 2) {
+            playLockingSound(data, player);
+        }
+
+        if (seekingTimeVehicle > lockTime) {
+            playLockedSound(data, player);
+            if (seekWeaponInfo.onlyLockEntity && lockingEntityVehicle != null && (!lockingEntityVehicle.getPassengers().isEmpty() || lockingEntityVehicle instanceof VehicleEntity) && player.tickCount % 2 == 0) {
+                NetworkRegistry.PACKET_HANDLER.sendToServer(new SeekingWeaponWarningMessage(true, lockingEntityVehicle.getUUID()));
+            }
+        }
+    }
+
+    public static void seekFailure(Player player) {
+        seekingTimeVehicle = 0;
+        lockOnVehicle = false;
+        lockingEntityVehicle = null;
+        seekingEntityVehicle = null;
+        lockingPosVehicle = null;
+        seekingTime = 0;
+        lockOn = false;
+        lockingEntity = null;
+        seekingEntity = null;
+        lockingPos = null;
+        VehicleMainWeaponHudOverlay.lock = false;
+        stopVehicleSeekSound(player);
+    }
+
     public static void playLockingSound(GunData data, Player player) {
-        var soundInfo = data.get(GunProp.SOUND_INFO);
+        var soundInfo = data.compute().soundInfo;
         var sound = soundInfo.locking;
         if (sound != null) {
-            player.playSound(sound, 4f, 1);
+            player.playSound(sound, 2f, 1);
         }
     }
 
     public static void playLockedSound(GunData data, Player player) {
-        var soundInfo = data.get(GunProp.SOUND_INFO);
+        var soundInfo = data.compute().soundInfo;
         var sound = soundInfo.locked;
         if (sound != null) {
-            player.playSound(sound, 4f, 1);
+            player.playSound(sound, 2f, 1);
         }
     }
 
@@ -598,7 +753,7 @@ public class ClientEventHandler {
 
         if (stack.getItem() instanceof GunItem) {
             var data = GunData.from(stack);
-            sprintCost = (float) (0.5 + 0.02 * data.get(GunProp.WEIGHT));
+            sprintCost = (float) (0.5 + 0.02 * data.compute().weight);
         } else {
             sprintCost = 0.5f;
         }
@@ -678,6 +833,10 @@ public class ClientEventHandler {
         if (aimVillagerCountdown > 0) {
             aimVillagerCountdown--;
         }
+
+        if (switchVehicleWeaponCooldown > 0) {
+            switchVehicleWeaponCooldown--;
+        }
     }
 
     public static boolean isProne(Player player) {
@@ -701,10 +860,10 @@ public class ClientEventHandler {
                     && !data.reloading()
                     && !data.charging() && !player.getCooldowns().isOnCooldown(stack.getItem())
             ) {
-                gunMelee = data.get(GunProp.MELEE_DURATION);
+                gunMelee = data.compute().meleeDuration;
                 fireCooldown = gunMelee + 4;
             }
-            if (gunMelee == data.get(GunProp.MELEE_DURATION) - data.get(GunProp.MELEE_DAMAGE_TIME)) {
+            if (gunMelee == data.compute().meleeDuration - data.compute().meleeDamageTime) {
                 doGunMeleeAttack(player);
             }
         }
@@ -723,9 +882,9 @@ public class ClientEventHandler {
     }
 
     public static void handleLungeAttack(Player player, ItemStack stack) {
-        if (stack.is(ModItems.LUNGE_MINE.get()) && lungeAttack == 0 && lungeDraw == 0 && holdingFireKey) {
+        if (stack.is(ModItems.LUNGE_MINE.get()) && lungeAttack == 0 && lungeDraw == 0 && usingLunge) {
             lungeAttack = 18;
-            holdingFireKey = false;
+            usingLunge = false;
             player.playSound(SoundEvents.PLAYER_ATTACK_SWEEP, 1f, 1);
         }
 
@@ -791,7 +950,8 @@ public class ClientEventHandler {
         var partialHoldingFireKeyTicks = Mth.lerp(getDelta(), holdingFireKeyTicks0, holdingFireKeyTicks);
         holdingFireKeyTicks0 = holdingFireKeyTicks;
 
-        if (partialHoldingFireKeyTicks > holdingFireKeyTicks && partialHoldingFireKeyTicks > data.get(GunProp.SHOOT_DELAY) * 0.25 && shouldPlayDischargeSound) {
+        var computed = data.compute();
+        if (partialHoldingFireKeyTicks > holdingFireKeyTicks && partialHoldingFireKeyTicks > computed.shootDelay * 0.25 && shouldPlayDischargeSound) {
             var dischargeSound = resource.dischargeSound;
             if (dischargeSound != null) {
                 player.playSound(dischargeSound, partialHoldingFireKeyTicks * 0.03f, 0.6f + partialHoldingFireKeyTicks * 0.02f);
@@ -801,14 +961,17 @@ public class ClientEventHandler {
             burstFireAmount = 0;
         }
 
-        if (!gunItem.canShoot(data, player)) {
-            holdingFireKey = false;
+        if (!gunItem.canShoot(data, player)){
+            if (!data.meleeOnly()) {
+                holdingFireKey = false;
+            }
+            burstFireAmount = 0;
         }
 
         // 精准度
         float times = (float) Math.min(getDelta(), 0.8);
 
-        double basicDev = data.get(GunProp.SPREAD);
+        double basicDev = computed.spread;
         double walk = isMoving() ? 0.3 * basicDev : 0;
         double sprint = player.isSprinting() ? 0.25 * basicDev : 0;
         double crouching = player.isCrouching() ? -0.15 * basicDev : 0;
@@ -816,14 +979,13 @@ public class ClientEventHandler {
         double jump = player.onGround() ? 0 * basicDev : 0.35 * basicDev;
         double ride = player.onGround() ? -0.25 * basicDev : 0;
 
-        double zoomSpread = 1 - (1 - data.get(GunProp.ZOOM_SPREAD_RATE)) * zoomTime;
-
+        double zoomSpread = 1 - (1 - computed.zoomSpreadRate) * zoomTime;
         double spread = data.isShotgun() || stack.is(ModItems.MINIGUN.get()) ? 1.2 * zoomSpread * (basicDev + 0.2 * (walk + sprint + crouching + prone + jump + ride) + fireSpread) : zoomSpread * (0.7 * basicDev + walk + sprint + crouching + prone + jump + ride + 0.8 * fireSpread);
 
         gunSpread = Mth.lerp(0.14 * times, gunSpread, spread);
 
         // 开火部分
-        double weight = data.get(GunProp.WEIGHT);
+        double weight = computed.weight;
         double speed = 5 / (weight + 4);
 
         if (noSprintTicks == 0 && player.isSprinting() && !zoom && !holdingFireKey) {
@@ -832,7 +994,7 @@ public class ClientEventHandler {
             fireCooldown = Mth.clamp(fireCooldown - 6 * speed * times, 0, 40);
         }
 
-        int rpm = Mth.clamp(data.get(GunProp.RPM) + customRpm, 1, 114514);
+        int rpm = Mth.clamp(computed.rpm + customRpm, 1, 114514);
         double rps = (double) rpm / 60;
 
         // cooldown in ms
@@ -846,7 +1008,7 @@ public class ClientEventHandler {
             revolverPreTime = Mth.clamp(revolverPreTime - 1.2 * times, 0, 1);
         }
 
-        if (((holdingFireKey || burstFireAmount > 0) && holdingFireKeyTicks >= data.get(GunProp.SHOOT_DELAY))
+        if (((holdingFireKey || burstFireAmount > 0) && holdingFireKeyTicks >= computed.shootDelay)
                 && !(player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player))
                 && !holdFireVehicle
                 && gunItem.canShoot(data, player)
@@ -902,6 +1064,8 @@ public class ClientEventHandler {
         if (GunData.from(stack).reload.normal() || GunData.from(stack).reload.empty()) {
             customRpm = 0;
         }
+
+        data.save();
     }
 
     public static void shootClient(Player player) {
@@ -915,12 +1079,13 @@ public class ClientEventHandler {
             holdingFireKey = false;
         }
 
-        if (data.get(GunProp.CLEAR_HOLD_PROGRESS_AFTER_SHOOT)) {
+        var computed = data.compute();
+        if (computed.clearHoldProgressAfterShoot) {
             holdingFireKeyTicks = 0;
         }
 
         if (mode == FireMode.BURST && burstFireAmount == 1) {
-            fireCooldown = data.get(GunProp.BURST_COOLDOWN);
+            fireCooldown = computed.burstCooldown;
         }
 
         if (burstFireAmount > 0) {
@@ -947,7 +1112,7 @@ public class ClientEventHandler {
         }
 
         // 判断是否为栓动武器（BoltActionTime > 0），并在开火后给一个需要上膛的状态
-        if (data.get(GunProp.BOLT_ACTION_TIME) > 0 && data.hasEnoughAmmoToShoot(player)) {
+        if (computed.boltActionTime > 0 && data.hasEnoughAmmoToShoot(player)) {
             data.bolt.needed.set(true);
         }
 
@@ -973,12 +1138,13 @@ public class ClientEventHandler {
         NetworkRegistry.PACKET_HANDLER.sendToServer(new ShootMessage(gunSpread, zoom, lockedEntity != null ? lockedEntity.getUUID() : null));
         fireRecoilTime = 10;
 
-        // 真实后座（
-        if (data.get(GunProp.RECOIL) != 0) {
-            player.setDeltaMovement(player.getDeltaMovement().add(player.getViewVector(1).scale(-data.get(GunProp.RECOIL))));
+        // 真实后坐（
+        var computed = data.compute();
+        if (computed.recoil != 0) {
+            player.setDeltaMovement(player.getDeltaMovement().add(player.getViewVector(1).scale(-computed.recoil)));
         }
 
-        var gunRecoilY = data.get(GunProp.RECOIL_Y) * 10;
+        var gunRecoilY = computed.recoilY * 10;
 
         recoilY = (float) (2 * Math.random() - 1) * gunRecoilY;
 
@@ -1016,7 +1182,7 @@ public class ClientEventHandler {
                 shakePos[2] = z * shakeStrength;
                 shakeType = 2 * (Math.random() - 0.5);
             } else {
-                Mod.queueClientWork((int) (distance / 17), () -> {
+                Mod.queueClientWork(time2, () -> {
                     float shakeStrength = (float) DisplayConfig.EXPLOSION_SCREEN_SHAKE.get() / 100.0f;
                     if (shakeStrength <= 0.0f) return;
                     shakeTime = time;
@@ -1033,7 +1199,7 @@ public class ClientEventHandler {
 
     public static void playGunClientSounds(Player player) {
         ItemStack stack = player.getMainHandItem();
-        if (!(stack.getItem() instanceof GunItem gunItem)) {
+        if (!(stack.getItem() instanceof GunItem)) {
             return;
         }
 
@@ -1066,7 +1232,7 @@ public class ClientEventHandler {
         var data = GunData.from(stack);
 
         var perk = data.perk.get(Perk.Type.AMMO);
-        SoundInfo soundInfo = data.get(GunProp.SOUND_INFO);
+        SoundInfo soundInfo = data.compute().soundInfo;
 
         float pitch = data.heat.get() <= 75 ? 1 : (float) (1 - 0.02 * Math.abs(75 - data.heat.get()));
 
@@ -1115,8 +1281,16 @@ public class ClientEventHandler {
             holdFireVehicle = false;
         }
 
-        if (player.getVehicle() instanceof VehicleEntity pVehicle && player.getVehicle() instanceof WeaponVehicleEntity iVehicle && iVehicle.hasWeapon(pVehicle.getSeatIndex(player)) && iVehicle.canShoot(player)) {
-            int rpm = iVehicle.mainGunRpm(player);
+        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.hasWeapon(vehicle.getSeatIndex(player))) {
+            var gunData = vehicle.getGunData(vehicle.getSeatIndex(player));
+            if (gunData == null) return;
+
+            if (!vehicle.canShoot(player)) {
+                holdFireVehicle = false;
+                return;
+            }
+
+            int rpm = vehicle.vehicleWeaponRpm(player);
             if (rpm == 0) {
                 rpm = 240;
             }
@@ -1136,15 +1310,18 @@ public class ClientEventHandler {
 
                     // 低帧率下的开火次数补偿
                     do {
-                        NetworkRegistry.PACKET_HANDLER.sendToServer(VehicleFireMessage.INSTANCE);
+                        NetworkRegistry.PACKET_HANDLER.sendToServer(new VehicleFireMessage(lockingEntityVehicle != null ? lockingEntityVehicle.getUUID() : null, lockingPosVehicle != null ? lockingPosVehicle.toVector3f() : null));
                         if (Minecraft.getInstance().options.getCameraType() == CameraType.FIRST_PERSON || zoomVehicle) {
-                            playVehicleClientSounds(player, pVehicle);
+                            playVehicleClientSounds(player, vehicle);
                         }
 
                         newProgress -= cooldown;
                     } while (newProgress - cooldown > 0);
 
                     clientTimerVehicle.setProgress(newProgress);
+                }
+                if (gunData.compute().defaultFireMode.equals("Semi")) {
+                    holdFireVehicle = false;
                 }
             } else if (clientTimerVehicle.getProgress() >= cooldown) {
                 clientTimerVehicle.stop();
@@ -1156,16 +1333,14 @@ public class ClientEventHandler {
 
     public static void playVehicleClientSounds(Player player, VehicleEntity vehicle) {
         var gunData = vehicle.getGunData(vehicle.getSeatIndex(player));
-        if (gunData != null) {
-            var soundInfo = gunData.get(GunProp.SOUND_INFO);
-            float pitch = 1;
-            // TODO 正确获取热量
-//            float pitch = getWeaponHeat(living) <= 60 ? 1 : (float) (1 - 0.011 * java.lang.Math.abs(60 - getWeaponHeat(living)));
+        if (gunData == null) return;
 
-            var sound = soundInfo.fire1P;
-            if (sound != null) {
-                player.playSound(sound, 1f, pitch);
-            }
+        var soundInfo = gunData.compute().soundInfo;
+        float pitch = vehicle.getWeaponHeat(player) <= 60 ? 1 : (float) (1 - 0.011 * java.lang.Math.abs(60 - vehicle.getWeaponHeat(player)));
+
+        var sound = soundInfo.fire1P;
+        if (sound != null) {
+            player.playSound(sound, 1f, pitch);
         }
     }
 
@@ -1175,7 +1350,7 @@ public class ClientEventHandler {
         if (player == null) return;
         ItemStack stack = player.getMainHandItem();
         if (!(stack.getItem() instanceof GunItem gunItem)) return;
-        if (player.getVehicle() instanceof ArmedVehicleEntity iArmedVehicle && iArmedVehicle.isDriver(player) && iArmedVehicle.getVehicleEntity().hidePassenger(player))
+        if (player.getVehicle() instanceof VehicleEntity vehicle && player == vehicle.getFirstPassenger() && vehicle.hidePassenger(player))
             return;
 
         var data = GunData.from(stack);
@@ -1199,7 +1374,7 @@ public class ClientEventHandler {
             default -> 0.8;
         };
 
-        float customWeight = Mth.clamp(data.get(GunProp.WEIGHT).floatValue(), 1, 30);
+        float customWeight = (float) Mth.clamp(data.compute().weight, 1, 30);
 
         if (!breath && zoom) {
             float newPitch = (float) (player.getXRot() - 0.01f * Mth.sin((float) (0.03 * player.tickCount)) * pose * Mth.nextDouble(RandomSource.create(), 0.1, 1) * times * sway * (1 - 0.03 * customWeight));
@@ -1235,7 +1410,7 @@ public class ClientEventHandler {
         float pitch = event.getPitch();
         float roll = event.getRoll();
 
-        shakeTime = Mth.lerp(0.02 * event.getPartialTick(), shakeTime, 0);
+        shakeTime = Mth.lerp(0.05 * getDelta(), shakeTime, 0);
 
         if (player != null && shakeTime > 0) {
             float shakeRadiusAmplitude = (float) Mth.clamp(1 - player.position().distanceTo(new Vec3(shakePos[0], shakePos[1], shakePos[2])) / shakeRadius, 0, 1);
@@ -1324,7 +1499,7 @@ public class ClientEventHandler {
             }
         }
 
-        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player)) {
+        if (player.getVehicle() instanceof VehicleEntity vehicle && (vehicle.banHand(player) || (!zoom && Minecraft.getInstance().options.getCameraType() == CameraType.FIRST_PERSON && ModKeyMappings.FREE_CAMERA.isDown()))) {
             event.setCanceled(true);
         }
     }
@@ -1370,7 +1545,7 @@ public class ClientEventHandler {
                 animSpeed = 0.005;
             }
 
-            float customWeight = Mth.clamp(data.get(GunProp.WEIGHT).floatValue(), 1, 50);
+            float customWeight = (float) Mth.clamp(data.compute().weight, 1, 50);
 
             if (!isEditing) {
                 if (!entity.isSprinting() && Minecraft.getInstance().options.keyUp.isDown() && firePosTimer == 0) {
@@ -1489,7 +1664,8 @@ public class ClientEventHandler {
         var data = GunData.from(stack);
         float times = 5 * getDelta();
 
-        double weight = data.get(GunProp.WEIGHT);
+        var computed = data.compute();
+        double weight = computed.weight;
         double speed = 7 / (weight + 2);
 
         if (zoom
@@ -1497,7 +1673,7 @@ public class ClientEventHandler {
                 && !notInGame()
                 && drawTime < 0.01
                 && !isEditing
-                && !(data.reloading() && !data.get(GunProp.ZOOM_RELOAD))) {
+                && !(data.reloading() && !computed.zoomReload)) {
             if (Minecraft.getInstance().player != null) {
                 noSprintTicks = 5;
             }
@@ -1515,7 +1691,8 @@ public class ClientEventHandler {
         float times = (float) (2f * customAnimSpeed * Math.min(Minecraft.getInstance().getDeltaFrameTime(), 0.48f));
         ItemStack stack = entity.getMainHandItem();
         var data = GunData.from(stack);
-        double amplitude = 25000 * data.get(GunProp.RECOIL_Y) * data.get(GunProp.RECOIL_X);
+        var computed = data.compute();
+        double amplitude = 25000 * computed.recoilY * computed.recoilX;
 
         if (fireRecoilTime > 0) {
             firePosTimer = 0.001;
@@ -1686,15 +1863,16 @@ public class ClientEventHandler {
             default -> 2.0;
         };
 
-        double customWeight = data.get(GunProp.WEIGHT);
+        var computed = data.compute();
+        double customWeight = computed.weight;
 
         double rpm = 1;
 
         if (stack.is(ModItems.MINIGUN.get())) {
-            rpm = (double) data.get(GunProp.RPM) / 1800;
+            rpm = (double) computed.rpm / 1800;
         }
 
-        float gunRecoilX = data.get(GunProp.RECOIL_X).floatValue() * 60;
+        float gunRecoilX = (float) (computed.recoilX * 60);
 
         recoilHorizon = Mth.lerp(0.2 * times, recoilHorizon, 0) + recoilY;
         recoilY = 0;
@@ -1711,14 +1889,14 @@ public class ClientEventHandler {
             }
         }
 
-        // 水平后座
+        // 水平后坐
         float newYaw = player.getYRot() - (float) (0.6 * recoilHorizon * pose * times * (0.5 + fireSpread) * recoil * (4 / (customWeight + 4)) * gripRecoilX * rpm);
         player.setYRot(newYaw);
         player.yRotO = player.getYRot();
 
         double sinRes = 0;
 
-        // 竖直后座
+        // 竖直后坐
         if (0 < recoilTime && recoilTime < 0.5) {
             float newPitch = (float) (player.getXRot() - 0.02f * gunRecoilX * times * recoil * (4 / (customWeight + 4)) * gripRecoilY * rpm);
             player.setXRot(newPitch);
@@ -1846,8 +2024,8 @@ public class ClientEventHandler {
 
         ItemStack stack = player.getMainHandItem();
 
-        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player) && player.getVehicle() instanceof WeaponVehicleEntity iVehicle && zoomVehicle) {
-            event.setFOV(event.getFOV() / iVehicle.zoomFov());
+        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player) && zoomVehicle) {
+            event.setFOV(event.getFOV() / vehicle.getDefaultZoom(player));
             fov = event.getFOV();
             return;
         }
@@ -1883,9 +2061,9 @@ public class ClientEventHandler {
             customZoom = Mth.lerp(0.6 * times, customZoom, data.zoom() + (breath ? 0.75 : 0));
 
             if (mc.options.getCameraType().isFirstPerson()) {
-                event.setFOV(event.getFOV() / (1.0 + p * (customZoom - 1)));
+                event.setFOV(event.getFOV() / (1 + p * (customZoom - 1)));
             } else if (mc.options.getCameraType() == CameraType.THIRD_PERSON_BACK)
-                event.setFOV(event.getFOV() / (1.0 + p * 0.01));
+                event.setFOV(event.getFOV() / (1 + p * 0.01));
             fov = event.getFOV();
 
             // 智慧芯片
@@ -1916,7 +2094,7 @@ public class ClientEventHandler {
                             if (stack.is(ModItems.BOCEK.get())) {
                                 velocity = zoomTime * 24;
                             } else {
-                                velocity = data.get(GunProp.VELOCITY);
+                                velocity = data.compute().velocity;
                             }
 
                             Vec3 toVec = RangeTool.calculateFiringSolution(playerVec, targetVec, lockedEntity.getDeltaMovement(), velocity, hasGravity ? 0.03 : 0);
@@ -1955,7 +2133,7 @@ public class ClientEventHandler {
         float fromX = lastX;
         float fromY = Mth.wrapDegrees(lastY);
         float toX = (float) Mth.wrapDegrees(-(Mth.atan2(d1, d3) * 57.2957763671875));
-        float toY = (float) Mth.wrapDegrees((Mth.atan2(d2, d0) * 57.2957763671875) - 90.0F);
+        float toY = (float) Mth.wrapDegrees((Mth.atan2(d2, d0) * 57.2957763671875) - 90F);
 
         var diffY = Mth.wrapDegrees(toY - fromY);
         var finalY = Mth.wrapDegrees(fromY + diffY * 0.2F);
@@ -1966,8 +2144,12 @@ public class ClientEventHandler {
 
     @SubscribeEvent
     public static void setPlayerInvisible(RenderPlayerEvent.Pre event) {
+        var player = Minecraft.getInstance().player;
         var otherPlayer = event.getEntity();
         if (otherPlayer.getVehicle() instanceof VehicleEntity vehicle && vehicle.hidePassenger(otherPlayer)) {
+            event.setCanceled(true);
+        }
+        if (player != null && player.getVehicle() instanceof VehicleEntity && player == otherPlayer && zoomVehicle) {
             event.setCanceled(true);
         }
     }
@@ -1998,7 +2180,7 @@ public class ClientEventHandler {
             event.setCanceled(true);
         }
 
-        if (player.getVehicle() instanceof VehicleEntity pVehicle && player.getVehicle() instanceof WeaponVehicleEntity iVehicle && iVehicle.hasWeapon(pVehicle.getSeatIndex(player))) {
+        if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.hasWeapon(vehicle.getSeatIndex(player))) {
             event.setCanceled(true);
         }
 
@@ -2038,9 +2220,6 @@ public class ClientEventHandler {
         holdingFireKeyTicks = 0;
         holdingFireKeyTicks0 = 0;
         ClickHandler.switchZoom = false;
-        lungeDraw = 30;
-        lungeSprint = 0;
-        lungeAttack = 0;
         burstFireAmount = 0;
         bowPullTimer = 0;
         bowPower = 0;
@@ -2054,11 +2233,18 @@ public class ClientEventHandler {
         zoomTime = 0;
     }
 
+    public static void resetLungeMineStatus() {
+        lungeDraw = 30;
+        lungeSprint = 0;
+        lungeAttack = 0;
+        usingLunge = false;
+    }
+
     private static void handleWeaponDraw(LivingEntity entity) {
         float times = getDelta();
         ItemStack stack = entity.getMainHandItem();
         var data = GunData.from(stack);
-        double weight = data.get(GunProp.WEIGHT);
+        double weight = data.compute().weight;
         double speed = 20 / (weight + 5);
         drawTime = Math.max(drawTime - Math.max(0.2 * speed * times * drawTime, 0.0008), 0);
     }
@@ -2118,5 +2304,69 @@ public class ClientEventHandler {
     public static void editModelShake() {
         movePosY = -0.8;
         fireRotTimer = 0.4;
+    }
+
+    public static void stopSoundEvent(ResourceLocation location, SoundSource source) {
+        Minecraft.getInstance().getSoundManager().stop(location, source);
+    }
+
+    public static void stopVehicleSeekSound(Player player) {
+        if (player == null) return;
+        if (player.getVehicle() instanceof VehicleEntity vehicle) {
+            var gunData = vehicle.getGunData(player);
+            if (gunData == null) return;
+
+            var location = gunData.compute().soundInfo.locking.getLocation();
+            stopSoundEvent(location, SoundSource.PLAYERS);
+        }
+    }
+
+    public static void stopWeaponSeekSound(Player player) {
+        if (player == null) return;
+        ItemStack stack = player.getMainHandItem();
+        if (stack.getItem() instanceof GunItem) {
+            var gunData = GunData.from(stack);
+            var location = gunData.compute().soundInfo.locking.getLocation();
+            stopSoundEvent(location, SoundSource.PLAYERS);
+        }
+    }
+
+    public static void stopVehicleReloadSound(Player player) {
+        if (player == null) return;
+        if (player.getVehicle() instanceof VehicleEntity vehicle) {
+            var gunData = vehicle.getGunData(player);
+            if (gunData == null) return;
+            var location = gunData.compute().soundInfo.vehicleReload.getLocation();
+            stopSoundEvent(location, SoundSource.PLAYERS);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onRenderNameTag(RenderNameTagEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        var self = Minecraft.getInstance().player;
+        if (self == null || self == player) return;
+        if (!(self.getVehicle() instanceof VehicleEntity)) return;
+        if (self.isPassengerOfSameVehicle(player)) {
+            event.setResult(Event.Result.DENY);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!DisplayConfig.ENABLE_VERSION_CHECK_WARNING.get()) return;
+
+        var player = event.getEntity();
+        if (player == null) return;
+        if (ModVersionEventHandler.currentVersion == null || ModVersionEventHandler.previousVersion == null) return;
+
+        player.displayClientMessage(Component.translatable("tips.superbwarfare.vehicle_reset_kit_1",
+                        Component.literal("" + ModVersionEventHandler.previousVersion).withStyle(ChatFormatting.YELLOW),
+                        Component.literal("" + ModVersionEventHandler.currentVersion).withStyle(ChatFormatting.YELLOW))
+                .withStyle(ChatFormatting.RED), false);
+        player.displayClientMessage(Component.translatable("tips.superbwarfare.vehicle_reset_kit_2",
+                Component.literal("[").append(ModItems.VEHICLE_RESET_KIT.get().getDefaultInstance().getHoverName()).append("]").withStyle(ChatFormatting.GREEN)), false);
+        player.displayClientMessage(Component.translatable("tips.superbwarfare.vehicle_reset_kit_3")
+                .withStyle(ChatFormatting.AQUA).withStyle(ChatFormatting.UNDERLINE), false);
     }
 }

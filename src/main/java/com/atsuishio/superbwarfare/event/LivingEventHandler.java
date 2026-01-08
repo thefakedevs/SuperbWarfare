@@ -9,12 +9,11 @@ import com.atsuishio.superbwarfare.config.server.MiscConfig;
 import com.atsuishio.superbwarfare.config.server.VehicleConfig;
 import com.atsuishio.superbwarfare.data.gun.Ammo;
 import com.atsuishio.superbwarfare.data.gun.GunData;
-import com.atsuishio.superbwarfare.data.gun.GunProp;
 import com.atsuishio.superbwarfare.data.gun.value.ReloadState;
 import com.atsuishio.superbwarfare.entity.TargetEntity;
+import com.atsuishio.superbwarfare.entity.mixin.ExplosionAccess;
 import com.atsuishio.superbwarfare.entity.mixin.ICustomKnockback;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ArmedVehicleEntity;
-import com.atsuishio.superbwarfare.entity.vehicle.base.AutoAimable;
+import com.atsuishio.superbwarfare.entity.vehicle.base.AutoAimableEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.*;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
@@ -40,16 +39,20 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.block.entity.HopperBlockEntity;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.*;
 import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
+import net.minecraftforge.event.level.ExplosionEvent;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.network.PacketDistributor;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -63,7 +66,7 @@ public class LivingEventHandler {
     @SubscribeEvent
     public static void onLivingChangeTargetEvent(LivingChangeTargetEvent event) {
         if (event.getEntity() instanceof Mob mob && mob.getVehicle() instanceof VehicleEntity vehicle) {
-            if (mob == vehicle.getFirstPassenger()) {
+            if (mob == vehicle.getNthEntity(vehicle.getTurretControllerIndex())) {
                 if (event.getNewTarget() != null) {
                     vehicle.getEntityData().set(AI_TURRET_TARGET_UUID, event.getNewTarget().getStringUUID());
                 } else {
@@ -71,7 +74,7 @@ public class LivingEventHandler {
                 }
             }
 
-            if (mob == vehicle.getNthEntity(1)) {
+            if (mob == vehicle.getNthEntity(vehicle.getPassengerWeaponStationControllerIndex())) {
                 if (event.getNewTarget() != null) {
                     vehicle.getEntityData().set(AI_PASSENGER_WEAPON_TARGET_UUID, event.getNewTarget().getStringUUID());
                 } else {
@@ -125,18 +128,18 @@ public class LivingEventHandler {
     }
 
     private static void handleVehicleHurt(LivingHurtEvent event) {
-        var vehicle = event.getEntity().getVehicle();
-        if (vehicle instanceof VehicleEntity && vehicle instanceof ArmedVehicleEntity iArmedVehicle) {
+        var entity = event.getEntity().getVehicle();
+        if (entity instanceof VehicleEntity vehicle) {
             var source = event.getSource();
             if (source.is(ModTags.DamageTypes.VEHICLE_IGNORE)) return;
 
-            if (iArmedVehicle.getVehicleEntity().isEnclosed(event.getEntity())) {
+            if (vehicle.isEnclosed(event.getEntity())) {
                 if (!source.is(ModDamageTypes.VEHICLE_EXPLOSION)) {
                     event.setCanceled(true);
                 }
             } else {
                 if (!source.is(ModTags.DamageTypes.VEHICLE_NOT_ABSORB)) {
-                    vehicle.hurt(event.getSource(), 0.7f * event.getAmount());
+                    entity.hurt(event.getSource(), 0.7f * event.getAmount());
                 }
 
                 event.setAmount(0.3f * event.getAmount());
@@ -224,7 +227,7 @@ public class LivingEventHandler {
 
         // 先处理发射器类武器或高爆弹的爆炸伤害
         if (source.is(ModDamageTypes.PROJECTILE_EXPLOSION)) {
-            if (data.get(GunProp.EXPLOSION_DAMAGE) > 0 || GunData.from(stack).perk.getLevel(ModPerks.HE_BULLET) > 0) {
+            if (data.compute().explosionDamage > 0 || GunData.from(stack).perk.getLevel(ModPerks.HE_BULLET) > 0) {
                 data.exp.set(data.exp.get() + amount);
             }
         }
@@ -233,6 +236,7 @@ public class LivingEventHandler {
         if (!DamageTypeTool.isGunDamage(source)) return;
 
         data.exp.set(data.exp.get() + amount);
+        data.save();
     }
 
     private static void giveKillExpToWeapon(LivingDeathEvent event) {
@@ -249,14 +253,14 @@ public class LivingEventHandler {
 
         // 先处理发射器类武器或高爆弹的爆炸伤害
         if (source.is(ModDamageTypes.PROJECTILE_EXPLOSION)) {
-            if (data.get(GunProp.EXPLOSION_DAMAGE) > 0 || GunData.from(stack).perk.getLevel(ModPerks.HE_BULLET) > 0) {
-                data.exp.set(data.exp.get() + amount);
+            if (data.compute().explosionDamage > 0 || GunData.from(stack).perk.getLevel(ModPerks.HE_BULLET) > 0) {
+                data.exp.add(amount);
             }
         }
 
         // 再判断是不是枪械能造成的伤害
         if (DamageTypeTool.isGunDamage(source)) {
-            data.exp.set(data.exp.get() + amount);
+            data.exp.add(amount);
         }
 
         // 提升武器等级
@@ -270,8 +274,8 @@ public class LivingEventHandler {
             upgradeExpNeeded = 20 * Math.pow(level, 2) + 160 * level + 20;
             data.exp.set(exp);
             data.level.set(level);
-            data.upgradePoint.set(data.upgradePoint.get() + 0.5);
         }
+        data.save();
     }
 
     private static void handleGunLevels(LivingHurtEvent event) {
@@ -294,8 +298,8 @@ public class LivingEventHandler {
             upgradeExpNeeded = 20 * Math.pow(level, 2) + 160 * level + 20;
             data.exp.set(exp);
             data.level.set(level);
-            data.upgradePoint.set(data.upgradePoint.get() + 0.5);
         }
+        data.save();
     }
 
     private static void killIndication(LivingDeathEvent event) {
@@ -367,7 +371,7 @@ public class LivingEventHandler {
                 if (newStack.getItem() != oldStack.getItem()
                         || newStack.getTag() == null || oldStack.getTag() == null
                         || (newStack.getItem() instanceof GunItem && !GunData.from(newStack).initialized())
-                        || (oldStack.getItem() instanceof GunItem && !GunData.from(newStack).initialized())
+                        || (oldStack.getItem() instanceof GunItem && !GunData.from(oldStack).initialized())
                         || (newStack.getItem() instanceof GunItem && oldStack.getItem() instanceof GunItem && !Objects.equals(GunsTool.getGunUUID(newStack), GunsTool.getGunUUID(oldStack)))
                 ) {
                     NetworkRegistry.PACKET_HANDLER.send(PacketDistributor.PLAYER.with(() -> serverPlayer), DrawClientMessage.INSTANCE);
@@ -377,7 +381,7 @@ public class LivingEventHandler {
 
                         stopGunReloadSound(serverPlayer, oldData);
 
-                        if (oldData.get(GunProp.BOLT_ACTION_TIME) > 0) {
+                        if (oldData.compute().boltActionTime > 0) {
                             oldData.bolt.actionTimer.reset();
                         }
 
@@ -385,7 +389,7 @@ public class LivingEventHandler {
 
                         oldData.reload.setState(ReloadState.NOT_RELOADING);
 
-                        if (oldData.get(GunProp.ITERATIVE_TIME) != 0) {
+                        if (oldData.compute().iterativeTime != 0) {
                             oldData.stopped.set(false);
                             oldData.forceStop.set(false);
                             oldData.reload.setStage(0);
@@ -399,20 +403,22 @@ public class LivingEventHandler {
                             oldData.charge.timer.reset();
                         }
 
-                        oldGun.onChangeSlot(oldStack, player);
+                        // TODO 如何保存修改后的数据
+                        oldGun.onChangeSlot(oldData, player);
+                        oldData.save();
                     }
 
                     if (newStack.getItem() instanceof GunItem) {
                         var newData = GunData.from(newStack);
 
-                        if (newData.get(GunProp.BOLT_ACTION_TIME) > 0) {
+                        if (newData.compute().boltActionTime > 0) {
                             newData.bolt.actionTimer.reset();
                         }
 
                         newData.reload.setState(ReloadState.NOT_RELOADING);
                         newData.reload.reloadTimer.reset();
 
-                        if (newData.get(GunProp.ITERATIVE_TIME) != 0) {
+                        if (newData.compute().iterativeTime != 0) {
                             newData.forceStop.set(false);
                             newData.stopped.set(false);
                             newData.reload.setStage(0);
@@ -432,6 +438,8 @@ public class LivingEventHandler {
                                 instance.perk().onChangeSlot(newData, instance, player);
                             }
                         }
+
+                        newData.save();
                     }
                 }
             }
@@ -441,26 +449,26 @@ public class LivingEventHandler {
     private static void checkCopyGuns(ItemStack stack, Player player) {
         var data = GunData.from(stack);
         if (!data.initialized()) return;
-        if (data.data == null) return;
-        var uuid = data.data.getUUID("UUID");
+        if (data.gunDataTag == null) return;
+        var uuid = data.gunDataTag.getUUID("UUID");
 
         for (var item : player.getInventory().items) {
             if (item.equals(stack)) continue;
             if (item.getItem() instanceof GunItem) {
                 var itemData = GunData.from(item);
-                var dataTag = itemData.data;
+                var dataTag = itemData.gunDataTag;
                 if (dataTag == null) continue;
                 if (!dataTag.hasUUID("UUID")) continue;
                 if (dataTag.getUUID("UUID").equals(uuid)) {
-                    data.data.putUUID("UUID", UUID.randomUUID());
+                    data.gunDataTag.putUUID("UUID", UUID.randomUUID());
                     return;
                 }
             }
         }
     }
 
-    private static void stopGunReloadSound(ServerPlayer player, GunData data) {
-        var soundInfo = data.get(GunProp.SOUND_INFO);
+    public static void stopGunReloadSound(ServerPlayer player, GunData data) {
+        var soundInfo = data.compute().soundInfo;
         soundInfo.cancellableSounds.list
                 .forEach(str -> {
                     var location = ResourceLocation.tryParse(str);
@@ -661,7 +669,7 @@ public class LivingEventHandler {
         Player player = event.getAttackingPlayer();
         if (player == null) return;
 
-        if (player.getVehicle() instanceof ArmedVehicleEntity) {
+        if (player.getVehicle() instanceof VehicleEntity) {
             player.giveExperiencePoints(event.getDroppedExperience());
             event.setCanceled(true);
         }
@@ -689,14 +697,14 @@ public class LivingEventHandler {
 
     @SubscribeEvent
     public static void onPreSendKillMessage(PreKillEvent.SendKillMessage event) {
-        if (event.getSource().getDirectEntity() instanceof AutoAimable && !(event.getTarget() instanceof Player)) {
+        if (event.getSource().getDirectEntity() instanceof AutoAimableEntity && !(event.getTarget() instanceof Player)) {
             event.setCanceled(true);
         }
     }
 
     @SubscribeEvent
     public static void onPreIndicator(PreKillEvent.Indicator event) {
-        if (event.getSource().getDirectEntity() instanceof AutoAimable && !(event.getTarget() instanceof Player)) {
+        if (event.getSource().getDirectEntity() instanceof AutoAimableEntity && !(event.getTarget() instanceof Player)) {
             event.setCanceled(true);
         }
     }
@@ -708,6 +716,42 @@ public class LivingEventHandler {
                 && vehicle.isEnclosed(vehicle.getSeatIndex(event.getEntity()))
         ) {
             event.setResult(Event.Result.DENY);
+        }
+    }
+
+    /**
+     * 取消原版爆炸对载具的影响，改为单独计算
+     * Code based on YWZJ-Vehicle
+     */
+    @SubscribeEvent
+    public static void onExplosionDetonate(ExplosionEvent.Detonate event) {
+        var explosion = event.getExplosion();
+        if (explosion instanceof CustomExplosion) return;
+
+        Iterator<Entity> iterator = event.getAffectedEntities().iterator();
+        while (iterator.hasNext()) {
+            Entity entity = iterator.next();
+            if (entity instanceof VehicleEntity) {
+                iterator.remove();
+
+                Vec3 explosionPos = explosion.getPosition();
+                float explosionRadius = ((ExplosionAccess) explosion).superbwarfare$getRadius() * 2.0F;
+                if (!entity.ignoreExplosion()) {
+                    double distanceRatio = Math.sqrt(entity.distanceToSqr(explosionPos)) / explosionRadius;
+                    if (distanceRatio <= 1.0D) {
+                        double dx = entity.getX() - explosionPos.x;
+                        double dy = entity.getEyeY() - explosionPos.y;
+                        double dz = entity.getZ() - explosionPos.z;
+                        double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                        if (distance != 0.0D) {
+                            double visibilityFactor = Explosion.getSeenPercent(explosionPos, entity);
+                            double impactStrength = (1.0D - distanceRatio) * visibilityFactor;
+                            float damage = (float) ((int) ((impactStrength * impactStrength + impactStrength) / 2.0D * 7.0D * explosionRadius + 1.0D));
+                            entity.hurt(explosion.getDamageSource(), damage);
+                        }
+                    }
+                }
+            }
         }
     }
 }

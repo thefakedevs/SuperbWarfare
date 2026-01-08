@@ -20,7 +20,6 @@ import software.bernie.geckolib.model.GeoModel;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 
 public abstract class VehicleRenderer<T extends VehicleEntity & GeoAnimatable> extends GeoEntityRenderer<T> {
-
     public VehicleRenderer(EntityRendererProvider.Context renderManager, GeoModel<T> model) {
         super(renderManager, model);
     }
@@ -36,7 +35,7 @@ public abstract class VehicleRenderer<T extends VehicleEntity & GeoAnimatable> e
     }
 
     @Override
-    public void render(T entityIn, float entityYaw, float partialTicks, PoseStack poseStack, @NotNull MultiBufferSource bufferIn, int packedLightIn) {
+    public void render(@NotNull T entityIn, float entityYaw, float partialTicks, PoseStack poseStack, @NotNull MultiBufferSource bufferIn, int packedLightIn) {
         poseStack.pushPose();
         vehicleAxis(entityIn, poseStack, entityYaw, partialTicks);
         super.render(entityIn, entityYaw, partialTicks, poseStack, bufferIn, packedLightIn);
@@ -45,7 +44,7 @@ public abstract class VehicleRenderer<T extends VehicleEntity & GeoAnimatable> e
     }
 
     public void vehicleAxis(T entityIn, PoseStack poseStack, float entityYaw, float partialTicks) {
-        Vec3 root = new Vec3(0, entityIn.rotateOffsetHeight(), 0);
+        Vec3 root = new Vec3(0, entityIn.getRotateOffsetHeight(), 0);
         poseStack.rotateAround(Axis.YP.rotationDegrees(-entityYaw), (float) root.x, (float) root.y, (float) root.z);
         poseStack.rotateAround(Axis.XP.rotationDegrees(Mth.lerp(partialTicks, entityIn.xRotO, entityIn.getXRot())), (float) root.x, (float) root.y, (float) root.z);
         poseStack.rotateAround(Axis.ZP.rotationDegrees(Mth.lerp(partialTicks, entityIn.prevRoll, entityIn.getRoll())), (float) root.x, (float) root.y, (float) root.z);
@@ -61,9 +60,9 @@ public abstract class VehicleRenderer<T extends VehicleEntity & GeoAnimatable> e
         } else if (vehicle.noCulling) {
             return true;
         } else {
-            AABB aabb = vehicle.getBoundingBoxForCulling().inflate(3);
-            if (aabb.hasNaN() || aabb.getSize() == 0.0) {
-                aabb = new AABB(vehicle.getX() - 5.0, vehicle.getY() - 4.0, vehicle.getZ() - 5.0, vehicle.getX() + 5.0, vehicle.getY() + 4.0, vehicle.getZ() + 5.0);
+            AABB aabb = vehicle.getBoundingBoxForCulling().inflate(5);
+            if (aabb.hasNaN() || aabb.getSize() == 0) {
+                aabb = new AABB(vehicle.getX() - 8.0, vehicle.getY() - 6.0, vehicle.getZ() - 8.0, vehicle.getX() + 8.0, vehicle.getY() + 6.0, vehicle.getZ() + 8.0);
             }
 
             return pCamera.isVisible(aabb);

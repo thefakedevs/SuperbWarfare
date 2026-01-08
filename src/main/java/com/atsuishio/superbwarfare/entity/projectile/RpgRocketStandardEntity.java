@@ -3,7 +3,6 @@ package com.atsuishio.superbwarfare.entity.projectile;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.config.server.ExplosionConfig;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
-import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
 import com.atsuishio.superbwarfare.network.NetworkRegistry;
@@ -26,7 +25,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
@@ -37,7 +35,7 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
-public class RpgRocketStandardEntity extends FastThrowableProjectile implements GeoEntity, ExplosiveProjectile {
+public class RpgRocketStandardEntity extends FastThrowableProjectile implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -51,18 +49,14 @@ public class RpgRocketStandardEntity extends FastThrowableProjectile implements 
         this.gravity = 0.015f;
     }
 
-    public RpgRocketStandardEntity(EntityType<? extends ThrowableItemProjectile> pEntityType, double pX, double pY, double pZ, Level pLevel, float damage, float explosionDamage, float explosionRadius, float gravity) {
+    public RpgRocketStandardEntity(EntityType<? extends ThrowableItemProjectile> pEntityType, double pX, double pY, double pZ, Level pLevel, float damage, float explosionDamage, float explosionRadius) {
         super(pEntityType, pX, pY, pZ, pLevel);
         this.noCulling = true;
         this.durability = 50;
         this.damage = damage;
         this.explosionDamage = explosionDamage;
         this.explosionRadius = explosionRadius;
-        this.gravity = gravity;
-    }
-
-    public RpgRocketStandardEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
-        this(ModEntities.RPG_ROCKET_STANDARD.get(), level);
+        this.gravity = 0.015f;
     }
 
     @Override
@@ -99,7 +93,7 @@ public class RpgRocketStandardEntity extends FastThrowableProjectile implements 
     }
 
     @Override
-    protected void onHitEntity(EntityHitResult result) {
+    protected void onHitEntity(@NotNull EntityHitResult result) {
         super.onHitEntity(result);
         Entity entity = result.getEntity();
         if (this.getOwner() != null && this.getOwner().getVehicle() != null && entity == this.getOwner().getVehicle())
@@ -185,11 +179,6 @@ public class RpgRocketStandardEntity extends FastThrowableProjectile implements 
     }
 
     @Override
-    public @NotNull SoundEvent getCloseSound() {
-        return ModSounds.ROCKET_ENGINE.get();
-    }
-
-    @Override
     public @NotNull SoundEvent getSound() {
         return ModSounds.ROCKET_FLY.get();
     }
@@ -197,10 +186,5 @@ public class RpgRocketStandardEntity extends FastThrowableProjectile implements 
     @Override
     public float getVolume() {
         return 0.2f;
-    }
-
-    @Override
-    public boolean forceLoadChunk() {
-        return true;
     }
 }

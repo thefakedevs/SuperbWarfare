@@ -1,6 +1,9 @@
 package com.atsuishio.superbwarfare.entity.projectile;
 
-import com.atsuishio.superbwarfare.init.*;
+import com.atsuishio.superbwarfare.init.ModDamageTypes;
+import com.atsuishio.superbwarfare.init.ModItems;
+import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.init.ModTags;
 import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.receive.ClientIndicatorMessage;
 import com.atsuishio.superbwarfare.tools.CustomExplosion;
@@ -18,12 +21,12 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
@@ -37,35 +40,26 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class SwarmDroneEntity extends MissileProjectile implements GeoEntity, ExplosiveProjectile {
-
+public class SwarmDroneEntity extends MissileProjectile implements GeoEntity {
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
-
-    public float targetX;
-    public float targetY;
-    public float targetZ;
     public float randomFloat;
-    public int guideType = 0;
 
     public SwarmDroneEntity(EntityType<? extends SwarmDroneEntity> type, Level level) {
         super(type, level);
         this.noCulling = true;
         this.explosionDamage = 80f;
         this.explosionRadius = 5f;
-        this.gravity = 0.1f;
         randomFloat = random.nextFloat();
     }
 
-    public SwarmDroneEntity(LivingEntity entity, Level level, float explosionDamage, float explosionRadius) {
-        super(ModEntities.SWARM_DRONE.get(), entity, level);
-        this.noCulling = true;
-        this.explosionDamage = explosionDamage;
-        this.explosionRadius = explosionRadius;
-        this.gravity = 0.1f;
-    }
+    @Override
+    public boolean hurt(@NotNull DamageSource source, float amount) {
+        var entity = source.getDirectEntity();
+        if (entity instanceof SwarmDroneEntity swarmDrone && swarmDrone.getOwner() == this.getOwner()) {
+            return false;
+        }
 
-    public SwarmDroneEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
-        this(ModEntities.SWARM_DRONE.get(), level);
+        return super.hurt(source, amount);
     }
 
     @Override
@@ -73,20 +67,9 @@ public class SwarmDroneEntity extends MissileProjectile implements GeoEntity, Ex
         return ModItems.SWARM_DRONE.get();
     }
 
-    public void setGuideType(int guideType) {
-        this.guideType = guideType;
-    }
-
-    public void setTargetVec(Vec3 targetPos) {
-        if (targetPos != null) {
-            this.targetX = (float) targetPos.x;
-            this.targetY = (float) targetPos.y;
-            this.targetZ = (float) targetPos.z;
-        }
-    }
 
     @Override
-    protected void onHitEntity(EntityHitResult result) {
+    protected void onHitEntity(@NotNull EntityHitResult result) {
         super.onHitEntity(result);
         Entity entity = result.getEntity();
         if (entity instanceof SwarmDroneEntity) {
@@ -142,8 +125,13 @@ public class SwarmDroneEntity extends MissileProjectile implements GeoEntity, Ex
             if (guideType == 0 && entity != null) {
                 Vec3 targetVec = new Vec3(entity.getDeltaMovement().x, 0, entity.getDeltaMovement().z);
                 targetPos = entity.getEyePosition().add(targetVec);
+                this.targetPos = targetPos;
+            } else if (this.targetPos != null) {
+                targetPos = this.targetPos;
             } else {
-                targetPos = new Vec3(targetX, targetY, targetZ);
+                BlockHitResult result = shooter.level().clip(new ClipContext(shooter.getEyePosition(), shooter.getEyePosition().add(shooter.getLookAngle().scale(512)),
+                        ClipContext.Block.OUTLINE, ClipContext.Fluid.ANY, shooter));
+                targetPos = result.getLocation();
             }
 
             if (tickCount %5 == 0) {
@@ -153,7 +141,7 @@ public class SwarmDroneEntity extends MissileProjectile implements GeoEntity, Ex
             double dis = position().vectorTo(shooter.position()).horizontalDistance();
             double dis2 = position().distanceToSqr(targetPos);
             double disShooter = shooter.position().vectorTo(targetPos).horizontalDistance();
-            double randomPos = Mth.cos((float) Mth.clamp(dis / disShooter, 0, 1) * 1.5f * Mth.PI) * dis * 10 * randomFloat;
+            double randomPos = Mth.cos((float) Mth.clamp(dis / disShooter, 0, 1) * 1.5f * Mth.PI) * dis * 4 * randomFloat;
 
             Vec3 toVec = this.position().vectorTo(targetPos).add(new Vec3(-randomPos, Mth.abs((float) randomPos) * 0.02, randomPos).scale(1 - Mth.clamp(0.02 * (tickCount - 20), 0, 1))).normalize();
             turn(toVec, 90);
@@ -210,8 +198,8 @@ public class SwarmDroneEntity extends MissileProjectile implements GeoEntity, Ex
     }
 
     @Override
-    public @NotNull SoundEvent getCloseSound() {
-        return ModSounds.DRONE_SOUND.get();
+    public @NotNull SoundEvent getSound() {
+        return ModSounds.DRONE_ENGINE.get();
     }
 
     @Override
@@ -235,7 +223,7 @@ public class SwarmDroneEntity extends MissileProjectile implements GeoEntity, Ex
 
     @Override
     public void shoot(double pX, double pY, double pZ, float pVelocity, float pInaccuracy) {
-        Vec3 vec3 = (new Vec3(pX, pY, pZ)).normalize().add(this.random.triangle(0.0D, 0.0172275D * (double) pInaccuracy), this.random.triangle(0.0D, 0.0172275D * (double) pInaccuracy), this.random.triangle(0.0D, 0.0172275D * (double) pInaccuracy)).scale((double) pVelocity);
+        Vec3 vec3 = (new Vec3(pX, pY, pZ)).normalize().add(this.random.triangle(0, 0.0172275 * (double) pInaccuracy), this.random.triangle(0, 0.0172275 * (double) pInaccuracy), this.random.triangle(0, 0.0172275 * (double) pInaccuracy)).scale(pVelocity);
         this.setDeltaMovement(vec3);
     }
 }

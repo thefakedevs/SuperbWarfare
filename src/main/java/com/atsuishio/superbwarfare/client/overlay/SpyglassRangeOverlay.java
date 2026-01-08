@@ -5,10 +5,7 @@ import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.init.ModItems;
-import com.atsuishio.superbwarfare.tools.EntityFindUtil;
-import com.atsuishio.superbwarfare.tools.FormatTool;
-import com.atsuishio.superbwarfare.tools.TraceTool;
-import com.atsuishio.superbwarfare.tools.VectorUtil;
+import com.atsuishio.superbwarfare.tools.*;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -75,7 +72,7 @@ public class SpyglassRangeOverlay implements IGuiOverlay {
                 float k = ((screenWidth - i) / 2);
                 float l = ((screenHeight - j) / 2);
                 float w = i * 21 / 9;
-                preciseBlit(guiGraphics, SPYGLASS, k - (2 * w / 7), l, 0, 0.0F, w, j, w, j);
+                preciseBlit(guiGraphics, SPYGLASS, k - (2 * w / 7), l, 0, 0, w, j, w, j);
 
                 double targetX = stack.getOrCreateTag().getDouble("TargetX");
                 double targetY = stack.getOrCreateTag().getDouble("TargetY");
@@ -96,7 +93,7 @@ public class SpyglassRangeOverlay implements IGuiOverlay {
                     var tag = tags.getCompound(m);
                     Entity entity = EntityFindUtil.findEntity(player.level(), tag.getString("UUID"));
                     if (entity != null) {
-                        Vec3 posF = entity.getBoundingBox().getCenter();
+                        Vec3 posF = VectorTool.lerpGetEntityBoundingBoxCenter(entity, partialTick);
                         Vec3 pointF = VectorUtil.worldToScreen(posF);
                         if (VectorUtil.canSee(posF)) {
                             float xf = (float) pointF.x;

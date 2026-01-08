@@ -6,7 +6,6 @@ import com.atsuishio.superbwarfare.capability.player.PlayerVariable;
 import com.atsuishio.superbwarfare.config.common.GameplayConfig;
 import com.atsuishio.superbwarfare.config.server.MiscConfig;
 import com.atsuishio.superbwarfare.data.gun.GunData;
-import com.atsuishio.superbwarfare.data.gun.GunProp;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModParticleTypes;
@@ -101,9 +100,10 @@ public class PlayerEventHandler {
                 if (!InventoryTool.hasCreativeAmmoBox(player)) {
                     data.reloadAmmo(player);
                 } else {
-                    data.ammo.set(data.get(GunProp.MAGAZINE));
+                    data.ammo.set(data.compute().magazine);
                 }
                 data.holdOpen.set(false);
+                data.save();
             }
         }
     }
@@ -166,9 +166,10 @@ public class PlayerEventHandler {
 
         if (left.getItem() instanceof GunItem && right.getItem() == ModItems.SHORTCUT_PACK.get()) {
             ItemStack output = left.copy();
-            var data = GunData.from(output);
 
-            data.upgradePoint.set(data.upgradePoint.get() + 1);
+            var data = GunData.from(output);
+            data.level.add(1);
+            data.save();
 
             event.setOutput(output);
             event.setCost(10);

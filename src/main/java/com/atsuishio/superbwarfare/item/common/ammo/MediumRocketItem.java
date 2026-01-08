@@ -39,7 +39,7 @@ public class MediumRocketItem extends Item implements DispenserLaunchable {
     }
 
     public MediumRocketEntity createProjectile(Level level, Position pos) {
-        return new MediumRocketEntity(ModEntities.MEDIUM_ROCKET.get(), pos.x(), pos.y(), pos.z(), level, damage, radius, explosionDamage, fireProbability, fireTime, type, sparedAmount);
+        return new MediumRocketEntity(ModEntities.MEDIUM_ROCKET.get(), pos.x(), pos.y(), pos.z(), level, damage, radius, explosionDamage, fireProbability, fireTime, type, sparedAmount, 15);
     }
 
     @Override
@@ -59,7 +59,7 @@ public class MediumRocketItem extends Item implements DispenserLaunchable {
 
             @Override
             protected void playSound(@NotNull BlockSource pSource) {
-                pSource.getLevel().playSound(null, pSource.getPos(), ModSounds.MEDIUM_ROCKET_FIRE.get(), SoundSource.BLOCKS, 4.0F, 1.0F);
+                pSource.getLevel().playSound(null, pSource.getPos(), ModSounds.MEDIUM_ROCKET_FIRE.get(), SoundSource.BLOCKS, 4, 1);
             }
         };
     }

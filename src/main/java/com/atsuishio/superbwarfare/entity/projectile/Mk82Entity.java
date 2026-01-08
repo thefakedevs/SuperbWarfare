@@ -1,19 +1,15 @@
 package com.atsuishio.superbwarfare.entity.projectile;
 
-import com.atsuishio.superbwarfare.config.server.ExplosionConfig;
-import com.atsuishio.superbwarfare.init.ModEntities;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
 import com.atsuishio.superbwarfare.tools.ProjectileTool;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
@@ -24,36 +20,25 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
-public class Mk82Entity extends DestroyableProjectile implements GeoEntity, ExplosiveProjectile {
+public class Mk82Entity extends DestroyableProjectile implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
     public Mk82Entity(EntityType<? extends Mk82Entity> type, Level level) {
         super(type, level);
         this.noCulling = true;
-        this.explosionRadius = ExplosionConfig.MK_82_EXPLOSION_RADIUS.get().floatValue();
-        this.explosionDamage = ExplosionConfig.MK_82_EXPLOSION_DAMAGE.get();
-        this.gravity = 0.06f;
+        this.explosionRadius = 22;
+        this.explosionDamage = 650;
     }
 
-    public Mk82Entity(LivingEntity entity, Level level) {
-        super(ModEntities.MK_82.get(), entity, level);
-        this.noCulling = true;
-        this.explosionRadius = ExplosionConfig.MK_82_EXPLOSION_RADIUS.get().floatValue();
-        this.explosionDamage = ExplosionConfig.MK_82_EXPLOSION_DAMAGE.get();
-        this.gravity = 0.06f;
-    }
+    @Override
+    public boolean hurt(@NotNull DamageSource source, float amount) {
+        var entity = source.getDirectEntity();
+        if (entity instanceof Mk82Entity mk82Entity && mk82Entity.getOwner() == this.getOwner()) {
+            return false;
+        }
 
-    public Mk82Entity(PlayMessages.SpawnEntity spawnEntity, Level level) {
-        this(ModEntities.MK_82.get(), level);
-    }
-
-    public Mk82Entity(EntityType<? extends ThrowableItemProjectile> pEntityType, double pX, double pY, double pZ, Level pLevel) {
-        super(pEntityType, pX, pY, pZ, pLevel);
-        this.noCulling = true;
-        this.explosionRadius = ExplosionConfig.MK_82_EXPLOSION_RADIUS.get().floatValue();
-        this.explosionDamage = ExplosionConfig.MK_82_EXPLOSION_DAMAGE.get();
-        this.gravity = 0.06f;
+        return super.hurt(source, amount);
     }
 
     @Override

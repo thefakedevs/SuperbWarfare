@@ -26,7 +26,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.animatable.GeoEntity;
@@ -34,7 +33,7 @@ import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
-public class PtkmProjectileEntity extends FastThrowableProjectile implements ExplosiveProjectile, GeoEntity {
+public class PtkmProjectileEntity extends FastThrowableProjectile implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
 
@@ -54,10 +53,6 @@ public class PtkmProjectileEntity extends FastThrowableProjectile implements Exp
         this.damage = 500;
         this.explosionDamage = 80;
         this.explosionRadius = 7;
-    }
-
-    public PtkmProjectileEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
-        this(ModEntities.PTKM_PROJECTILE.get(), level);
     }
 
     @Override
@@ -244,5 +239,10 @@ public class PtkmProjectileEntity extends FastThrowableProjectile implements Exp
                 level().addParticle(ParticleTypes.CAMPFIRE_COSY_SMOKE, pos.x, pos.y, pos.z, 0, 0, 0);
             }
         }
+    }
+
+    @Override
+    public boolean isFastMoving() {
+        return false;
     }
 }

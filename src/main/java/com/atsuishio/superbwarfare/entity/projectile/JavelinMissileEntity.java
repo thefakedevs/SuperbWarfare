@@ -29,7 +29,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.PlayMessages;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import software.bernie.geckolib.animatable.GeoEntity;
@@ -43,16 +42,11 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.List;
 
-public class JavelinMissileEntity extends MissileProjectile implements GeoEntity, ExplosiveProjectile {
+public class JavelinMissileEntity extends MissileProjectile implements GeoEntity {
 
     public static final EntityDataAccessor<Boolean> TOP = SynchedEntityData.defineId(JavelinMissileEntity.class, EntityDataSerializers.BOOLEAN);
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
-
-    private int guideType = 0;
-    public float targetX;
-    public float targetY;
-    public float targetZ;
 
     public JavelinMissileEntity(EntityType<? extends JavelinMissileEntity> type, Level level) {
         super(type, level);
@@ -68,14 +62,8 @@ public class JavelinMissileEntity extends MissileProjectile implements GeoEntity
         this.guideType = guideType;
         this.durability = 50;
         if (targetPos != null) {
-            this.targetX = (float) targetPos.x;
-            this.targetY = (float) targetPos.y;
-            this.targetZ = (float) targetPos.z;
+            this.targetPos = targetPos;
         }
-    }
-
-    public JavelinMissileEntity(PlayMessages.SpawnEntity spawnEntity, Level level) {
-        this(ModEntities.JAVELIN_MISSILE.get(), level);
     }
 
     @Override
@@ -94,7 +82,7 @@ public class JavelinMissileEntity extends MissileProjectile implements GeoEntity
     }
 
     @Override
-    protected void onHitEntity(EntityHitResult result) {
+    protected void onHitEntity(@NotNull EntityHitResult result) {
         super.onHitEntity(result);
         Entity entity = result.getEntity();
         if (this.getOwner() != null && this.getOwner().getVehicle() != null && entity == this.getOwner().getVehicle())
@@ -179,7 +167,9 @@ public class JavelinMissileEntity extends MissileProjectile implements GeoEntity
         if (guideType == 0 || !entityData.get(TARGET_UUID).equals("none")) {
             if (entity != null) {
                 boolean dir = position().vectorTo(entity.position()).horizontalDistanceSqr() < 900;
-                Vec3 targetPos = new Vec3(entity.getX(), entity.getY() + 0.5f * entity.getBbHeight() + (entity instanceof EnderDragon ? -3 : 0), entity.getZ());
+                double dis = entity.position().vectorTo(position()).horizontalDistance();
+                double height = dis > 30 ? 0.2 * (dis - 30) : 0;
+                Vec3 targetPos = new Vec3(entity.getX(), entity.getY() + 0.5f * entity.getBbHeight() + (entity instanceof EnderDragon ? -3 : 0) + height, entity.getZ());
                 Vec3 targetVec = new Vec3(entity.getDeltaMovement().x, 0, entity.getDeltaMovement().z);
                 Vec3 toVec = position().vectorTo(targetPos.add(targetVec)).normalize();
                 if ((!entity.getPassengers().isEmpty() || entity instanceof VehicleEntity) && entity.tickCount % ((int) Math.max(0.04 * this.distanceTo(entity), 2)) == 0) {
@@ -194,7 +184,7 @@ public class JavelinMissileEntity extends MissileProjectile implements GeoEntity
                         } else {
                             boolean lostTarget = this.getY() < entity.getY();
                             if (!lostTarget) {
-                                turn(toVec, 45);
+                                turn(toVec, 90);
                                 this.setDeltaMovement(this.getDeltaMovement().scale(0.1).add(getLookAngle().scale(8)));
                             }
                         }
@@ -207,9 +197,10 @@ public class JavelinMissileEntity extends MissileProjectile implements GeoEntity
                 }
             }
         } else if (guideType == 1) {
-            Vec3 targetPos = new Vec3(targetX, targetY, targetZ);
+            double dis = targetPos.vectorTo(position()).horizontalDistance();
+            double height = dis > 30 ? 0.2 * (dis - 30) : 0;
             boolean dir = position().vectorTo(targetPos).horizontalDistanceSqr() < 900;
-            Vec3 toVec = getEyePosition().vectorTo(targetPos).normalize();
+            Vec3 toVec = getEyePosition().vectorTo(targetPos.add(0, height, 0)).normalize();
 
             if (this.tickCount > 3) {
                 if (entityData.get(TOP)) {
@@ -220,7 +211,7 @@ public class JavelinMissileEntity extends MissileProjectile implements GeoEntity
                     } else {
                         boolean lostTarget = this.getY() < targetPos.y;
                         if (!lostTarget) {
-                            turn(toVec, 45);
+                            turn(toVec, 90);
                             this.setDeltaMovement(this.getDeltaMovement().scale(0.1).add(getLookAngle().scale(8)));
                         }
                     }
@@ -262,11 +253,6 @@ public class JavelinMissileEntity extends MissileProjectile implements GeoEntity
     @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return this.cache;
-    }
-
-    @Override
-    public @NotNull SoundEvent getCloseSound() {
-        return ModSounds.ROCKET_ENGINE.get();
     }
 
     @Override

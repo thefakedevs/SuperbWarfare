@@ -9,11 +9,13 @@ import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.tools.EntityFindUtil;
 import com.atsuishio.superbwarfare.tools.SeekTool;
+import com.atsuishio.superbwarfare.tools.TraceTool;
 import com.atsuishio.superbwarfare.tools.VectorTool;
 import com.atsuishio.superbwarfare.tools.VectorUtil;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
@@ -86,11 +88,11 @@ public class JavelinHudOverlay implements IGuiOverlay {
             float l = ((screenHeight - j) / 2) + moveY;
             float i1 = k + i;
             float j1 = l + j;
-            preciseBlit(guiGraphics, JAVELIN_HUD, k, l, 0, 0.0F, i, j, i, j);
-            preciseBlit(guiGraphics, data.selectedFireModeInfo().name.equals("Top") ? TOP : DIR, k, l, 0, 0.0F, i, j, i, j);
-            preciseBlit(guiGraphics, data.hasEnoughAmmoToShoot(player) ? MISSILE_GREEN : MISSILE_RED, k, l, 0, 0.0F, i, j, i, j);
+            preciseBlit(guiGraphics, JAVELIN_HUD, k, l, 0, 0, i, j, i, j);
+            preciseBlit(guiGraphics, data.selectedFireModeInfo().name.equals("Top") ? TOP : DIR, k, l, 0, 0F, i, j, i, j);
+            preciseBlit(guiGraphics, data.hasEnoughAmmoToShoot(player) ? MISSILE_GREEN : MISSILE_RED, k, l, 0, 0F, i, j, i, j);
             if (stack.getOrCreateTag().getInt("SeekTime") > 1 && stack.getOrCreateTag().getInt("SeekTime") < 20) {
-                preciseBlit(guiGraphics, SEEK, k, l, 0, 0.0F, i, j, i, j);
+                preciseBlit(guiGraphics, SEEK, k, l, 0, 0, i, j, i, j);
             }
 
             guiGraphics.fill(RenderType.guiOverlay(), 0, (int) l, (int) k + 3, (int) j1, -90, -16777216);
@@ -101,38 +103,53 @@ public class JavelinHudOverlay implements IGuiOverlay {
             RenderSystem.disableBlend();
             RenderSystem.setShaderColor(1, 1, 1, 1);
 
-            float fovAdjust = (float) Minecraft.getInstance().options.fov().get() / 80;
+            Minecraft mc = Minecraft.getInstance();
+            Camera camera = mc.gameRenderer.getMainCamera();
+            Vec3 cameraPos = camera.getPosition();
 
-            Entity targetEntity = EntityFindUtil.findEntity(player.level(), stack.getOrCreateTag().getString("TargetEntity"));
-            List<Entity> entities = SeekTool.getVehiclesWithinRange(player.blockPosition(), player.level(), 512);
-            Entity nearestEntity = SeekTool.seekVehicleEntity(player, player.level(), 512, 6);
+            Entity decoy = TraceTool.findLookDecoy(player, cameraPos, player.getViewVector(partialTick), 512);
 
-            if (ClientEventHandler.guideType == 0) {
-                for (var e : entities) {
-                    Vec3 pos = VectorTool.lerpGetEntityBoundingBoxCenter(e, partialTick);
+            if (decoy == null) {
+                Entity targetEntity = ClientEventHandler.lockingEntity;
+                List<Entity> entities = new SeekTool.Builder(player)
+                        .withinRange(data.compute().seekRange)
+                        .withinAngle(data.compute().seekAngle)
+                        .baseFilter()
+                        .heightRange(data.compute().minTargetHeight, data.compute().maxTargetHeight)
+                        .smokeFilter()
+                        .noVehicle()
+                        .noClip()
+                        .notFriendly()
+                        .build();
+                Entity nearestEntity = ClientEventHandler.nearestEntity;
+
+                if (ClientEventHandler.guideType == 0) {
+                    for (var e : entities) {
+                        Vec3 pos = VectorTool.lerpGetEntityBoundingBoxCenter(e, partialTick);
+                        Vec3 point = VectorUtil.worldToScreen(pos);
+                        boolean lockOn = ClientEventHandler.lockOn && e == targetEntity;
+                        boolean nearest = e == nearestEntity;
+
+                        poseStack.pushPose();
+                        float x = (float) point.x;
+                        float y = (float) point.y;
+
+                        RenderHelper.blit(poseStack, lockOn ? FRAME_LOCK : nearest ? FRAME_TARGET : FRAME, x - 12, y - 12, 0, 0, 24, 24, 24, 24, 1f);
+                        poseStack.popPose();
+                    }
+                } else {
+                    Vec3 pos = ClientEventHandler.lockingPos;
+                    boolean lockOn = ClientEventHandler.lockOn;
+
                     Vec3 point = VectorUtil.worldToScreen(pos);
-                    boolean lockOn = ClientEventHandler.lockOn && e == targetEntity;
-                    boolean nearest = e == nearestEntity;
+                    if (VectorUtil.canSee(pos)) {
+                        poseStack.pushPose();
+                        float x = (float) point.x;
+                        float y = (float) point.y;
 
-                    poseStack.pushPose();
-                    float x = (float) point.x;
-                    float y = (float) point.y;
-
-                    RenderHelper.blit(poseStack, lockOn ? FRAME_LOCK : nearest ? FRAME_TARGET : FRAME, x - 12, y - 12, 0, 0, 24, 24, 24, 24, 1f);
-                    poseStack.popPose();
-                }
-            } else {
-                Vec3 pos = ClientEventHandler.lockingPos;
-                boolean lockOn = ClientEventHandler.lockOn;
-
-                Vec3 point = VectorUtil.worldToScreen(pos);
-                if (VectorUtil.canSee(pos)) {
-                    poseStack.pushPose();
-                    float x = (float) point.x;
-                    float y = (float) point.y;
-
-                    RenderHelper.blit(poseStack, lockOn ? FRAME_LOCK : FRAME_TARGET, x - 12, y - 12, 0, 0, 24, 24, 24, 24, 1f);
-                    poseStack.popPose();
+                        RenderHelper.blit(poseStack, lockOn ? FRAME_LOCK : FRAME_TARGET, x - 12, y - 12, 0, 0, 24, 24, 24, 24, 1f);
+                        poseStack.popPose();
+                    }
                 }
             }
             poseStack.popPose();

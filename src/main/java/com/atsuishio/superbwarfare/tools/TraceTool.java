@@ -20,6 +20,7 @@ import java.util.function.Predicate;
 
 public class TraceTool {
 
+
     public static Entity findLookingEntity(Entity entity, double entityReach) {
         double distance = entityReach * entityReach;
         Vec3 eyePos = entity.getEyePosition(1.0f);
@@ -32,9 +33,9 @@ public class TraceTool {
                 hitResult = BlockHitResult.miss(pos, Direction.getNearest(eyePos.x, eyePos.y, eyePos.z), BlockPos.containing(pos));
             }
         }
-        Vec3 viewVec = entity.getViewVector(1.0F);
+        Vec3 viewVec = entity.getViewVector(1);
         Vec3 toVec = eyePos.add(viewVec.x * entityReach, viewVec.y * entityReach, viewVec.z * entityReach);
-        AABB aabb = entity.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(1.0D, 1.0D, 1.0D);
+        AABB aabb = entity.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(1);
         EntityHitResult entityhitresult = ProjectileUtil.getEntityHitResult(entity, eyePos, toVec, aabb,
                 p -> !p.isSpectator() && entity.getVehicle() != p && p.isAlive() && SeekTool.NOT_IN_SMOKE.test(p), distance);
         if (entityhitresult != null) {
@@ -57,13 +58,12 @@ public class TraceTool {
         Vec3 eyePos = entity.getEyePosition(1.0f);
         HitResult hitResult = entity.pick(entityReach, 1.0f, false);
 
-        Vec3 viewVec = entity.getViewVector(1.0F);
+        Vec3 viewVec = entity.getViewVector(1);
         Vec3 toVec = eyePos.add(viewVec.x * entityReach, viewVec.y * entityReach, viewVec.z * entityReach);
-        AABB aabb = entity.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(1.0D, 1.0D, 1.0D);
+        AABB aabb = entity.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(1);
         EntityHitResult entityhitresult = ProjectileUtil.getEntityHitResult(entity, eyePos, toVec, aabb, p -> !p.isSpectator() && entity.getVehicle() != p && p.isAlive(), distance);
         if (entityhitresult != null) {
             hitResult = entityhitresult;
-
         }
         if (hitResult.getType() == HitResult.Type.ENTITY) {
             return ((EntityHitResult) hitResult).getEntity();
@@ -71,15 +71,15 @@ public class TraceTool {
         return null;
     }
 
-    public static Vec3 vehicleFindLookingPos(Entity shooter, Projectile projectile, VehicleEntity vehicle, Vec3 eye, double entityReach) {
+    public static Vec3 vehicleFindLookingPos(Entity shooter, VehicleEntity vehicle, Vec3 eye, double entityReach, float partialTick) {
         double distance = entityReach * entityReach;
         HitResult hitResult = pickNew(eye, 512, vehicle);
 
-        Vec3 viewVec = vehicle.getBarrelVector(1);
+        Vec3 viewVec = vehicle.getViewVec(shooter, partialTick);
         Vec3 toVec = eye.add(viewVec.x * entityReach, viewVec.y * entityReach, viewVec.z * entityReach);
-        AABB aabb = vehicle.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(1.0D, 1.0D, 1.0D);
+        AABB aabb = vehicle.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(1);
         EntityHitResult entityhitresult = ProjectileUtil.getEntityHitResult(vehicle, eye, toVec, aabb,
-                p -> !p.isSpectator() && p.isAlive() && SeekTool.BASIC_FILTER.test(p) && !p.getType().is(ModTags.EntityTypes.DECOY) && SeekTool.NOT_IN_SMOKE.test(p) && p != shooter && p != projectile && !(p instanceof Projectile), distance);
+                p -> !p.isSpectator() && p.isAlive() && SeekTool.BASIC_FILTER.test(p) && !p.getType().is(ModTags.EntityTypes.DECOY) && SeekTool.NOT_IN_SMOKE.test(p) && p != shooter && !(p instanceof Projectile), distance);
         if (entityhitresult != null) {
             hitResult = entityhitresult;
         }
@@ -96,7 +96,7 @@ public class TraceTool {
 
         Vec3 viewVec = pEntity.getViewVector(1);
         Vec3 toVec = pEntity.getEyePosition().add(viewVec.x * entityReach, viewVec.y * entityReach, viewVec.z * entityReach);
-        AABB aabb = entity.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(1.0D, 1.0D, 1.0D);
+        AABB aabb = entity.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(1);
         EntityHitResult entityhitresult = ProjectileUtil.getEntityHitResult(pEntity.level(), pEntity, pEntity.getEyePosition(), toVec, aabb, p -> true, (float) distance);
         if (entityhitresult != null) {
             hitResult = entityhitresult;
@@ -114,7 +114,7 @@ public class TraceTool {
 
         Vec3 viewVec = entity.getViewVector(ticks);
         Vec3 toVec = pos.add(viewVec.x * entityReach, viewVec.y * entityReach, viewVec.z * entityReach);
-        AABB aabb = entity.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(1.0D, 1.0D, 1.0D);
+        AABB aabb = entity.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(1);
         EntityHitResult entityhitresult = ProjectileUtil.getEntityHitResult(entity, pos, toVec, aabb, p -> !p.isSpectator()
                 && p.isAlive()
                 && !(p instanceof Projectile)
@@ -146,7 +146,7 @@ public class TraceTool {
         }
 
         Vec3 toVec = pos.add(viewVec.x * entityReach, viewVec.y * entityReach, viewVec.z * entityReach);
-        AABB aabb = player.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(1.0D, 1.0D, 1.0D);
+        AABB aabb = player.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(1);
         EntityHitResult entityhitresult = ProjectileUtil.getEntityHitResult(player, pos, toVec, aabb, p -> !p.isSpectator()
                 && p.isAlive()
                 && !(p instanceof Projectile)
@@ -155,6 +155,36 @@ public class TraceTool {
                 && SeekTool.NOT_IN_SMOKE.test(p)
                 && p != player
                 && p != player.getVehicle(), distance);
+        if (entityhitresult != null) {
+            Vec3 targetPos = entityhitresult.getLocation();
+            double distanceToTarget = pos.distanceToSqr(targetPos);
+            if (distanceToTarget > distance || distanceToTarget > entityReach * entityReach) {
+                hitResult = BlockHitResult.miss(targetPos, Direction.getNearest(viewVec.x, viewVec.y, viewVec.z), BlockPos.containing(targetPos));
+            } else if (distanceToTarget < distance) {
+                hitResult = entityhitresult;
+            }
+        }
+        if (hitResult.getType() == HitResult.Type.ENTITY) {
+            return ((EntityHitResult) hitResult).getEntity();
+        }
+        return null;
+    }
+
+    public static Entity findLookDecoy(Player player, Vec3 pos, Vec3 viewVec, double entityReach) {
+        double distance = entityReach * entityReach;
+        HitResult hitResult = pickNew(pos, entityReach, viewVec, player);
+
+        if (hitResult.getType() != HitResult.Type.MISS) {
+            distance = hitResult.getLocation().distanceToSqr(pos);
+            double blockReach = 5;
+            if (distance > blockReach * blockReach) {
+                hitResult = BlockHitResult.miss(hitResult.getLocation(), Direction.getNearest(pos.x, pos.y, pos.z), BlockPos.containing(hitResult.getLocation()));
+            }
+        }
+
+        Vec3 toVec = pos.add(viewVec.x * entityReach, viewVec.y * entityReach, viewVec.z * entityReach);
+        AABB aabb = player.getBoundingBox().expandTowards(viewVec.scale(entityReach)).inflate(2);
+        EntityHitResult entityhitresult = ProjectileUtil.getEntityHitResult(player, pos, toVec, aabb, p -> p.getType().is(ModTags.EntityTypes.DECOY), distance);
         if (entityhitresult != null) {
             Vec3 targetPos = entityhitresult.getLocation();
             double distanceToTarget = pos.distanceToSqr(targetPos);
@@ -230,7 +260,7 @@ public class TraceTool {
         Vec3 end = start.add(normalizedDirection.scale(maxDistance));
 
         // 2. 创建一个从起点到终点的AABB进行粗筛，减少需要精确检测的实体数量
-        AABB rayBoundingBox = new AABB(start, end).inflate(1.0D); // 适当扩大边界框
+        AABB rayBoundingBox = new AABB(start, end).inflate(1); // 适当扩大边界框
 
         // 3. 获取在这个粗筛AABB内的所有实体。
         List<Entity> entitiesInWorld = world.getEntities((Entity) null, rayBoundingBox, filterPredicate);
@@ -272,15 +302,15 @@ public class TraceTool {
      * @return 如果相交，返回相交的最近距离值t；否则返回null
      */
     private static Double rayIntersectsAABB(Vec3 start, Vec3 dir, AABB box, double maxDist) {
-        double tMin = 0.0;
+        double tMin = 0;
         double tMax = maxDist;
 
         // 分别检查X轴
-        double invDx = 1.0 / dir.x;
+        double invDx = 1 / dir.x;
         double t0x = (box.minX - start.x) * invDx;
         double t1x = (box.maxX - start.x) * invDx;
 
-        if (invDx < 0.0) {
+        if (invDx < 0) {
             double temp = t0x;
             t0x = t1x;
             t1x = temp;
@@ -294,11 +324,11 @@ public class TraceTool {
         }
 
         // 检查Y轴
-        double invDy = 1.0 / dir.y;
+        double invDy = 1 / dir.y;
         double t0y = (box.minY - start.y) * invDy;
         double t1y = (box.maxY - start.y) * invDy;
 
-        if (invDy < 0.0) {
+        if (invDy < 0) {
             double temp = t0y;
             t0y = t1y;
             t1y = temp;
@@ -312,11 +342,11 @@ public class TraceTool {
         }
 
         // 检查Z轴
-        double invDz = 1.0 / dir.z;
+        double invDz = 1 / dir.z;
         double t0z = (box.minZ - start.z) * invDz;
         double t1z = (box.maxZ - start.z) * invDz;
 
-        if (invDz < 0.0) {
+        if (invDz < 0) {
             double temp = t0z;
             t0z = t1z;
             t1z = temp;

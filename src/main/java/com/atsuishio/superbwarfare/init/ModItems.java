@@ -118,8 +118,7 @@ public class ModItems {
     public static final RegistryObject<Item> AMMO_BOX = AMMO.register("ammo_box", AmmoBoxItem::new);
     public static final RegistryObject<Item> TASER_ELECTRODE = AMMO.register("taser_electrode", () -> new Item(new Item.Properties()));
     public static final RegistryObject<Item> GRENADE_40MM = AMMO.register("grenade_40mm", () -> new Item(new Item.Properties()));
-    public static final RegistryObject<Item> JAVELIN_MISSILE = AMMO.register("javelin_missile", () -> new Item(new Item.Properties()));
-    public static final RegistryObject<Item> IGLA_MISSILE = AMMO.register("igla_9k38_missile", () -> new Item(new Item.Properties()));
+
     public static final RegistryObject<Item> MORTAR_SHELL = AMMO.register("mortar_shell", MortarShell::new);
     public static final RegistryObject<Item> POTION_MORTAR_SHELL = AMMO.register("potion_mortar_shell", PotionMortarShell::new);
     public static final RegistryObject<Item> RPG_ROCKET_STANDARD = AMMO.register("rpg_rocket_standard", RpgRocketStandard::new);
@@ -137,16 +136,17 @@ public class ModItems {
     public static final RegistryObject<Item> PTKM_1R = AMMO.register("ptkm_1r", Ptkm1rItem::new);
     public static final RegistryObject<Item> C4_BOMB = AMMO.register("c4_bomb", C4BombItem::new);
     public static final RegistryObject<Item> BLU_43_MINE = AMMO.register("blu_43_mine", Blu43MineItem::new);
-    public static final RegistryObject<Item> SMALL_SHELL = AMMO.register("small_shell", SmallShellItem::new);
-    public static final RegistryObject<Item> SMALL_ROCKET = AMMO.register("small_rocket", SmallRocketItem::new);
+    public static final RegistryObject<Item> SMALL_SHELL = AMMO.register("small_shell", () -> new Item(new Item.Properties()));
+    public static final RegistryObject<Item> SMALL_ROCKET = AMMO.register("small_rocket", () -> new Item(new Item.Properties().stacksTo(16)));
     public static final RegistryObject<Item> MEDIUM_ROCKET_AP = AMMO.register("medium_rocket_ap", () -> new MediumRocketItem(500, 6, 100, 0, 0, MediumRocketEntity.Type.AP, 0));
     public static final RegistryObject<Item> MEDIUM_ROCKET_HE = AMMO.register("medium_rocket_he", () -> new MediumRocketItem(200, 12, 200, 0.2f, 40, MediumRocketEntity.Type.HE, 0));
     public static final RegistryObject<Item> MEDIUM_ROCKET_CM = AMMO.register("medium_rocket_cm", () -> new MediumRocketItem(300, 12, 300, 0, 0, MediumRocketEntity.Type.CM, 20));
-    public static final RegistryObject<Item> WIRE_GUIDE_MISSILE = AMMO.register("wire_guide_missile", WireGuideMissileItem::new);
-    public static final RegistryObject<Item> TOW_MISSILE = AMMO.register("tow_missile", () -> new Item(new Item.Properties().stacksTo(4)));
-    public static final RegistryObject<Item> AGM = AMMO.register("agm", AgmItem::new);
-    public static final RegistryObject<Item> SWARM_DRONE = AMMO.register("swarm_drone", SwarmDroneItem::new);
-    public static final RegistryObject<Item> MEDIUM_AERIAL_BOMB = AMMO.register("medium_aerial_bomb", MediumAerialBombItem::new);
+    public static final RegistryObject<Item> JAVELIN_MISSILE = AMMO.register("javelin_missile", () -> new Item(new Item.Properties().stacksTo(4)));
+    public static final RegistryObject<Item> MEDIUM_ANTI_AIR_MISSILE = AMMO.register("medium_anti_air_missile", () -> new Item(new Item.Properties().stacksTo(4)));
+    public static final RegistryObject<Item> MEDIUM_ANTI_GROUND_MISSILE = AMMO.register("medium_anti_ground_missile", () -> new Item(new Item.Properties().stacksTo(4)));
+    public static final RegistryObject<Item> LARGE_ANTI_GROUND_MISSILE = AMMO.register("large_anti_ground_missile", () -> new Item(new Item.Properties().stacksTo(2)));
+    public static final RegistryObject<Item> SWARM_DRONE = AMMO.register("swarm_drone", () -> new Item(new Item.Properties().stacksTo(14)));
+    public static final RegistryObject<Item> MEDIUM_AERIAL_BOMB = AMMO.register("medium_aerial_bomb", () -> new Item(new Item.Properties().stacksTo(2)));
 
     /**
      * items
@@ -235,6 +235,7 @@ public class ModItems {
     public static final RegistryObject<Item> FIRING_PARAMETERS = ITEMS.register("firing_parameters", FiringParameters::new);
     public static final RegistryObject<Item> MEDICAL_KIT = ITEMS.register("medical_kit", MedicalKitItem::new);
     public static final RegistryObject<Item> VEHICLE_DAMAGE_ANALYZER = ITEMS.register("vehicle_damage_analyzer", VehicleDamageAnalyzer::new);
+    public static final RegistryObject<Item> VEHICLE_RESET_KIT = ITEMS.register("vehicle_reset_kit", VehicleResetKit::new);
 
     public static final RegistryObject<Item> TUNGSTEN_ROD = ITEMS.register("tungsten_rod", () -> new Item(new Item.Properties()));
 
