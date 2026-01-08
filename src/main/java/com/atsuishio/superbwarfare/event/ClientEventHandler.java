@@ -423,7 +423,7 @@ public class ClientEventHandler {
                         .baseFilter()
                         .heightRange(computed.minTargetHeight, computed.maxTargetHeight)
                         .smokeFilter()
-                        .noVehicle()
+                        .isVehicle()
                         .noClip()
                         .buildWithClosest();
 

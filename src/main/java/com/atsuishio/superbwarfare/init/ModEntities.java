@@ -159,7 +159,7 @@ public class ModEntities {
 
     // Special
     public static final RegistryObject<EntityType<DroneEntity>> DRONE = register("drone",
-            EntityType.Builder.<DroneEntity>of(DroneEntity::new, MobCategory.MISC).setTrackingRange(64).setUpdateInterval(1).setCustomClientFactory(DroneEntity::new).sized(0.84f, 0.28f));
+            EntityType.Builder.<DroneEntity>of(DroneEntity::new, MobCategory.MISC).setTrackingRange(512).setUpdateInterval(1).sized(0.6f, 0.2f));
     public static final RegistryObject<EntityType<MortarEntity>> MORTAR = register("mortar",
             EntityType.Builder.<MortarEntity>of(MortarEntity::new, MobCategory.MISC).setTrackingRange(512).setUpdateInterval(1).fireImmune().sized(0.8f, 1.4f));
 

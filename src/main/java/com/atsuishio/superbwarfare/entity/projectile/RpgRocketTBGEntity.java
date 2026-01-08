@@ -121,16 +121,6 @@ public class RpgRocketTBGEntity extends FastThrowableProjectile implements GeoEn
     }
 
     @Override
-    public float blockIgniteChance() {
-        return 0.4f;
-    }
-
-    @Override
-    public ParticleTool.ParticleType explosionParticleType() {
-        return explosionRadius >= 10 ? ParticleTool.ParticleType.HUGE : ParticleTool.ParticleType.MEDIUM;
-    }
-
-    @Override
     public void tick() {
         super.tick();
 
@@ -181,5 +171,10 @@ public class RpgRocketTBGEntity extends FastThrowableProjectile implements GeoEn
     @Override
     public @NotNull SoundEvent getSound() {
         return ModSounds.ROCKET_FLY.get();
+    }
+
+    @Override
+    public float blockIgniteChance() {
+        return 0.4f;
     }
 }

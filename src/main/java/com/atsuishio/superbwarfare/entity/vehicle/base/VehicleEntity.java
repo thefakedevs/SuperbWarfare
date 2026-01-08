@@ -1859,7 +1859,7 @@ public abstract class VehicleEntity extends Entity implements VehiclePropertyMod
         if (!this.level().isClientSide) {
             var newMap = new HashMap<String, GunData>();
 
-            for (var kv : entityData.get(GUN_DATA_MAP).entrySet()) {
+            for (var kv : getGunDataMap().entrySet()) {
                 var newData = kv.getValue().copy();
                 newData.tick(this, true);
                 newMap.put(kv.getKey(), newData);

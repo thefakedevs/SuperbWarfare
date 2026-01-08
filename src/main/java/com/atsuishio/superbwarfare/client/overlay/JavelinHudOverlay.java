@@ -3,7 +3,6 @@ package com.atsuishio.superbwarfare.client.overlay;
 import com.atsuishio.superbwarfare.Mod;
 import com.atsuishio.superbwarfare.client.RenderHelper;
 import com.atsuishio.superbwarfare.data.gun.GunData;
-import com.atsuishio.superbwarfare.entity.vehicle.base.ArmedVehicleEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.init.ModItems;
@@ -117,7 +116,7 @@ public class JavelinHudOverlay implements IGuiOverlay {
                         .baseFilter()
                         .heightRange(data.compute().minTargetHeight, data.compute().maxTargetHeight)
                         .smokeFilter()
-                        .noVehicle()
+                        .isVehicle()
                         .noClip()
                         .notFriendly()
                         .build();
