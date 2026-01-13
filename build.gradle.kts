@@ -1,9 +1,24 @@
+import java.util.Properties
 import java.io.ByteArrayOutputStream
 import java.time.Instant
+
+
+val localProperties = Properties()
+val localPropertiesFile = file("local.properties")
+
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use {
+        localProperties.load(it)
+    }
+    localProperties.forEach { key, value ->
+        gradle.extra[key.toString()] = value
+    }
+}
 
 plugins {
     eclipse
     idea
+    id("maven-publish")
     id("net.minecraftforge.gradle") version "[6.0.16,6.2)"
     id("org.spongepowered.mixin") version "0.7.+"
     id("org.parchmentmc.librarian.forgegradle") version "1.+"
@@ -20,7 +35,7 @@ fun getGitCommitHash(): String {
     }.getOrElse { "unknown" }
 }
 
-version = "${project.property("minecraft_version")}-${project.property("mod_version")}-${getGitCommitHash()}"
+version = "svocraft-${project.property("minecraft_version")}-${project.property("mod_version")}-${getGitCommitHash()}"
 group = "com.atsushio.superbwarfare"
 
 base {
@@ -242,5 +257,34 @@ idea {
     module {
         isDownloadSources = true
         isDownloadJavadoc = true
+    }
+}
+
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            from(components["java"])
+
+            groupId = project.group.toString()
+            artifactId = base.archivesName.get()
+            version = project.version.toString()
+        }
+    }
+
+    repositories {
+        maven {
+            name = "reposilite"
+            url = uri("https://reposilite.artembay.ru/releases")
+
+            credentials {
+                username = gradle.extra["reposilite.user"]?.toString() ?: error("reposilite.user is not defined")
+                password = gradle.extra["reposilite.token"]?.toString() ?: error("reposilite.token is not defined")
+            }
+
+            authentication {
+                create<BasicAuthentication>("basic")
+            }
+        }
     }
 }
