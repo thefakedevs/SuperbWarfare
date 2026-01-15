@@ -261,8 +261,8 @@ idea {
 }
 
 
-val mappingsSuffix = "_mapped_parchment_2023.08.13-1.20.1"
-val mappedVersion = "${project.version}$mappingsSuffix"
+val mappingSuffix = "_mapped_parchment_2023.08.13-1.20.1"
+val mappedVersion = "${project.version}$mappingSuffix"
 
 publishing {
     publications {
@@ -274,9 +274,6 @@ publishing {
         }
 
         create<MavenPublication>("mavenMapped") {
-            artifact(tasks.named("reobfJar")) {
-                extension = "jar"
-            }
             groupId = project.group.toString()
             artifactId = base.archivesName.get()
             version = mappedVersion
@@ -298,4 +295,18 @@ publishing {
             }
         }
     }
+}
+
+afterEvaluate {
+    val reobfProvider = tasks.named("reobfJar")
+
+    publishing.publications.named<MavenPublication>("mavenMapped") {
+        artifact(tasks.named("jar"))
+        tasks.findByName("sourcesJar")?.let { artifact(it) }
+    }
+
+    tasks.matching { it.name.startsWith("publishMaven") && it.name.contains("ToReposiliteRepository") }
+        .configureEach {
+            dependsOn(reobfProvider)
+        }
 }
