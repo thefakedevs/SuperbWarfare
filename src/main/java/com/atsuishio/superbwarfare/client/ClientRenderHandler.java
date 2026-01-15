@@ -84,7 +84,7 @@ public class ClientRenderHandler {
         event.registerBelowAll(CrossHairOverlay.ID, new CrossHairOverlay());
         event.registerBelowAll(HeatBarOverlay.ID, new HeatBarOverlay());
         event.registerBelowAll(DroneHudOverlay.ID, new DroneHudOverlay());
-        event.registerBelowAll(RedTriangleOverlay.ID, new RedTriangleOverlay());
+//        event.registerBelowAll(RedTriangleOverlay.ID, new RedTriangleOverlay());
         event.registerBelowAll(HandsomeFrameOverlay.ID, new HandsomeFrameOverlay());
         event.registerBelowAll(SpyglassRangeOverlay.ID, new SpyglassRangeOverlay());
         event.registerBelowAll(TowOverlay.ID, new TowOverlay());
