@@ -261,14 +261,25 @@ idea {
 }
 
 
+val mappingsSuffix = "_mapped_parchment_2023.08.13-1.20.1"
+val mappedVersion = "${project.version}$mappingsSuffix"
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             from(components["java"])
-
             groupId = project.group.toString()
             artifactId = base.archivesName.get()
             version = project.version.toString()
+        }
+
+        create<MavenPublication>("mavenMapped") {
+            artifact(tasks.named("reobfJar")) {
+                extension = "jar"
+            }
+            groupId = project.group.toString()
+            artifactId = base.archivesName.get()
+            version = mappedVersion
         }
     }
 
