@@ -271,6 +271,22 @@ publishing {
             groupId = project.group.toString()
             artifactId = base.archivesName.get()
             version = project.version.toString()
+
+            pom.withXml {
+                val dependenciesNode = asNode().get("dependencies") as groovy.util.NodeList
+                dependenciesNode.forEach { dependency ->
+                    val depNode = dependency as groovy.util.Node
+                    val versionList = depNode.get("version") as groovy.util.NodeList
+
+                    if (versionList.isNotEmpty()) {
+                        val currentVersion = versionList[0] as String
+                        if (currentVersion.contains("_mapped_")) {
+                            val cleanVersion = currentVersion.substringBefore("_mapped_")
+                            versionList[0] = cleanVersion
+                        }
+                    }
+                }
+            }
         }
 
         create<MavenPublication>("mavenMapped") {
