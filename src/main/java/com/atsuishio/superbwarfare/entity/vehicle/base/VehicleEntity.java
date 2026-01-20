@@ -1981,8 +1981,16 @@ public abstract class VehicleEntity extends Entity implements VehiclePropertyMod
             }
         }
 
-        if (this.getMaxPassengers() > 0 && getFirstPassenger() != null) {
-            this.entityData.set(LAST_DRIVER_UUID, getFirstPassenger().getStringUUID());
+        // Обновляем LAST_DRIVER_UUID: ищем любого живого пассажира
+        if (this.getMaxPassengers() > 0 && !getPassengers().isEmpty()) {
+            Entity activePassenger = getFirstPassenger();
+            // Если первый пассажир отсутствует, берем первого доступного из списка
+            if (activePassenger == null && !getPassengers().isEmpty()) {
+                activePassenger = getPassengers().get(0);
+            }
+            if (activePassenger != null) {
+                this.entityData.set(LAST_DRIVER_UUID, activePassenger.getStringUUID());
+            }
         }
 
         if (getPassengers().isEmpty()) {
