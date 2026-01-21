@@ -302,6 +302,7 @@ publishing {
     }
 }
 
+/*
 afterEvaluate {
     val reobfProvider = tasks.named("reobfJar")
 
@@ -315,3 +316,4 @@ afterEvaluate {
             dependsOn(reobfProvider)
         }
 }
+ */
