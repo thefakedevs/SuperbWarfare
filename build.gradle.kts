@@ -264,47 +264,48 @@ idea {
 val mappingSuffix = "_mapped_parchment_2023.08.13-1.20.1"
 val mappedVersion = "${project.version}$mappingSuffix"
 
-publishing {
-    publications {
-        create<MavenPublication>("minimalCurseLike") {
-            artifact(tasks.named<Jar>("jar")) {
-                builtBy(tasks.named("reobfJar"))
-            }
-            tasks.findByName("sourcesJar")?.let { artifact(it) }
+afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("minimalCurseLike") {
+                artifact(tasks.named<Jar>("jar")) {
+                    builtBy(tasks.named("reobfJar"))
+                }
+                tasks.findByName("sourcesJar")?.let { artifact(it) }
 
-            groupId = project.group.toString()
-            artifactId = base.archivesName.get()
-            version = project.version.toString()
+                groupId = project.group.toString()
+                artifactId = base.archivesName.get()
+                version = project.version.toString()
 
-            pom.withXml {
-                val root = asNode()
-                root.children().clear()
+                pom.withXml {
+                    val root = asNode()
+                    root.children().clear()
 
-                root.appendNode("modelVersion", "4.0.0")
-                root.appendNode("groupId", groupId)
-                root.appendNode("artifactId", artifactId)
-                root.appendNode("version", version)
+                    root.appendNode("modelVersion", "4.0.0")
+                    root.appendNode("groupId", groupId)
+                    root.appendNode("artifactId", artifactId)
+                    root.appendNode("version", version)
+                }
             }
         }
-    }
 
-    repositories {
-        maven {
-            name = "reposilite"
-            url = uri("https://reposilite.artembay.ru/releases")
+        repositories {
+            maven {
+                name = "reposilite"
+                url = uri("https://reposilite.artembay.ru/releases")
 
-            credentials {
-                username = gradle.extra["reposilite.user"]?.toString() ?: error("reposilite.user is not defined")
-                password = gradle.extra["reposilite.token"]?.toString() ?: error("reposilite.token is not defined")
-            }
+                credentials {
+                    username = gradle.extra["reposilite.user"]?.toString() ?: error("reposilite.user is not defined")
+                    password = gradle.extra["reposilite.token"]?.toString() ?: error("reposilite.token is not defined")
+                }
 
-            authentication {
-                create<BasicAuthentication>("basic")
+                authentication {
+                    create<BasicAuthentication>("basic")
+                }
             }
         }
     }
 }
-
 /*
 afterEvaluate {
     val reobfProvider = tasks.named("reobfJar")
