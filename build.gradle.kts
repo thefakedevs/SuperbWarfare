@@ -267,7 +267,9 @@ val mappedVersion = "${project.version}$mappingSuffix"
 publishing {
     publications {
         create<MavenPublication>("minimalCurseLike") {
-            artifact(tasks.named("jar").get())
+            artifact(tasks.named<Jar>("jar")) {
+                builtBy(tasks.named("reobfJar"))
+            }
             tasks.findByName("sourcesJar")?.let { artifact(it) }
 
             groupId = project.group.toString()
