@@ -261,30 +261,63 @@ idea {
 }
 
 
-publishing {
-    publications {
-        create<MavenPublication>("mavenJava") {
-            from(components["java"])
+val mappingSuffix = "_mapped_parchment_2023.08.13-1.20.1"
+val mappedVersion = "${project.version}$mappingSuffix"
 
-            groupId = project.group.toString()
-            artifactId = base.archivesName.get()
-            version = project.version.toString()
-        }
-    }
+afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("minimalCurseLike") {
+                artifact(tasks.named<Jar>("jar")) {
+                    builtBy(tasks.named("reobfJar"))
+                }
+                tasks.findByName("sourcesJar")?.let { artifact(it) }
 
-    repositories {
-        maven {
-            name = "reposilite"
-            url = uri("https://reposilite.artembay.ru/releases")
+                groupId = project.group.toString()
+                artifactId = base.archivesName.get()
+                version = project.version.toString()
 
-            credentials {
-                username = gradle.extra["reposilite.user"]?.toString() ?: error("reposilite.user is not defined")
-                password = gradle.extra["reposilite.token"]?.toString() ?: error("reposilite.token is not defined")
+                pom.withXml {
+                    val root = asNode()
+                    root.children().clear()
+
+                    root.appendNode("modelVersion", "4.0.0")
+                    root.appendNode("groupId", groupId)
+                    root.appendNode("artifactId", artifactId)
+                    root.appendNode("version", version)
+                }
             }
+        }
 
-            authentication {
-                create<BasicAuthentication>("basic")
+        repositories {
+            maven {
+                name = "reposilite"
+                url = uri("https://reposilite.artembay.ru/releases")
+
+                credentials {
+                    username = gradle.extra["reposilite.user"]?.toString() ?: error("reposilite.user is not defined")
+                    password = gradle.extra["reposilite.token"]?.toString() ?: error("reposilite.token is not defined")
+                }
+
+                authentication {
+                    create<BasicAuthentication>("basic")
+                }
             }
         }
     }
 }
+/*
+afterEvaluate {
+    val reobfProvider = tasks.named("reobfJar")
+
+    publishing.publications.named<MavenPublication>("mavenMapped") {
+        artifact(tasks.named("jar"))
+        tasks.findByName("sourcesJar")?.let { artifact(it) }
+    }
+
+    tasks.matching { it.name.startsWith("publishMaven") && it.name.contains("ToReposiliteRepository") }
+        .configureEach {
+            dependsOn(reobfProvider)
+        }
+}
+ */
