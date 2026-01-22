@@ -691,6 +691,7 @@ public class ClientEventHandler {
         lockingEntity = null;
         seekingEntity = null;
         lockingPos = null;
+        guideType = 0;
         VehicleMainWeaponHudOverlay.lock = false;
         stopVehicleSeekSound(player);
     }
