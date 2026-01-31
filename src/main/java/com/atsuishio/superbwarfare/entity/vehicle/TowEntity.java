@@ -152,9 +152,9 @@ public class TowEntity extends GeoVehicleEntity {
             var y = this.getY();
             var z = this.getZ();
             level.explode(null, x, y, z, 0, Level.ExplosionInteraction.NONE);
-            ItemEntity mortar = new ItemEntity(level, x, (y + 1), z, new ItemStack(ModItems.MORTAR_BARREL.get()));
-            mortar.setPickUpDelay(10);
-            level.addFreshEntity(mortar);
+            ItemEntity tow = new ItemEntity(level, x, (y + 1), z, new ItemStack(ModItems.TOW_DEPLOYER.get()));
+            tow.setPickUpDelay(10);
+            level.addFreshEntity(tow);
         }
         super.destroy();
     }

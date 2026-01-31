@@ -1,6 +1,6 @@
 {
   "ID": "superbwarfare:tow",
-  "MaxHealth": 60,
+  "MaxHealth": 40,
   "MaxEnergy": 0,
   "TurretPos": [0, 0.9689, 0],
   "TurretTurnSpeed": [10, 10],
@@ -57,12 +57,6 @@
   },
   "ThirdPersonCameraPos": [-0.3, 1, -1],
   "Mass": 0.05,
-  "DamageModifiers": [
-    "minecraft:lava * 2.667",
-    "All * 0.75",
-    "@minecraft:tnt * 3",
-    "@minecraft:tnt_minecart * 3"
-  ],
   "EngineType": "Fixed",
   "VehicleContainerType": "Empty",
   "HasLowHealthWarning": false,
