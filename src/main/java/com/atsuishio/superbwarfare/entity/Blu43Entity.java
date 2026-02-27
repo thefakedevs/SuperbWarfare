@@ -201,7 +201,7 @@ public class Blu43Entity extends Entity implements GeoEntity, OwnableEntity {
             for (var entity : entities) {
                 if (entity != null) {
                     trigger = true;
-                    if (!entity.level().isClientSide() && entity instanceof LivingEntity living) {
+                    if (!entity.level().isClientSide() && !entity.isSpectator() && entity instanceof LivingEntity living) {
                         int baseAmplifier = 3;
                         int baseDuration = 600;
 

@@ -2473,14 +2473,6 @@
       }
     ]
   },
-  "wheel_chair_engine": {
-    "sounds": [
-      {
-        "stream": true,
-        "name": "superbwarfare:vehicle/wheel_chair/wheel_chair_engine"
-      }
-    ]
-  },
   "wheel_chair_jump": {
     "sounds": [
       {

@@ -211,7 +211,7 @@ public final class VehicleMotionUtils {
                     )
                     .toList();
         } else {
-            var frontBox = vehicle.getBoundingBox().move(vec3);
+            var frontBox = vehicle.getBoundingBox().move(vec3).inflate(0.5);
             entities = vehicle.level().getEntities(EntityTypeTest.forClass(Entity.class), frontBox,
                             entity -> entity != vehicle && entity != vehicle.getFirstPassenger() && entity.getVehicle() == null)
                     .stream().filter(entity -> {
@@ -236,7 +236,7 @@ public final class VehicleMotionUtils {
             double f1;
 
             Vec3 v0 = vec3.subtract(entity.getDeltaMovement());
-            if (VectorTool.calculateAngle(v0, vehicle.position().vectorTo(entity.position())) > 90) return;
+            if (VectorTool.calculateAngle(v0, vehicle.position().vectorTo(entity.position())) > 90) continue;
 
             if (vehicle.getDeltaMovement().lengthSqr() < 0.09) return;
 
