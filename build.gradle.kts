@@ -292,7 +292,7 @@ afterEvaluate {
         repositories {
             maven {
                 name = "reposilite"
-                url = uri("https://reposilite.artembay.ru/releases")
+                url = uri("https://reposilite.baechka.me/releases")
 
                 credentials {
                     username = gradle.extra["reposilite.user"]?.toString() ?: error("reposilite.user is not defined")
