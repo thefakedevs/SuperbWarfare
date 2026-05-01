@@ -337,8 +337,9 @@ public class InventoryTool {
                 currentStack.grow(countToAdd);
                 stack.setCount(stack.getCount() - countToAdd);
             } else if (currentStack.isEmpty()) {
-                itemList.set(i, stack);
-                return stack.getCount();
+                var countToAdd = Math.min(maxStackSize, stack.getCount());
+                itemList.set(i, stack.copyWithCount(countToAdd));
+                stack.setCount(stack.getCount() - countToAdd);
             }
 
             if (stack.getCount() <= 0) break;

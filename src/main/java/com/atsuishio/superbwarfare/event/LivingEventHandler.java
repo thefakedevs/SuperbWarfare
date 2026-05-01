@@ -655,7 +655,6 @@ public class LivingEventHandler {
                 InventoryTool.insertItem(vehicle.getItemStacks(), stack);
 
                 if (stack.getCount() <= 0) {
-                    player.drop(stack, false);
                     removed.add(itemEntity);
                 }
             });
