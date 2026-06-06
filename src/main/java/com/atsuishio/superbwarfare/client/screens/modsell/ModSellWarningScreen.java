@@ -100,14 +100,6 @@ public class ModSellWarningScreen extends WarningScreen {
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onGuiOpen(ScreenEvent.Opening event) {
-        if (!((event.getNewScreen() instanceof JoinMultiplayerScreen || event.getNewScreen() instanceof SafetyScreen)
-                && event.getCurrentScreen() instanceof TitleScreen))
-            return;
-
-        if (EnvironmentChecksumConfig.ENVIRONMENT_CHECKSUM.get().equals(ENVIRONMENT_CHECKSUM)) return;
-
-        // 拦截多人游戏界面加载
-        event.setCanceled(true);
-        Minecraft.getInstance().setScreen(new ModSellWarningScreen(event.getCurrentScreen()));
+        return;
     }
 }
