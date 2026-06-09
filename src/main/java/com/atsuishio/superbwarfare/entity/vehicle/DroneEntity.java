@@ -470,17 +470,27 @@ public class DroneEntity extends GeoVehicleEntity {
             this.hurt(ModDamageTypes.causeVehicleStrikeDamage(this.level().registryAccess(), this, this.getFirstPassenger() == null ? this : this.getFirstPassenger()), 26 + (float) (60 * ((lastTickSpeed - 0.4) * (lastTickSpeed - 0.4))));
         }
 
-        boolean up = this.upInputDown();
-        boolean down = this.downInputDown();
+        boolean upInput = this.upInputDown();
+        boolean downInput = this.downInputDown();
+        boolean up = upInput && !downInput;
+        boolean down = downInput && !upInput;
+        int verticalInput = up ? 1 : down ? -1 : 0;
 
-        if (up) {
-            holdTickY++;
-            this.entityData.set(POWER, Math.min(this.entityData.get(POWER) + 0.01f * Math.min(holdTickY, 5), 0.2f));
-            setDeltaMovement(new Vec3(getDeltaMovement().x, 0.05 * holdTickY, getDeltaMovement().z));
-        } else if (down) {
-            holdTickY++;
-            this.entityData.set(POWER, Math.max(this.entityData.get(POWER) - 0.02f * Math.min(holdTickY, 5), this.onGround() ? 0 : 0.06f));
-            setDeltaMovement(new Vec3(getDeltaMovement().x, -0.05 * holdTickY, getDeltaMovement().z));
+        if (verticalInput != 0) {
+            if (Integer.signum(holdTickY) != verticalInput) {
+                holdTickY = 0;
+            }
+
+            holdTickY += verticalInput;
+            int verticalHoldTicks = Math.min(Math.abs(holdTickY), 5);
+
+            if (up) {
+                this.entityData.set(POWER, Math.min(this.entityData.get(POWER) + 0.01f * verticalHoldTicks, 0.2f));
+                setDeltaMovement(new Vec3(getDeltaMovement().x, 0.05 * verticalHoldTicks, getDeltaMovement().z));
+            } else {
+                this.entityData.set(POWER, Math.max(this.entityData.get(POWER) - 0.02f * verticalHoldTicks, this.onGround() ? 0 : 0.06f));
+                setDeltaMovement(new Vec3(getDeltaMovement().x, -0.05 * verticalHoldTicks, getDeltaMovement().z));
+            }
         } else {
             holdTickY = 0;
         }
