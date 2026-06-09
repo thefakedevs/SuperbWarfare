@@ -47,9 +47,10 @@ public class ModBlockTagProvider extends BlockTagsProvider {
                 .add(Blocks.LILY_PAD, Blocks.COBWEB, Blocks.CACTUS, Blocks.MANGROVE_ROOTS);
         this.tag(ModTags.Blocks.NORMAL_COLLISION)
                 .addTags(BlockTags.FENCES, BlockTags.FENCE_GATES, BlockTags.DOORS, BlockTags.TRAPDOORS, BlockTags.WALLS, BlockTags.WOOL,
-                        BlockTags.STAIRS, BlockTags.SLABS, Tags.Blocks.GLASS_PANES)
+                        BlockTags.STAIRS, BlockTags.SLABS, BlockTags.BEDS, Tags.Blocks.GLASS_PANES)
                 .add(Blocks.BAMBOO, Blocks.MELON, Blocks.PUMPKIN, Blocks.HAY_BLOCK, Blocks.BELL, Blocks.CHAIN, Blocks.SNOW_BLOCK,
-                        Blocks.MUSHROOM_STEM, Blocks.BROWN_MUSHROOM_BLOCK, Blocks.RED_MUSHROOM_BLOCK);
+                        Blocks.MUSHROOM_STEM, Blocks.BROWN_MUSHROOM_BLOCK, Blocks.RED_MUSHROOM_BLOCK, Blocks.CHEST, Blocks.TRAPPED_CHEST,
+                        Blocks.BOOKSHELF, Blocks.CHISELED_BOOKSHELF, Blocks.BARREL);
         this.tag(ModTags.Blocks.HARD_COLLISION)
                 .addTags(BlockTags.LOGS, BlockTags.PLANKS, Tags.Blocks.GLASS)
                 .add(Blocks.ICE, Blocks.FROSTED_ICE, Blocks.PACKED_ICE, Blocks.BLUE_ICE);

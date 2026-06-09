@@ -8,6 +8,7 @@
     "#minecraft:wool",
     "#minecraft:stairs",
     "#minecraft:slabs",
+    "#minecraft:beds",
     "#forge:glass_panes",
     "#forge:glass",
     "minecraft:bamboo",
@@ -19,6 +20,11 @@
     "minecraft:snow_block",
     "minecraft:mushroom_stem",
     "minecraft:brown_mushroom_block",
-    "minecraft:red_mushroom_block"
+    "minecraft:red_mushroom_block",
+    "minecraft:chest",
+    "minecraft:trapped_chest",
+    "minecraft:bookshelf",
+    "minecraft:chiseled_bookshelf",
+    "minecraft:barrel"
   ]
 }
