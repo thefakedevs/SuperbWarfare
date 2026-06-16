@@ -11,6 +11,7 @@ import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModParticleTypes;
 import com.atsuishio.superbwarfare.init.ModSounds;
 import com.atsuishio.superbwarfare.init.ModTags;
+import com.atsuishio.superbwarfare.item.curio.ParachuteItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.tools.InventoryTool;
 import com.atsuishio.superbwarfare.tools.TraceTool;
@@ -29,6 +30,7 @@ import net.minecraftforge.event.AnvilUpdateEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 import java.util.UUID;
@@ -85,6 +87,10 @@ public class PlayerEventHandler {
     private static void handleSpecialWeaponAmmo(Player player) {
         ItemStack stack = player.getMainHandItem();
         var data = GunData.from(stack);
+
+        if (stack.is(ModItems.RPG.get())) {
+            data.switchToAvailableAmmoConsumer(player);
+        }
 
         if ((stack.is(ModItems.RPG.get()) || stack.is(ModItems.BOCEK.get())) && data.hasEnoughAmmoToShoot(player)) {
             data.isEmpty.set(false);
@@ -179,6 +185,11 @@ public class PlayerEventHandler {
 
     @SubscribeEvent
     public static void onAttackEntity(AttackEntityEvent event) {
+        if (ParachuteItem.isParachuteOpen(event.getEntity())) {
+            event.setCanceled(true);
+            return;
+        }
+
         var target = event.getTarget();
         if (target instanceof VehicleEntity vehicle) {
             Vec3 position = TraceTool.playerFindLookingPos(event.getEntity(), vehicle, event.getEntity().getEntityReach());
@@ -193,6 +204,27 @@ public class PlayerEventHandler {
                             2, 0, 0, 0, 0.2, false);
                 }
             }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        if (ParachuteItem.isParachuteOpen(event.getEntity())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (ParachuteItem.isParachuteOpen(event.getEntity())) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
+        if (ParachuteItem.isParachuteOpen(event.getEntity())) {
+            event.setCanceled(true);
         }
     }
 }

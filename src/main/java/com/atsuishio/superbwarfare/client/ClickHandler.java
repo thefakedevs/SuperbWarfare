@@ -14,6 +14,7 @@ import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.event.ClientMouseHandler;
 import com.atsuishio.superbwarfare.init.*;
 import com.atsuishio.superbwarfare.item.ItemScreenProvider;
+import com.atsuishio.superbwarfare.item.curio.ParachuteItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.send.*;
@@ -87,12 +88,12 @@ public class ClickHandler {
     }
 
     private static boolean cancelFireKey(Player player, ItemStack stack) {
-        return stack.getItem() instanceof GunItem || stack.is(ModItems.MONITOR.get()) || stack.is(ModItems.LUNGE_MINE.get()) || stack.is(ModItems.ARTILLERY_INDICATOR.get()) || player.hasEffect(ModMobEffects.SHOCK.get())
+        return ParachuteItem.isParachuteOpen(player) || stack.getItem() instanceof GunItem || stack.is(ModItems.MONITOR.get()) || stack.is(ModItems.LUNGE_MINE.get()) || stack.is(ModItems.ARTILLERY_INDICATOR.get()) || player.hasEffect(ModMobEffects.SHOCK.get())
                 || (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player));
     }
 
     private static boolean cancelZoomKey(Player player, ItemStack stack) {
-        return stack.getItem() instanceof GunItem
+        return ParachuteItem.isParachuteOpen(player) || stack.getItem() instanceof GunItem
                 || (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player) && !stack.getItem().isEdible());
     }
 
@@ -111,6 +112,11 @@ public class ClickHandler {
         ItemStack stack = player.getMainHandItem();
 
         int button = event.getButton();
+
+        if (ParachuteItem.isParachuteOpen(player)) {
+            event.setCanceled(true);
+            return;
+        }
 
         var fireKey = ModKeyMappings.FIRE.getKey();
         if (fireKey.getType() == InputConstants.Type.MOUSE
@@ -185,6 +191,10 @@ public class ClickHandler {
         if (player != null && player.getItemInHand(event.getHand()).getItem() instanceof GunItem) {
             event.setSwingHand(false);
         }
+        if (player != null && ParachuteItem.isParachuteOpen(player)) {
+            event.setCanceled(true);
+            event.setSwingHand(false);
+        }
     }
 
     @SubscribeEvent
@@ -197,6 +207,11 @@ public class ClickHandler {
         ItemStack stack = player.getMainHandItem();
 
         if (player.hasEffect(ModMobEffects.SHOCK.get())) {
+            return;
+        }
+
+        if (ParachuteItem.isParachuteOpen(player)) {
+            event.setCanceled(true);
             return;
         }
 
@@ -276,6 +291,10 @@ public class ClickHandler {
             if (key == Minecraft.getInstance().options.keyJump.getKey().getValue()) {
                 handleDoubleJump(player);
                 handleParachute();
+            }
+
+            if (ParachuteItem.isParachuteOpen(player)) {
+                return;
             }
 
             if (key == ModKeyMappings.CONFIG.getKey().getValue() && ModKeyMappings.CONFIG.getKeyModifier().isActive(KeyConflictContext.IN_GAME)) {
@@ -434,6 +453,7 @@ public class ClickHandler {
     public static void handleWeaponFirePress(Player player, ItemStack stack) {
         isEditing = false;
 
+        if (ParachuteItem.isParachuteOpen(player)) return;
         if (player.hasEffect(ModMobEffects.SHOCK.get())) return;
 
         if (player.getVehicle() instanceof VehicleEntity vehicle && vehicle.banHand(player)) {
@@ -535,6 +555,16 @@ public class ClickHandler {
     }
 
     public static void handleWeaponFireRelease() {
+        Player player = Minecraft.getInstance().player;
+        if (player != null && ParachuteItem.isParachuteOpen(player)) {
+            bowPull = false;
+            holdingFireKey = false;
+            holdFireVehicle = false;
+            isEditing = false;
+            customRpm = 0;
+            return;
+        }
+
         NetworkRegistry.PACKET_HANDLER.sendToServer(new FireKeyMessage(1, bowPower, zoom));
         bowPull = false;
         holdingFireKey = false;
@@ -542,7 +572,6 @@ public class ClickHandler {
         isEditing = false;
         customRpm = 0;
 
-        Player player = Minecraft.getInstance().player;
         if (player == null) return;
         if (player.isSpectator()) return;
 
@@ -562,6 +591,8 @@ public class ClickHandler {
     }
 
     public static void handleWeaponZoomPress(Player player, ItemStack stack) {
+        if (ParachuteItem.isParachuteOpen(player)) return;
+
         NetworkRegistry.PACKET_HANDLER.sendToServer(new ZoomMessage(0));
 
         isEditing = false;
@@ -580,11 +611,12 @@ public class ClickHandler {
 
         int level = data.perk.getLevel(ModPerks.INTELLIGENT_CHIP);
         if (level > 0) {
+            double seekRange = (32 + 8 * (level - 1)) * (stack.is(ModItems.JAVELIN.get()) || stack.is(ModItems.IGLA_9K38.get()) ? 2 : 1);
             if (ClientEventHandler.lockedEntity == null) {
                 if (data.perk.has(ModPerks.PHASE_PENETRATING_BULLET.get()) || data.perk.has(ModPerks.BEAST_BULLET.get())) {
-                    ClientEventHandler.lockedEntity = SeekTool.seekEntityThroughWall(player, 32 + 8 * (level - 1), 20);
+                    ClientEventHandler.lockedEntity = SeekTool.seekEntityThroughWall(player, seekRange, 20);
                 } else {
-                    ClientEventHandler.lockedEntity = SeekTool.seekLivingEntity(player, 32 + 8 * (level - 1), 20);
+                    ClientEventHandler.lockedEntity = SeekTool.seekLivingEntity(player, seekRange, 20);
                 }
             }
         }

@@ -3,6 +3,7 @@ package com.atsuishio.superbwarfare.network.message.send;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.item.curio.ParachuteItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.tools.FormatTool;
 import com.atsuishio.superbwarfare.tools.SoundTool;
@@ -35,6 +36,7 @@ public class AdjustZoomFovMessage {
         context.get().enqueueWork(() -> {
             ServerPlayer player = context.get().getSender();
             if (player == null) return;
+            if (ParachuteItem.isParachuteOpen(player)) return;
 
             ItemStack stack = player.getMainHandItem();
             if (!(stack.getItem() instanceof GunItem)) return;

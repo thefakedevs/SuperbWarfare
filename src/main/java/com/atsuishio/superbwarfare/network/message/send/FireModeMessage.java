@@ -3,6 +3,7 @@ package com.atsuishio.superbwarfare.network.message.send;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.item.curio.ParachuteItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.tools.SoundTool;
 import net.minecraft.network.FriendlyByteBuf;
@@ -26,6 +27,7 @@ public record FireModeMessage(boolean forward) {
         context.enqueueWork(() -> {
             var player = context.getSender();
             if (player == null) return;
+            if (ParachuteItem.isParachuteOpen(player)) return;
 
             var stack = player.getMainHandItem();
 

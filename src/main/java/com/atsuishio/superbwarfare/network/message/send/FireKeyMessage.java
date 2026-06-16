@@ -2,6 +2,7 @@ package com.atsuishio.superbwarfare.network.message.send;
 
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.event.GunEventHandler;
+import com.atsuishio.superbwarfare.item.curio.ParachuteItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;
@@ -46,6 +47,7 @@ public class FireKeyMessage {
 
     public static void pressAction(Player player, int type, double power, boolean zoom) {
         if (player.isSpectator()) return;
+        if (ParachuteItem.isParachuteOpen(player)) return;
         ItemStack stack = player.getMainHandItem();
         if (!(stack.getItem() instanceof GunItem)) return;
         var data = GunData.from(stack);

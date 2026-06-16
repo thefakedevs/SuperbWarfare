@@ -2,6 +2,7 @@ package com.atsuishio.superbwarfare.network.message.send;
 
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.ModSounds;
+import com.atsuishio.superbwarfare.item.curio.ParachuteItem;
 import com.atsuishio.superbwarfare.tools.SoundTool;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -30,6 +31,7 @@ public class ZoomMessage {
         context.enqueueWork(() -> {
             ServerPlayer player = context.getSender();
             if (player == null) return;
+            if (ParachuteItem.isParachuteOpen(player)) return;
 
             if (!(player.getVehicle() instanceof VehicleEntity vehicle)) return;
 

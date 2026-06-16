@@ -330,7 +330,7 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
 
         if (!(ammoSupplier instanceof Player player && player.isCreative())) {
             var currentConsumer = selectedAmmoConsumer();
-            var targetConsumer = consumers.get(selectedAmmoType.get());
+            var targetConsumer = consumers.get(targetIndex);
 
             var currentSlot = currentConsumer.ammoSlot;
             var targetSlot = targetConsumer.ammoSlot;
@@ -362,6 +362,27 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
         this.fireIndex.reset();
 
         resetStatus();
+    }
+
+    public boolean switchToAvailableAmmoConsumer(@Nullable Entity ammoSupplier) {
+        var consumers = this.compute().getAmmoConsumers();
+        if (consumers.size() <= 1 || hasEnoughAmmoToShoot(ammoSupplier)) return false;
+
+        int selectedIndex = Mth.clamp(this.selectedAmmoType.get(), 0, consumers.size() - 1);
+        int ammoCost = compute().ammoCostPerShoot;
+
+        for (int i = 1; i < consumers.size(); i++) {
+            int targetIndex = (selectedIndex + i) % consumers.size();
+            var consumer = consumers.get(targetIndex);
+            int availableAmmo = Math.toIntExact(Math.min((long) consumer.count(this, ammoSupplier) * consumer.loadAmount, Integer.MAX_VALUE));
+
+            if (availableAmmo >= ammoCost) {
+                changeAmmoConsumer(targetIndex, ammoSupplier);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void resetStatus() {
