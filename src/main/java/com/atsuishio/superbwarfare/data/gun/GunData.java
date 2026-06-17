@@ -370,6 +370,10 @@ public class GunData implements DefaultDataSupplier<DefaultGunData> {
 
         int selectedIndex = Mth.clamp(this.selectedAmmoType.get(), 0, consumers.size() - 1);
         int ammoCost = compute().ammoCostPerShoot;
+        var selectedConsumer = consumers.get(selectedIndex);
+        int selectedAvailableAmmo = Math.toIntExact(Math.min((long) selectedConsumer.count(this, ammoSupplier) * selectedConsumer.loadAmount, Integer.MAX_VALUE));
+
+        if (selectedAvailableAmmo >= ammoCost) return false;
 
         for (int i = 1; i < consumers.size(); i++) {
             int targetIndex = (selectedIndex + i) % consumers.size();
