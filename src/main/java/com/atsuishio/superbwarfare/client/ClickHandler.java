@@ -210,11 +210,6 @@ public class ClickHandler {
             return;
         }
 
-        if (ParachuteItem.isParachuteOpen(player)) {
-            event.setCanceled(true);
-            return;
-        }
-
         double scroll = event.getScrollDelta();
 
         // 按下自由视角键时，为载具调整相机距离
