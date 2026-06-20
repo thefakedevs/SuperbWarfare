@@ -1,6 +1,7 @@
 package com.atsuishio.superbwarfare.network.message.send;
 
 import com.atsuishio.superbwarfare.data.gun.GunData;
+import com.atsuishio.superbwarfare.item.curio.ParachuteItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.phys.Vec3;
@@ -62,6 +63,8 @@ public class ShootMessage {
         context.enqueueWork(() -> {
             var player = context.getSender();
             if (player != null) {
+                if (ParachuteItem.isParachuteOpen(player)) return;
+
                 var stack = player.getMainHandItem();
                 if (!(stack.getItem() instanceof GunItem)) return;
 

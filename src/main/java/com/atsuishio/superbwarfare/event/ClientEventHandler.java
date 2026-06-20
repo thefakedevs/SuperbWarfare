@@ -12,6 +12,7 @@ import com.atsuishio.superbwarfare.data.gun.value.AttachmentType;
 import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
 import com.atsuishio.superbwarfare.init.*;
+import com.atsuishio.superbwarfare.item.curio.ParachuteItem;
 import com.atsuishio.superbwarfare.item.gun.GunItem;
 import com.atsuishio.superbwarfare.network.NetworkRegistry;
 import com.atsuishio.superbwarfare.network.message.send.*;
@@ -281,6 +282,20 @@ public class ClientEventHandler {
         }
 
         ItemStack stack = player.getMainHandItem();
+        if (ParachuteItem.isParachuteOpen(player)) {
+            holdingFireKey = false;
+            holdFireVehicle = false;
+            burstFireAmount = 0;
+            holdingFireKeyTicks = 0;
+            holdingFireKeyTicks0 = 0;
+            clientTimer.stop();
+            clientTimerVehicle.stop();
+            lockOn = false;
+            lockingEntity = null;
+            seekingEntity = null;
+            lockingPos = null;
+            stopWeaponSeekSound(player);
+        }
 
         // 射击延迟
         if (stack.getItem() instanceof GunItem gunItem) {
