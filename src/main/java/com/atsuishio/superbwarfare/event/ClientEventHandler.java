@@ -1073,7 +1073,7 @@ public class ClientEventHandler {
 
         gunPartMove(times);
 
-        if (mode == FireMode.SEMI && clientTimer.getProgress() >= cooldown) {
+        if (mode == FireMode.SEMI && clientTimer.getProgress() >= computed.semiFireDelay) {
             clientTimer.stop();
         }
 

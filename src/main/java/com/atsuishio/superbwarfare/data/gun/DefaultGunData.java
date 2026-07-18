@@ -81,6 +81,9 @@ public class DefaultGunData implements IDBasedData<DefaultGunData> {
     @SerializedName("Range")
     public int range = 128;
 
+    @SerializedName("SemiFireDelay")
+    public int semiFireDelay = 0;
+
     @SerializedName("MeleeDamage")
     public double meleeDamage;
     @SerializedName("MeleeDuration")
