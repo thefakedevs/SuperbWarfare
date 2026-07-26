@@ -106,8 +106,11 @@ public class VehicleTeamOverlay implements IGuiOverlay {
                         color = controller.getTeamColor();
 
                         Team team = player.getTeam();
-                        if (team instanceof PlayerTeam playerTeam) {
-                            String info = vehicle.getDisplayName().getString() + " " + controller.getDisplayName().getString() + (controller.getTeam() == null ? "" : " <" + playerTeam.getDisplayName().getString() + ">");
+                        boolean isSpectator = player.isSpectator();
+                        boolean hasNoTeam = team == null;
+                        if ((team instanceof PlayerTeam playerTeam) || isSpectator || hasNoTeam) {
+                            String teamInfo = (team instanceof PlayerTeam playerTeam && controller.getTeam() != null) ? " <" + playerTeam.getDisplayName().getString() + ">" : "";
+                            String info = vehicle.getDisplayName().getString() + " " + controller.getDisplayName().getString() + teamInfo;
                             guiGraphics.drawString(font, Component.literal(info), -font.width(info) / 2, -13, color, false);
                         }
                     } else {
@@ -118,8 +121,11 @@ public class VehicleTeamOverlay implements IGuiOverlay {
                     if (ownableEntity.getOwner() instanceof Player player1) {
                         color = player1.getTeamColor();
                         Team team = player.getTeam();
-                        if (team instanceof PlayerTeam playerTeam) {
-                            String info = vehicle.getDisplayName().getString() + " " + player1.getDisplayName().getString() + (player1.getTeam() == null ? "" : " <" + playerTeam.getDisplayName().getString() + ">");
+                        boolean isSpectator = player.isSpectator();
+                        boolean hasNoTeam = team == null;
+                        if ((team instanceof PlayerTeam playerTeam) || isSpectator || hasNoTeam) {
+                            String teamInfo = (team instanceof PlayerTeam playerTeam && player1.getTeam() != null) ? " <" + playerTeam.getDisplayName().getString() + ">" : "";
+                            String info = vehicle.getDisplayName().getString() + " " + player1.getDisplayName().getString() + teamInfo;
                             guiGraphics.drawString(font, Component.literal(info), -font.width(info) / 2, -13, color, false);
                         }
 
@@ -131,8 +137,11 @@ public class VehicleTeamOverlay implements IGuiOverlay {
                     if (vehicle.getMaxPassengers() > 0 && vehicle.getFirstPassenger() instanceof Player player1) {
                         color = player1.getTeamColor();
                         Team team = player.getTeam();
-                        if (team instanceof PlayerTeam playerTeam) {
-                            String info = vehicle.getDisplayName().getString() + " " + player1.getDisplayName().getString() + (player1.getTeam() == null ? "" : " <" + playerTeam.getDisplayName().getString() + ">");
+                        boolean isSpectator = player.isSpectator();
+                        boolean hasNoTeam = team == null;
+                        if ((team instanceof PlayerTeam playerTeam) || isSpectator || hasNoTeam) {
+                            String teamInfo = (team instanceof PlayerTeam playerTeam && player1.getTeam() != null) ? " <" + playerTeam.getDisplayName().getString() + ">" : "";
+                            String info = vehicle.getDisplayName().getString() + " " + player1.getDisplayName().getString() + teamInfo;
                             guiGraphics.drawString(font, Component.literal(info), -font.width(info) / 2, -13, color, false);
                         }
 
