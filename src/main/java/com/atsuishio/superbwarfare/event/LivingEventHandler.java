@@ -86,7 +86,8 @@ public class LivingEventHandler {
 
     @SubscribeEvent
     public static void onEntityAttacked(LivingAttackEvent event) {
-        if (!event.getSource().is(ModDamageTypes.VEHICLE_EXPLOSION)
+        if (!event.getSource().is(DamageTypes.DROWN)
+                && !event.getSource().is(ModDamageTypes.VEHICLE_EXPLOSION)
                 && event.getEntity().getVehicle() instanceof VehicleEntity vehicle
                 && vehicle.isEnclosed(event.getEntity())
         ) {
@@ -131,7 +132,7 @@ public class LivingEventHandler {
         var entity = event.getEntity().getVehicle();
         if (entity instanceof VehicleEntity vehicle) {
             var source = event.getSource();
-            if (source.is(ModTags.DamageTypes.VEHICLE_IGNORE)) return;
+            if (source.is(DamageTypes.DROWN) || source.is(ModTags.DamageTypes.VEHICLE_IGNORE)) return;
 
             if (vehicle.isEnclosed(event.getEntity())) {
                 if (!source.is(ModDamageTypes.VEHICLE_EXPLOSION)) {
