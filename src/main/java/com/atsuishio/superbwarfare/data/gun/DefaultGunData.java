@@ -81,6 +81,10 @@ public class DefaultGunData implements IDBasedData<DefaultGunData> {
     @SerializedName("Range")
     public int range = 128;
 
+    /**
+     * Minimum delay between semi-automatic shots, in ticks.
+     * A non-positive value falls back to the delay calculated from RPM.
+     */
     @SerializedName("SemiFireDelay")
     public int semiFireDelay = 0;
 

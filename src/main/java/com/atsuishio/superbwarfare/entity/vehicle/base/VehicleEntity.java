@@ -8,6 +8,7 @@ import com.atsuishio.superbwarfare.config.server.VehicleConfig;
 import com.atsuishio.superbwarfare.data.DataLoader;
 import com.atsuishio.superbwarfare.data.StringOrVec3;
 import com.atsuishio.superbwarfare.data.gun.AmmoConsumer;
+import com.atsuishio.superbwarfare.data.gun.FireMode;
 import com.atsuishio.superbwarfare.data.gun.GunData;
 import com.atsuishio.superbwarfare.data.gun.ShootParameters;
 import com.atsuishio.superbwarfare.data.vehicle.DefaultVehicleData;
@@ -186,6 +187,7 @@ public abstract class VehicleEntity extends Entity implements VehiclePropertyMod
 
     // Map SeatIndex -> GunData
     protected static final EntityDataAccessor<Map<String, GunData>> GUN_DATA_MAP = SynchedEntityData.defineId(VehicleEntity.class, ModSerializers.VEHICLE_GUN_DATA_MAP_SERIALIZER.get());
+    private final Map<String, Long> lastSemiFireTicks = new HashMap<>();
 
     public Map<String, GunData> getGunDataMap() {
         var rawMap = entityData.get(GUN_DATA_MAP);
@@ -1257,10 +1259,14 @@ public abstract class VehicleEntity extends Entity implements VehiclePropertyMod
     }
 
     public void vehicleShoot(LivingEntity living, String weaponName) {
+        var currentGunData = getGunData(weaponName);
+        if (!canShootAfterSemiFireDelay(weaponName, currentGunData)) return;
+
         modifyGunData(weaponName, data -> {
             if (!data.canShoot(getAmmoSupplier())) return;
             data.shoot(new ShootParameters(getAmmoSupplier(), living, (ServerLevel) this.level(), getShootPos(weaponName, 1), getShootVec(weaponName, 1), data, data.compute().spread, true, null, null));
         });
+        markSemiFireShot(weaponName, currentGunData);
 
         var gunData = getGunData(weaponName);
         afterShoot(gunData, getShootVec(weaponName, 1));
@@ -1269,15 +1275,39 @@ public abstract class VehicleEntity extends Entity implements VehiclePropertyMod
 
     public void vehicleShoot(LivingEntity living, @Nullable UUID uuid, @Nullable Vec3 targetPos) {
         int seatIndex = getSeatIndex(living);
+        var weaponName = getGunName(seatIndex);
+        var currentGunData = getGunData(seatIndex);
+        if (!canShootAfterSemiFireDelay(weaponName, currentGunData)) return;
+
         modifyGunData(seatIndex, data -> {
             if (!data.canShoot(getAmmoSupplier())) return;
             data.shoot(new ShootParameters(getAmmoSupplier(), living, (ServerLevel) this.level(), getShootPos(living, 1), getShootVec(living, 1),
                     data, data.compute().spread, true, uuid, targetPos));
         });
+        markSemiFireShot(weaponName, currentGunData);
 
         var gunData = getGunData(seatIndex);
         afterShoot(gunData, getShootVec(living, 1));
         playShootSound3p(living, seatIndex);
+    }
+
+    private boolean canShootAfterSemiFireDelay(@Nullable String weaponName, @Nullable GunData gunData) {
+        if (weaponName == null || gunData == null || !gunData.canShoot(getAmmoSupplier())) return false;
+
+        var computed = gunData.compute();
+        if (gunData.selectedFireModeInfo().mode != FireMode.SEMI || computed.semiFireDelay <= 0) return true;
+
+        var lastShotTick = lastSemiFireTicks.get(weaponName);
+        return lastShotTick == null || level().getGameTime() - lastShotTick >= computed.semiFireDelay;
+    }
+
+    private void markSemiFireShot(@Nullable String weaponName, @Nullable GunData gunData) {
+        if (weaponName == null || gunData == null) return;
+
+        var computed = gunData.compute();
+        if (gunData.selectedFireModeInfo().mode == FireMode.SEMI && computed.semiFireDelay > 0) {
+            lastSemiFireTicks.put(weaponName, level().getGameTime());
+        }
     }
 
     public void afterShoot(GunData gunData, Vec3 shootVec) {

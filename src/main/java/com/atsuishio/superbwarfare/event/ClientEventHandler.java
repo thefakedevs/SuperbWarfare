@@ -1073,7 +1073,8 @@ public class ClientEventHandler {
 
         gunPartMove(times);
 
-        if (mode == FireMode.SEMI && clientTimer.getProgress() >= computed.semiFireDelay) {
+        long semiFireDelay = computed.semiFireDelay > 0 ? computed.semiFireDelay * 50L : cooldown;
+        if (mode == FireMode.SEMI && clientTimer.getProgress() >= semiFireDelay) {
             clientTimer.stop();
         }
 
@@ -1313,15 +1314,19 @@ public class ClientEventHandler {
 
             double rps = (double) rpm / 60;
             int cooldown = (int) Math.round(1000 / rps);
+            var fireMode = gunData.selectedFireModeInfo().mode;
+            long fireDelay = fireMode == FireMode.SEMI && gunData.compute().semiFireDelay > 0
+                    ? gunData.compute().semiFireDelay * 50L
+                    : cooldown;
 
             if (holdFireVehicle) {
                 if (!clientTimerVehicle.started()) {
                     clientTimerVehicle.start();
                     // 首发瞬间发射
-                    clientTimerVehicle.setProgress((cooldown + 1));
+                    clientTimerVehicle.setProgress(fireDelay + 1);
                 }
 
-                if (clientTimerVehicle.getProgress() >= cooldown) {
+                if (clientTimerVehicle.getProgress() >= fireDelay) {
                     var newProgress = clientTimerVehicle.getProgress();
 
                     // 低帧率下的开火次数补偿
@@ -1331,15 +1336,15 @@ public class ClientEventHandler {
                             playVehicleClientSounds(player, vehicle);
                         }
 
-                        newProgress -= cooldown;
-                    } while (newProgress - cooldown > 0);
+                        newProgress -= fireDelay;
+                    } while (fireMode != FireMode.SEMI && newProgress - fireDelay > 0);
 
                     clientTimerVehicle.setProgress(newProgress);
                 }
-                if (gunData.compute().defaultFireMode.equals("Semi")) {
+                if (fireMode == FireMode.SEMI) {
                     holdFireVehicle = false;
                 }
-            } else if (clientTimerVehicle.getProgress() >= cooldown) {
+            } else if (clientTimerVehicle.getProgress() >= fireDelay) {
                 clientTimerVehicle.stop();
             }
         } else {

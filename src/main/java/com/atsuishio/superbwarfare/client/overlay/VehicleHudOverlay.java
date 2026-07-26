@@ -6,9 +6,11 @@ import com.atsuishio.superbwarfare.client.animation.AnimationCurves;
 import com.atsuishio.superbwarfare.client.animation.AnimationTimer;
 import com.atsuishio.superbwarfare.config.client.DisplayConfig;
 import com.atsuishio.superbwarfare.data.gun.AmmoConsumer;
+import com.atsuishio.superbwarfare.data.gun.FireMode;
 import com.atsuishio.superbwarfare.data.vehicle.subdata.EngineInfo;
 import com.atsuishio.superbwarfare.data.vehicle.subdata.EngineType;
 import com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity;
+import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import com.atsuishio.superbwarfare.init.ModItems;
 import com.atsuishio.superbwarfare.init.ModKeyMappings;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -403,25 +405,38 @@ public class VehicleHudOverlay implements IGuiOverlay {
             }
 
             var computed = data.compute();
+            Float ringProgress = null;
             if (data.reloading()) {
                 int totalReloadTime, currentReloadTime;
                 totalReloadTime = data.reload.empty() ? computed.emptyReloadTime : computed.normalReloadTime;
                 currentReloadTime = data.reload.reloadTimer.get();
 
                 float reloadProgress = (float) (totalReloadTime - currentReloadTime) / totalReloadTime;
-                float alpha = Mth.lerp(progress, 0.4f, 1);
-
                 if (currentReloadTime > 0 && currentReloadTime < totalReloadTime) {
-                    RenderHelper.renderCircularRing(
-                            guiGraphics,
-                            w - 102 + xOffset, h - frameIndex * 18 - 12,
-                            0.014f, 0.010f,
-                            new float[]{0f, 0f, 0f, 0.4f * alpha},
-                            new float[]{1f, 1f, 1f, alpha},
-                            reloadProgress,
-                            true
-                    );
+                    ringProgress = reloadProgress;
                 }
+            } else if (selected
+                    && data.selectedFireModeInfo().mode == FireMode.SEMI
+                    && computed.semiFireDelay > 0
+                    && ClientEventHandler.clientTimerVehicle.started()) {
+                long semiFireDelayMillis = computed.semiFireDelay * 50L;
+                long elapsedMillis = ClientEventHandler.clientTimerVehicle.getProgress();
+                if (elapsedMillis < semiFireDelayMillis) {
+                    ringProgress = (float) elapsedMillis / semiFireDelayMillis;
+                }
+            }
+
+            if (ringProgress != null) {
+                float alpha = Mth.lerp(progress, 0.4f, 1);
+                RenderHelper.renderCircularRing(
+                        guiGraphics,
+                        w - 102 + xOffset, h - frameIndex * 18 - 12,
+                        0.014f, 0.010f,
+                        new float[]{0f, 0f, 0f, 0.4f * alpha},
+                        new float[]{1f, 1f, 1f, alpha},
+                        ringProgress,
+                        true
+                );
             }
 
             RenderSystem.disableDepthTest();
